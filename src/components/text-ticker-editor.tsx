@@ -47,33 +47,37 @@ export function TextTickerEditor() {
     setIsLoadingTexts(true);
     setErrorLoadingTexts(null);
     try {
+      // Se elimina .order('createdAt', ...) para evitar error si la columna no existe.
+      // Si deseas ordenar por fecha de creación, asegúrate de que la columna 'createdAt'
+      // exista en tu tabla 'textos_ticker' en Supabase.
       const { data, error } = await supabase
         .from('textos_ticker')
-        .select('*')
-        .order('createdAt', { ascending: false });
+        .select('*');
 
       if (error) throw error;
       setTexts(data || []);
     } catch (error: any) {
       let consoleErrorMessage = "Error cargando textos del ticker.";
-      if (error && typeof error === 'object') {
-        if (typeof error.message === 'string' && error.message) {
-          consoleErrorMessage += ` Mensaje: ${error.message}`;
-        }
-        if (typeof error.code === 'string' && error.code) {
-          consoleErrorMessage += ` Código: ${error.code}`;
-        }
-      }
-      console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
-      console.error("Objeto de error original:", error); 
-
       let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
       
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
+      if (error?.message) {
+        consoleErrorMessage += ` Mensaje: ${error.message}`;
+      }
+      if (error?.code) {
+        consoleErrorMessage += ` Código: ${error.code}`;
+      }
+      
+      console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
+      console.error("Objeto de error original:", error); 
+
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+      } else if (errorCode === '42703' || (errorMessageLowerCase.includes('column') && errorMessageLowerCase.includes('does not exist'))) {
+        // Este mensaje es específico para el error de columna faltante.
+        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento o una columna referenciada) NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes.`;
       } else if (error?.message) {
         description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas correctamente. Revisa los logs del panel de Supabase.`;
       }
@@ -102,15 +106,25 @@ export function TextTickerEditor() {
     setIsSubmitting(true);
     const now = new Date().toISOString();
 
-    const textToInsert = {
+    // Si tu tabla 'textos_ticker' no tiene la columna 'createdAt',
+    // puedes omitirla del objeto a insertar.
+    // Sin embargo, la interfaz TextoTicker y la función formatDate
+    // esperan 'createdAt', por lo que se mostrará "Fecha desconocida".
+    const textToInsert: Partial<TextoTicker> = { // Usamos Partial para ser flexibles
       text: data.text,
-      createdAt: now,
+      // createdAt: now, // Descomenta si tienes la columna createdAt
     };
+    
+    // Si tu tabla `textos_ticker` SÍ tiene una columna `createdAt` gestionada por la DB (DEFAULT now())
+    // no necesitas enviarla desde el cliente, pero el `select()` la traerá.
+    // Si quieres establecerla desde el cliente, asegúrate que la columna exista.
+    // Para este ejemplo, la quitaré del objeto de inserción para mayor robustez si la columna no existe.
+    // Si existe en tu DB, la DB se encargará de llenarla (si tiene DEFAULT now()).
 
     try {
       const { data: insertedData, error: insertError } = await supabase
         .from('textos_ticker')
-        .insert([textToInsert])
+        .insert([{ text: data.text }]) // Insertamos solo el texto
         .select()
         .single();
 
@@ -270,6 +284,7 @@ export function TextTickerEditor() {
                     </p>
                   </CardContent>
                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
+                      {/* Si la columna createdAt no existe, formatDate devolverá "Fecha desconocida" */}
                       <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
                         <Trash2 className="mr-1 h-3 w-3" /> Eliminar
