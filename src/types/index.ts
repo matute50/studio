@@ -13,4 +13,7 @@ export interface TextoTicker {
   id?: string;
   text: string;
   createdAt?: string;
+  updatedAt?: string;
+  isActive?: boolean;
 }
+

@@ -15,8 +15,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Trash2, ListCollapse, MessageSquareText } from 'lucide-react';
+import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, XCircle } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 const textoTickerSchema = z.object({
   text: z.string()
@@ -32,8 +35,13 @@ export function TextTickerEditor() {
   const [texts, setTexts] = React.useState<TextoTicker[]>([]);
   const [isLoadingTexts, setIsLoadingTexts] = React.useState(true);
   const [errorLoadingTexts, setErrorLoadingTexts] = React.useState<string | null>(null);
+  
+  const [editingTextId, setEditingTextId] = React.useState<string | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [textToDelete, setTextToDelete] = React.useState<TextoTicker | null>(null);
+  const [isTogglingActive, setIsTogglingActive] = React.useState(false);
+  const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+
 
   const form = useForm<TextoTickerFormValues>({
     resolver: zodResolver(textoTickerSchema),
@@ -47,15 +55,28 @@ export function TextTickerEditor() {
     setIsLoadingTexts(true);
     setErrorLoadingTexts(null);
     try {
-      // Se elimina .order('createdAt', ...) para evitar error si la columna no existe.
-      // Si deseas ordenar por fecha de creación, asegúrate de que la columna 'createdAt'
-      // exista en tu tabla 'textos_ticker' en Supabase.
       const { data, error } = await supabase
         .from('textos_ticker')
-        .select('*');
+        .select('*')
+        .order('createdAt', { ascending: false });
 
-      if (error) throw error;
-      setTexts(data || []);
+
+      if (error) {
+        // Specific check for missing 'createdAt' column error
+        if (error.code === '42703' && error.message.includes('column "createdat" does not exist')) {
+             console.warn("Advertencia: La columna 'createdAt' no existe en 'textos_ticker'. Los textos no se ordenarán por fecha de creación.");
+             const { data: dataUnordered, error: errorUnordered } = await supabase
+                .from('textos_ticker')
+                .select('*');
+            if (errorUnordered) throw errorUnordered;
+            setTexts(dataUnordered || []);
+        } else {
+            throw error;
+        }
+      } else {
+        setTexts(data || []);
+      }
+
     } catch (error: any) {
       let consoleErrorMessage = "Error cargando textos del ticker.";
       let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
@@ -76,8 +97,7 @@ export function TextTickerEditor() {
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
       } else if (errorCode === '42703' || (errorMessageLowerCase.includes('column') && errorMessageLowerCase.includes('does not exist'))) {
-        // Este mensaje es específico para el error de columna faltante.
-        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento o una columna referenciada) NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes.`;
+        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento o una columna como 'isActive' o 'updatedAt') NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes.`;
       } else if (error?.message) {
         description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas correctamente. Revisa los logs del panel de Supabase.`;
       }
@@ -100,64 +120,105 @@ export function TextTickerEditor() {
 
   const resetForm = () => {
     form.reset({ text: '' });
+    setEditingTextId(null);
   };
 
   const onSubmit = async (data: TextoTickerFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
 
-    // Si tu tabla 'textos_ticker' no tiene la columna 'createdAt',
-    // puedes omitirla del objeto a insertar.
-    // Sin embargo, la interfaz TextoTicker y la función formatDate
-    // esperan 'createdAt', por lo que se mostrará "Fecha desconocida".
-    const textToInsert: Partial<TextoTicker> = { // Usamos Partial para ser flexibles
-      text: data.text,
-      // createdAt: now, // Descomenta si tienes la columna createdAt
-    };
-    
-    // Si tu tabla `textos_ticker` SÍ tiene una columna `createdAt` gestionada por la DB (DEFAULT now())
-    // no necesitas enviarla desde el cliente, pero el `select()` la traerá.
-    // Si quieres establecerla desde el cliente, asegúrate que la columna exista.
-    // Para este ejemplo, la quitaré del objeto de inserción para mayor robustez si la columna no existe.
-    // Si existe en tu DB, la DB se encargará de llenarla (si tiene DEFAULT now()).
+    if (editingTextId) {
+      // Actualizar texto existente
+      const textToUpdate = {
+        text: data.text,
+        updatedAt: now,
+      };
+      try {
+        const { data: updatedData, error: updateError } = await supabase
+          .from('textos_ticker')
+          .update(textToUpdate)
+          .eq('id', editingTextId)
+          .select()
+          .single();
+        
+        if (updateError) throw updateError;
 
-    try {
-      const { data: insertedData, error: insertError } = await supabase
-        .from('textos_ticker')
-        .insert([{ text: data.text }]) // Insertamos solo el texto
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      toast({
-        title: "¡Texto Guardado!",
-        description: `El texto para el ticker ha sido guardado.`,
-      });
-      fetchTexts();
-      resetForm();
-    } catch (error: any) {
-      console.error("Error al crear texto para ticker:", error);
-      let description = "No se pudo crear el texto para el ticker. Inténtalo de nuevo.";
-      
-      const errorCode = (typeof error?.code === 'string') ? error.code : "";
-      const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
-
-      if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
-      } else if (error?.message) {
-        description = `Error al crear texto: ${error.message}. Revisa los logs del panel de Supabase.`;
+        toast({ title: "¡Texto Actualizado!", description: `El texto del ticker ha sido actualizado.` });
+        fetchTexts();
+        resetForm();
+      } catch (error: any) {
+        console.error("Error al actualizar texto del ticker:", error);
+        let description = "No se pudo actualizar el texto del ticker. Inténtalo de nuevo.";
+        if (error?.message) description = `Error: ${error.message}`;
+        toast({
+          title: "Error al Actualizar Texto",
+          description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
+          variant: "destructive",
+          duration: 9000,
+        });
       }
-      
-      toast({
-        title: "Error al Crear Texto",
-        description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
-        variant: "destructive",
-        duration: 10000,
-      });
-    } finally {
-      setIsSubmitting(false);
+
+    } else {
+      // Crear nuevo texto
+      const textToInsert = {
+        text: data.text,
+        createdAt: now,
+        updatedAt: now,
+        isActive: false, // Nuevos textos no son activos por defecto
+      };
+
+      try {
+        const { data: insertedData, error: insertError } = await supabase
+          .from('textos_ticker')
+          .insert([textToInsert])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        toast({ title: "¡Texto Guardado!", description: `El texto para el ticker ha sido guardado.` });
+        fetchTexts();
+        resetForm();
+      } catch (error: any)
+      {
+        console.error("Error al crear texto para ticker:", error);
+        let description = "No se pudo crear el texto para el ticker. Inténtalo de nuevo.";
+        
+        const errorCode = (typeof error?.code === 'string') ? error.code : "";
+        const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+        if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+          description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+        } else if (error?.message) {
+          description = `Error al crear texto: ${error.message}. Revisa los logs del panel de Supabase.`;
+        }
+        
+        toast({
+          title: "Error al Crear Texto",
+          description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
+          variant: "destructive",
+          duration: 10000,
+        });
+      }
     }
+    setIsSubmitting(false);
+  };
+
+  const handleEdit = (textItem: TextoTicker) => {
+    if (!textItem.id) {
+      toast({ title: "Error", description: "No se puede editar un texto sin ID.", variant: "destructive" });
+      return;
+    }
+    setEditingTextId(textItem.id);
+    form.setValue('text', textItem.text);
+    editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
+    toast({ title: "Modo Edición", description: `Editando texto: "${textItem.text.substring(0,30)}..."` });
+  };
+
+  const cancelEdit = () => {
+    setEditingTextId(null);
+    resetForm();
+    toast({ title: "Edición Cancelada" });
   };
 
   const handleDelete = (textItem: TextoTicker) => {
@@ -183,6 +244,9 @@ export function TextTickerEditor() {
 
       toast({ title: "Texto Eliminado", description: `El texto del ticker ha sido eliminado.` });
       fetchTexts();
+      if (editingTextId === textToDelete.id) {
+        cancelEdit();
+      }
     } catch (error: any) {
       console.error("Error al eliminar texto del ticker:", error);
       let description = "No se pudo eliminar el texto. Inténtalo de nuevo.";
@@ -194,6 +258,40 @@ export function TextTickerEditor() {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
       setTextToDelete(null);
+    }
+  };
+
+  const handleActiveToggle = async (textId: string, newActiveState: boolean) => {
+    setIsTogglingActive(true);
+    const now = new Date().toISOString();
+    try {
+      if (newActiveState) {
+        // Desactivar cualquier otro texto activo
+        const { error: deactivateError } = await supabase
+          .from('textos_ticker')
+          .update({ isActive: false, updatedAt: now })
+          .eq('isActive', true)
+          .neq('id', textId); 
+        if (deactivateError) throw deactivateError;
+      }
+
+      // Activar/desactivar el texto actual
+      const { error: toggleError } = await supabase
+        .from('textos_ticker')
+        .update({ isActive: newActiveState, updatedAt: now })
+        .eq('id', textId);
+      if (toggleError) throw toggleError;
+
+      toast({ title: "Estado de Activo Actualizado", description: "El estado del texto del ticker ha sido actualizado." });
+      fetchTexts();
+    } catch (error: any) {
+      toast({
+        title: "Error al Actualizar Estado",
+        description: error.message || "No se pudo actualizar el estado activo del texto.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTogglingActive(false);
     }
   };
   
@@ -224,9 +322,9 @@ export function TextTickerEditor() {
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
-        <Card className="shadow-xl lg:col-span-1">
+        <Card className="shadow-xl lg:col-span-1" ref={editorFormCardRef}>
           <CardHeader>
-            <CardTitle>Nuevo Texto para Ticker</CardTitle>
+            <CardTitle>{editingTextId ? "Editar Texto del Ticker" : "Nuevo Texto para Ticker"}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -244,10 +342,18 @@ export function TextTickerEditor() {
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-                  Guardar Texto
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button type="submit" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    {editingTextId ? "Actualizar Texto" : "Guardar Texto"}
+                  </Button>
+                  {editingTextId && (
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto">
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Cancelar Edición
+                    </Button>
+                  )}
+                </div>
               </form>
             </Form>
           </CardContent>
@@ -278,17 +384,54 @@ export function TextTickerEditor() {
           {!isLoadingTexts && !errorLoadingTexts && texts.length > 0 && (
               texts.map((textItem) => (
                 <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardContent className="pt-4 pb-3 px-4">
-                    <p className="text-sm text-foreground break-words whitespace-pre-wrap">
-                      {textItem.text}
-                    </p>
-                  </CardContent>
+                  <CardHeader className="pb-2 pt-3 px-4">
+                     <div className="flex justify-between items-start gap-2">
+                       <div className="flex-grow">
+                          {textItem.isActive && (
+                            <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5 mb-1">Activo</Badge>
+                          )}
+                          <p className="text-sm text-foreground break-words whitespace-pre-wrap">
+                           {textItem.text}
+                          </p>
+                       </div>
+                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                         <div className="flex items-center space-x-1">
+                           <Label htmlFor={`active-switch-${textItem.id}`} className="text-xs text-muted-foreground">
+                             Activo
+                           </Label>
+                           <Switch
+                             id={`active-switch-${textItem.id}`}
+                             checked={!!textItem.isActive}
+                             onCheckedChange={(isChecked) => {
+                               if (textItem.id) {
+                                 handleActiveToggle(textItem.id, isChecked);
+                               } else {
+                                 toast({title: "Error", description: "Falta ID del texto para cambiar estado.", variant: "destructive"});
+                               }
+                             }}
+                             disabled={isTogglingActive || isSubmitting}
+                             className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                             aria-label={`Marcar texto como activo`}
+                           />
+                         </div>
+                       </div>
+                     </div>
+                  </CardHeader>
                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
-                      {/* Si la columna createdAt no existe, formatDate devolverá "Fecha desconocida" */}
-                      <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
-                        <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                      </Button>
+                      <div>
+                        <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
+                        {textItem.updatedAt && textItem.updatedAt !== textItem.createdAt && (
+                          <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(textItem.updatedAt)})</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
+                          <Edit3 className="mr-1 h-3 w-3" /> Editar
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
+                          <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                        </Button>
+                      </div>
                    </CardFooter>
                 </Card>
               ))
@@ -318,4 +461,3 @@ export function TextTickerEditor() {
   );
 }
 
-    
