@@ -130,7 +130,7 @@ export function NewsEditor() {
           title: "Error al Subir Imagen",
           description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original.",
           variant: "destructive",
-          duration: 9000,
+          duration: 9000, 
         });
         setIsSubmitting(false);
         return; 
@@ -405,3 +405,5 @@ export function NewsEditor() {
     </div>
   );
 }
+
+    
