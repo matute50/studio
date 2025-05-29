@@ -55,14 +55,24 @@ export function TextTickerEditor() {
       if (error) throw error;
       setTexts(data || []);
     } catch (error: any) {
-      console.error("Error cargando textos del ticker:", error);
-      const description = `No se pudieron cargar los textos del ticker: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas.`;
+      console.error("Error cargando textos del ticker:", error); // This will log the raw error object
+      let description = `No se pudieron cargar los textos del ticker. Revisa la consola para más detalles.`;
+      
+      const errorCode = (typeof error?.code === 'string') ? error.code : "";
+      const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+      if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+      } else if (error?.message) {
+        description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas.`;
+      }
+
       setErrorLoadingTexts(description);
       toast({
         title: "Error al Cargar Textos",
         description,
         variant: "destructive",
-        duration: 9000,
+        duration: 10000,
       });
     } finally {
       setIsLoadingTexts(false);
@@ -104,14 +114,14 @@ export function TextTickerEditor() {
     } catch (error: any) {
       console.error("Error al crear texto para ticker:", error);
       let description = "No se pudo crear el texto para el ticker. Inténtalo de nuevo.";
-      if (error?.message) {
-        description = `Error: ${error.message}`;
-      }
+      
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+      } else if (error?.message) {
+        description = `Error al crear texto: ${error.message}`;
       }
       
       toast({
@@ -136,7 +146,7 @@ export function TextTickerEditor() {
 
   const confirmDelete = async () => {
     if (!textToDelete || !textToDelete.id) return;
-    setIsSubmitting(true); // Reuse submitting state to disable buttons
+    setIsSubmitting(true); 
 
     try {
       const { error: deleteError } = await supabase
@@ -154,7 +164,7 @@ export function TextTickerEditor() {
       if (error?.message) {
         description = `Error: ${error.message}`;
       }
-      toast({ title: "Error al Eliminar Texto", description: `${description} Revisa la consola para más detalles.`, variant: "destructive" });
+      toast({ title: "Error al Eliminar Texto", description: `${description} Revisa la consola y los logs de Supabase para más detalles.`, variant: "destructive", duration: 9000 });
     } finally {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
@@ -166,11 +176,15 @@ export function TextTickerEditor() {
     if (!dateString) return 'Fecha desconocida';
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'Fecha inválida';
+      if (isNaN(date.getTime())) {
+        console.warn(`'formatDate' recibió una cadena de fecha inválida que no pudo ser parseada: "${dateString}"`);
+        return 'Fecha inválida';
+      }
       return date.toLocaleDateString('es-ES', {
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
       });
     } catch (e) {
+      console.error("Error inesperado en 'formatDate' al procesar:", dateString, e);
       return 'Error al formatear fecha';
     }
   };
@@ -225,7 +239,7 @@ export function TextTickerEditor() {
           {errorLoadingTexts && (
              <Alert variant="destructive">
                <ListCollapse className="h-4 w-4" />
-               <ShadcnAlertTitle>Error al Cargar Textos</ShadcnAlertTitle>
+               <ShadcnAlertTitle>Error al Cargar Textos del Ticker</ShadcnAlertTitle>
                <ShadcnAlertDescription>{errorLoadingTexts}</ShadcnAlertDescription>
              </Alert>
           )}
