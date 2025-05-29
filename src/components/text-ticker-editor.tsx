@@ -55,24 +55,23 @@ export function TextTickerEditor() {
     setIsLoadingTexts(true);
     setErrorLoadingTexts(null);
     try {
-      // Attempt to fetch and order by createdAt if the column exists
       const { data, error } = await supabase
         .from('textos_ticker')
         .select('*')
-        .order('createdAt', { ascending: false });
+        // .order('createdAt', { ascending: false }); // Removed due to potential missing column
+        // If 'createdAt' column exists and is desired for ordering, re-enable the line above.
+        // For now, fetching without specific order to avoid "column does not exist" errors.
 
       if (error) {
-        // Specific check for missing 'createdAt' column error (PostgreSQL error code 42703)
-        if (error.code === '42703' && error.message.includes('column') && error.message.toLowerCase().includes('createdat') && error.message.includes('does not exist')) {
+         if (error.code === '42703' && error.message.includes('column') && error.message.toLowerCase().includes('createdat') && error.message.includes('does not exist')) {
             console.warn("Advertencia: La columna 'createdAt' no existe o no es accesible en 'textos_ticker'. Los textos se cargarán sin orden específico por fecha de creación. Para habilitar el ordenamiento, asegúrate de que la columna 'createdAt' (TIMESTAMPTZ) exista y sea accesible.");
-            // Fallback: Fetch without ordering if 'createdAt' ordering fails
             const { data: dataUnordered, error: errorUnordered } = await supabase
                 .from('textos_ticker')
                 .select('*');
-            if (errorUnordered) throw errorUnordered; // Throw if even the unordered fetch fails
+            if (errorUnordered) throw errorUnordered;
             setTexts(dataUnordered || []);
         } else {
-            throw error; // Re-throw other errors
+            throw error;
         }
       } else {
         setTexts(data || []);
@@ -85,9 +84,7 @@ export function TextTickerEditor() {
       if (error?.code) {
         consoleErrorMessage += ` Código: ${error.code}`;
       }
-      // Log an initial, more informative message
       console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
-      // Log the original error object on a new line, as it might be trucated if logged inline with other strings
       console.error("Objeto de error original:", error); 
 
 
@@ -130,7 +127,6 @@ export function TextTickerEditor() {
     const now = new Date().toISOString();
 
     if (editingTextId) {
-      // Actualizar texto existente
       const textToUpdate: Partial<TextoTicker> = { 
         text: data.text,
         updatedAt: now,
@@ -170,7 +166,6 @@ export function TextTickerEditor() {
       }
 
     } else {
-      // Crear nuevo texto
       const textToInsert: Omit<TextoTicker, 'id' | 'updatedAt'> = { 
         text: data.text,
         createdAt: now,
@@ -278,7 +273,6 @@ export function TextTickerEditor() {
     const now = new Date().toISOString();
     try {
       if (newActiveState) {
-        // Desactivar cualquier otro texto activo
         const { error: deactivateError } = await supabase
           .from('textos_ticker')
           .update({ isActive: false, updatedAt: now })
@@ -287,7 +281,6 @@ export function TextTickerEditor() {
         if (deactivateError) throw deactivateError;
       }
 
-      // Activar/desactivar el texto actual
       const { error: toggleError } = await supabase
         .from('textos_ticker')
         .update({ isActive: newActiveState, updatedAt: now })
@@ -336,8 +329,8 @@ export function TextTickerEditor() {
         </p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-8 items-start">
-        <Card className="shadow-xl lg:col-span-1" ref={editorFormCardRef}>
+      <div className="space-y-8 mt-8">
+        <Card className="shadow-xl lg:max-w-2xl mx-auto" ref={editorFormCardRef}>
           <CardHeader>
             <CardTitle>{editingTextId ? "Editar Texto del Ticker" : "Nuevo Texto para Ticker"}</CardTitle>
           </CardHeader>
@@ -368,83 +361,85 @@ export function TextTickerEditor() {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Textos Actuales del Ticker</h2>
-          {isLoadingTexts && (
-            <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-2 text-muted-foreground">Cargando textos...</p>
-            </div>
-          )}
-          {errorLoadingTexts && (
-             <Alert variant="destructive">
-               <ListCollapse className="h-4 w-4" />
-               <ShadcnAlertTitle>Error al Cargar Textos del Ticker</ShadcnAlertTitle>
-               <ShadcnAlertDescription>{errorLoadingTexts}</ShadcnAlertDescription>
-             </Alert>
-          )}
-          {!isLoadingTexts && !errorLoadingTexts && texts.length === 0 && (
-            <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
-              <MessageSquareText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">No hay textos guardados para el ticker.</p>
-              <p className="text-sm text-muted-foreground">Usa el editor para añadir el primer texto.</p>
-            </div>
-          )}
-          {!isLoadingTexts && !errorLoadingTexts && texts.length > 0 && (
-              texts.map((textItem) => (
-                <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2 pt-3 px-4">
-                     <div className="flex justify-between items-start gap-2">
-                       <div className="flex-grow">
-                          {textItem.isActive && (
-                            <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5 mb-1">Activo</Badge>
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left">Textos Actuales del Ticker</h2>
+          <div className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-2">
+            {isLoadingTexts && (
+              <div className="flex justify-center items-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Cargando textos...</p>
+              </div>
+            )}
+            {errorLoadingTexts && (
+              <Alert variant="destructive">
+                <ListCollapse className="h-4 w-4" />
+                <ShadcnAlertTitle>Error al Cargar Textos del Ticker</ShadcnAlertTitle>
+                <ShadcnAlertDescription>{errorLoadingTexts}</ShadcnAlertDescription>
+              </Alert>
+            )}
+            {!isLoadingTexts && !errorLoadingTexts && texts.length === 0 && (
+              <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
+                <MessageSquareText className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">No hay textos guardados para el ticker.</p>
+                <p className="text-sm text-muted-foreground">Usa el editor para añadir el primer texto.</p>
+              </div>
+            )}
+            {!isLoadingTexts && !errorLoadingTexts && texts.length > 0 && (
+                texts.map((textItem) => (
+                  <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow mb-4">
+                    <CardHeader className="pb-2 pt-3 px-4">
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex-grow">
+                            {textItem.isActive && (
+                              <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5 mb-1">Activo</Badge>
+                            )}
+                            <p className="text-sm text-foreground break-words whitespace-pre-wrap">
+                            {textItem.text}
+                            </p>
+                        </div>
+                        <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                          <div className="flex items-center space-x-1">
+                            <Label htmlFor={`active-switch-${textItem.id}`} className="text-xs text-muted-foreground">
+                              Activo
+                            </Label>
+                            <Switch
+                              id={`active-switch-${textItem.id}`}
+                              checked={!!textItem.isActive}
+                              onCheckedChange={(isChecked) => {
+                                if (textItem.id) {
+                                  handleActiveToggle(textItem.id, isChecked);
+                                } else {
+                                  toast({title: "Error", description: "Falta ID del texto para cambiar estado.", variant: "destructive"});
+                                }
+                              }}
+                              disabled={isTogglingActive || isSubmitting}
+                              className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                              aria-label={`Marcar texto como activo`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
+                        <div>
+                          <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
+                          {textItem.updatedAt && textItem.updatedAt !== textItem.createdAt && (
+                            <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(textItem.updatedAt)})</p>
                           )}
-                          <p className="text-sm text-foreground break-words whitespace-pre-wrap">
-                           {textItem.text}
-                          </p>
-                       </div>
-                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                         <div className="flex items-center space-x-1">
-                           <Label htmlFor={`active-switch-${textItem.id}`} className="text-xs text-muted-foreground">
-                             Activo
-                           </Label>
-                           <Switch
-                             id={`active-switch-${textItem.id}`}
-                             checked={!!textItem.isActive}
-                             onCheckedChange={(isChecked) => {
-                               if (textItem.id) {
-                                 handleActiveToggle(textItem.id, isChecked);
-                               } else {
-                                 toast({title: "Error", description: "Falta ID del texto para cambiar estado.", variant: "destructive"});
-                               }
-                             }}
-                             disabled={isTogglingActive || isSubmitting}
-                             className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-                             aria-label={`Marcar texto como activo`}
-                           />
-                         </div>
-                       </div>
-                     </div>
-                  </CardHeader>
-                   <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
-                      <div>
-                        <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
-                        {textItem.updatedAt && textItem.updatedAt !== textItem.createdAt && (
-                          <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(textItem.updatedAt)})</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
-                          <Edit3 className="mr-1 h-3 w-3" /> Editar
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
-                          <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                        </Button>
-                      </div>
-                   </CardFooter>
-                </Card>
-              ))
-          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
+                            <Edit3 className="mr-1 h-3 w-3" /> Editar
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
+                            <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                          </Button>
+                        </div>
+                    </CardFooter>
+                  </Card>
+                ))
+            )}
+          </div>
         </div>
       </div>
 
@@ -469,3 +464,5 @@ export function TextTickerEditor() {
     </div>
   );
 }
+
+    
