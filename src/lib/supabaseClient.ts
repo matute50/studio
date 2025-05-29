@@ -11,7 +11,6 @@ if (!supabaseUrlFromEnv || supabaseUrlFromEnv === 'YOUR_SUPABASE_URL_HERE' || su
   errors.push(`NEXT_PUBLIC_SUPABASE_URL (valor actual: "${supabaseUrlFromEnv}") falta, es un marcador de posición, está vacía, o es la cadena "undefined".`);
 } else {
   try {
-    // Attempt to parse the URL to catch basic structural issues (e.g., missing scheme)
     new URL(supabaseUrlFromEnv);
   } catch (e) {
     errors.push(`NEXT_PUBLIC_SUPABASE_URL (valor actual: "${supabaseUrlFromEnv}") no parece ser una URL válida. Error de formato: ${(e as Error).message}. Asegúrate de que incluya el esquema (ej. https://).`);
@@ -28,8 +27,6 @@ if (errors.length > 0) {
   throw new Error(fullErrorMessage);
 }
 
-// If we've reached here, the checks passed.
-// The non-null assertions (!) are safe due to the throw statement above.
 export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv!);
 
 // Helper to convert data URI to Blob
@@ -45,7 +42,6 @@ export async function uploadImageToSupabase(
 ): Promise<string | null> {
   try {
     const blob = await dataURIToBlob(dataURI);
-    // Extract file extension from MIME type (e.g., "image/png" -> "png")
     const fileExt = blob.type.split('/')[1];
     if (!fileExt) {
         console.error('No se pudo determinar la extensión del archivo desde el tipo MIME:', blob.type);
@@ -57,61 +53,58 @@ export async function uploadImageToSupabase(
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
-        contentType: blob.type, // Pass content type for better handling
-        cacheControl: '3600', // Cache for 1 hour
-        upsert: false, // Do not overwrite if file exists (consider true if updates are common)
+        contentType: blob.type,
+        cacheControl: '3600',
+        upsert: false,
       });
 
     if (uploadError) {
-      const errorDetails: Record<string, any> = {
-        logTimestamp: new Date().toISOString(),
-        context: 'Supabase Storage upload failed.',
-        errorType: typeof uploadError,
-        isErrorInstance: uploadError instanceof Error,
-      };
+      console.error("--- Supabase Storage Upload Error ---");
+      console.error("Raw uploadError object:", uploadError);
+      console.error("typeof uploadError:", typeof uploadError);
+      console.error("uploadError instanceof Error:", uploadError instanceof Error);
 
-      if (uploadError && typeof uploadError === 'object') {
-        const err = uploadError as any; // Cast to any to access potential properties
-        errorDetails.constructorName = err.constructor?.name;
-        
-        // Explicitly try to access known properties of Supabase StorageError/ApiError
-        errorDetails.supaMessage = err.message;
-        errorDetails.supaName = err.name;
-        errorDetails.supaStatus = err.status; // HTTP status code
-        errorDetails.supaError = err.error; // Sometimes a short error code string
-        errorDetails.supaErrorDescription = err.error_description; // More descriptive error
-        errorDetails.supaStack = err.stack;
-        
-        errorDetails.enumerableProps = {};
-        for (const key in err) {
-          if (Object.prototype.hasOwnProperty.call(err, key)) {
-            (errorDetails.enumerableProps as Record<string, any>)[key] = err[key];
-          }
-        }
-        
-        try {
-          errorDetails.stringifiedRaw = JSON.stringify(uploadError);
-        } catch (e) {
-          errorDetails.stringifyRawError = (e as Error).message;
-        }
-        
-        try {
-          // Attempt to stringify with non-enumerable properties (if any)
-          errorDetails.stringifiedWithOwnProps = JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError));
-        } catch (e) {
-          errorDetails.stringifyWithOwnPropsError = (e as Error).message;
-        }
-
-      } else {
-        // If uploadError is not an object (e.g., a string or primitive)
-        errorDetails.rawValue = uploadError;
+      try {
+        console.error("JSON.stringify(uploadError, null, 2):", JSON.stringify(uploadError, null, 2));
+      } catch (e) {
+        console.error("Could not stringify uploadError (direct stringify):", e);
+      }
+      
+      try {
+        console.error("JSON.stringify(uploadError with own props, null, 2):", JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError), 2));
+      } catch (e) {
+        console.error("Could not stringify uploadError (with own props):", e);
       }
 
-      console.error('--- Supabase Storage Upload Error Details ---', errorDetails);
-      // Log the original object as well, as console's own formatting might sometimes reveal more
-      console.error('Original uploadError object for direct console inspection:', uploadError);
-      console.error('--- End of Supabase Storage Upload Error Details ---');
+      const err = uploadError as any; // Cast to any to access potential properties
+      console.error("uploadError.message:", String(err.message));
+      console.error("uploadError.name:", String(err.name));
+      console.error("uploadError.status (often statusCode for StorageError):", String(err.status));
+      console.error("uploadError.statusCode:", String(err.statusCode));
+      console.error("uploadError.error (often a short code string):", String(err.error));
+      console.error("uploadError.error_description:", String(err.error_description));
+      console.error("uploadError.stack:", String(err.stack));
 
+      const enumerableKeys: string[] = [];
+      if (err && typeof err === 'object') {
+        for (const key in err) {
+          if (Object.prototype.hasOwnProperty.call(err, key)) {
+            enumerableKeys.push(key);
+          }
+        }
+      }
+      console.error("Enumerable keys in uploadError:", enumerableKeys.length > 0 ? enumerableKeys.join(', ') : 'None');
+      
+      try {
+        if (err && typeof err === 'object') {
+          console.error("Own property names in uploadError:", Object.getOwnPropertyNames(err).join(', '));
+        } else {
+          console.error("Cannot get own property names, uploadError is not a suitable object.");
+        }
+      } catch(e) {
+        console.error("Error getting own property names for uploadError:", e);
+      }
+      console.error("--- End of Supabase Storage Upload Error Details ---");
       return null;
     }
 
@@ -121,7 +114,6 @@ export async function uploadImageToSupabase(
     
     if (!publicURLData || !publicURLData.publicUrl) {
         console.error('No se pudo obtener la URL pública para la imagen subida.');
-        // Attempt to clean up the uploaded file if URL retrieval fails
         await supabase.storage.from(bucketName).remove([filePath]);
         return null;
     }
