@@ -156,7 +156,7 @@ export function NewsEditor() {
       
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
-        form.setValue('imageUrl', uploadedUrl); // Update form value with the Supabase URL
+        form.setValue('imageUrl', uploadedUrl); 
         toast({
           title: "Imagen Subida",
           description: "La imagen se ha subido correctamente a Supabase Storage.",
@@ -196,14 +196,15 @@ export function NewsEditor() {
         title: "¡Artículo Guardado!",
         description: "Tu artículo de noticias ha sido guardado en Supabase.",
       });
-      resetFormAndPreview(); 
       fetchArticles(); 
+      resetFormAndPreview(); 
     } catch (error: any) {
       console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
       
       let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
       let errorCode = "Desconocido";
-      
+      let errorStatus = "Desconocido";
+
       if (error && typeof error.message === 'string' && error.message.trim() !== '') {
         specificErrorMessage = error.message;
       } else if (error && typeof error.details === 'string' && error.details.trim() !== '') {
@@ -212,22 +213,24 @@ export function NewsEditor() {
       
       if (error && typeof error.code === 'string' && error.code.trim() !== '') {
          errorCode = error.code;
-      } else if (error && typeof error.status === 'number') {
-         errorCode = error.status.toString();
       }
-      
+       if (error && typeof error.status === 'number') {
+         errorStatus = error.status.toString();
+      }
+
+
       const isLikelyNotFoundError = 
-        (error?.status === 404 || errorCode === '404') || 
+        (errorStatus === '404') || 
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-        (errorCode === 'PGRST116'); // PostgREST code for "relation ... does not exist"
+        (errorCode === 'PGRST116'); 
   
-      let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}. Mensaje: "${specificErrorMessage}".`;
+      let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
       
       if (isLikelyNotFoundError) {
-        toastDescription = `Error al contactar la tabla 'articles' (Error 404 o similar - Código: ${errorCode}). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible. Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
+        toastDescription = `Error crítico: La tabla 'articles' parece NO EXISTIR o no es accesible (Error 404 o similar - Código: ${errorCode}, Estado: ${errorStatus}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas (title, text, imageUrl, isFeatured, createdAt, updatedAt).`;
       } else {
-        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible.`;
+        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
       }
   
       toast({
@@ -288,9 +291,17 @@ export function NewsEditor() {
   };
   
   const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Fecha desconocida';
+    if (!dateString) { // Catches null, undefined, ""
+      return 'Fecha desconocida';
+    }
     try {
-      return new Date(dateString).toLocaleDateString('es-ES', {
+      const date = new Date(dateString);
+      // Check if the date is valid after parsing
+      if (isNaN(date.getTime())) {
+        console.warn(`'formatDate' recibió una cadena de fecha inválida que no pudo ser parseada: "${dateString}"`);
+        return 'Fecha inválida';
+      }
+      return date.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -298,7 +309,9 @@ export function NewsEditor() {
         minute: '2-digit',
       });
     } catch (e) {
-      return dateString; 
+      // This catch might be redundant if isNaN check is robust, but keep for safety
+      console.error("Error inesperado en 'formatDate' al procesar:", dateString, e);
+      return 'Error al formatear fecha';
     }
   };
 
@@ -462,7 +475,7 @@ export function NewsEditor() {
         </Card>
 
         <div className="space-y-4">
-          <CardHeader className="px-0 pt-0 lg:px-2">
+          <CardHeader className="px-0 pt-0 lg:px-2 pb-2">
             <CardTitle>Artículos Guardados</CardTitle>
             <CardDescription>Lista de todos los artículos de noticias almacenados en Supabase.</CardDescription>
           </CardHeader>
@@ -539,3 +552,4 @@ export function NewsEditor() {
 }
 
     
+
