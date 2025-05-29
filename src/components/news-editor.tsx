@@ -230,7 +230,7 @@ export function NewsEditor() {
       let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
       
       if (isLikelyNotFoundError) {
-        toastDescription = `Error crítico: La tabla 'articles' parece NO EXISTIR o no es accesible (Error 404 o similar - Código: ${errorCode}, Estado: ${errorStatus}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas (title, text, imageUrl, isFeatured, createdAt, updatedAt).`;
+        toastDescription = `Error crítico al guardar el artículo: La tabla 'articles' parece NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas (id, title, text, imageUrl, isFeatured, createdAt, updatedAt).`;
       } else {
         toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
       }
@@ -326,7 +326,6 @@ export function NewsEditor() {
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Editor de Artículos</CardTitle>
-            {/* CardDescription eliminada */}
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -388,9 +387,6 @@ export function NewsEditor() {
                           onChange={handleFileChange}
                         />
                       </div>
-                      <FormDescription>
-                        Introduce una URL de imagen o sube una imagen (max 5MB). Deja vacío para un marcador de posición predeterminado.
-                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
