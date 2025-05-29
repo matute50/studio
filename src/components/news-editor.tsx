@@ -2,19 +2,19 @@
 "use client";
 
 import * as React from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 
-import type { NewsArticle } from '@/types';
 import { suggestAlternativeTitles, SuggestAlternativeTitlesInput } from '@/ai/flows/suggest-alternative-titles';
+import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; // Import Supabase
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Label } from '@/components/ui/label'; // Not used directly, but good to keep if FormLabel is used elsewhere
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -30,10 +30,8 @@ const newsArticleSchema = z.object({
         if (value === "") return true; // Handled by transform
         if (value.startsWith("https://placehold.co/")) return true; // Placeholder is valid
         if (value.startsWith("data:image/")) {
-          // Basic regex for data URI (supports common image types)
           return /^data:image\/(?:gif|png|jpeg|bmp|webp|svg\+xml)(?:;charset=utf-8)?;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
         }
-        // Validate as a URL
         try {
           new URL(value);
           return true;
@@ -44,7 +42,7 @@ const newsArticleSchema = z.object({
       { message: "Por favor, introduce una URL válida o sube una imagen." }
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
-    .default(""), // Default to empty string, which will be transformed to placeholder
+    .default(""),
   isFeatured: z.boolean().default(false),
 });
 
@@ -62,10 +60,10 @@ export function NewsEditor() {
     defaultValues: {
       title: '',
       text: '',
-      imageUrl: '', // Default to empty, schema transform handles placeholder
+      imageUrl: '',
       isFeatured: false,
     },
-    mode: "onChange", // useful for live preview updates
+    mode: "onChange",
   });
 
   const watchedTitle = form.watch('title');
@@ -115,23 +113,73 @@ export function NewsEditor() {
 
   const onSubmit = async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
-    // The data.imageUrl will now correctly be the placeholder, a user-entered URL, or a data URI from upload.
-    console.log("Datos de envío simulados:", data);
+    let finalImageUrl = data.imageUrl;
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // If imageUrl is a data URI, upload it to Supabase Storage
+    if (data.imageUrl.startsWith('data:image/')) {
+      toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
+      const uploadedUrl = await uploadImageToSupabase(data.imageUrl, 'article-images'); // Using 'article-images' bucket
+      
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+        toast({
+          title: "Imagen Subida",
+          description: "La imagen se ha subido correctamente a Supabase Storage.",
+        });
+      } else {
+        toast({
+          title: "Error al Subir Imagen",
+          description: "No se pudo subir la imagen a Supabase Storage. El artículo se guardará con la URL de marcador de posición o la URL original si la proporcionaste.",
+          variant: "destructive",
+        });
+        // Optionally stop submission or use placeholder:
+        // finalImageUrl = "https://placehold.co/600x400.png"; 
+        // For now, let's allow proceeding with whatever imageUrl was (could be placeholder, could be dataURI if user wants to debug)
+        // Better: Stop if upload fails critically
+        setIsSubmitting(false);
+        return; // Stop the submission if image upload fails
+      }
+    }
 
-    toast({
-      title: "¡Artículo Enviado!",
-      description: "Tu artículo de noticias ha sido 'guardado' (simulado).",
-    });
-    setIsSubmitting(false);
+    const articleToInsert = {
+      title: data.title,
+      text: data.text,
+      image_url: finalImageUrl,
+      is_featured: data.isFeatured,
+      // created_at will be handled by Supabase (default now())
+    };
+
+    try {
+      const { error: insertError } = await supabase
+        .from('articles') // Make sure 'articles' table exists in Supabase
+        .insert([articleToInsert]);
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      toast({
+        title: "¡Artículo Guardado!",
+        description: "Tu artículo de noticias ha sido guardado en Supabase.",
+      });
+      resetFormAndPreview(); // Reset form on successful save
+    } catch (error: any) {
+      console.error("Error guardando el artículo en Supabase:", error);
+      toast({
+        title: "Error al Guardar",
+        description: `No se pudo guardar el artículo: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   
   const resetFormAndPreview = () => {
     form.reset({
       title: '',
       text: '',
-      imageUrl: '', // Will be transformed to placeholder by schema
+      imageUrl: '',
       isFeatured: false,
     });
     setSuggestedTitles([]);
@@ -144,7 +192,6 @@ export function NewsEditor() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Basic validation (optional, can be more robust)
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Tipo de archivo no válido",
@@ -168,7 +215,6 @@ export function NewsEditor() {
       };
       reader.readAsDataURL(file);
     }
-    // Clear the file input so the same file can be selected again if needed
     if (event.target) {
       event.target.value = "";
     }
@@ -178,14 +224,14 @@ export function NewsEditor() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
-        <p className="text-muted-foreground mt-2">Crea noticias impactantes con asistencia de IA.</p>
+        <p className="text-muted-foreground mt-2">Crea noticias impactantes con asistencia de IA y guárdalas en Supabase.</p>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Editor de Artículos</CardTitle>
-            <CardDescription>Completa los detalles de tu artículo de noticias.</CardDescription>
+            <CardDescription>Completa los detalles de tu artículo de noticias. Se guardará en Supabase.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -229,11 +275,8 @@ export function NewsEditor() {
                           <Input 
                             placeholder="https://ejemplo.com/imagen.png o subir" 
                             {...field} 
-                            // If field value is placeholder, show empty to encourage input or upload
                             value={field.value === "https://placehold.co/600x400.png" ? "" : field.value}
                             onChange={e => {
-                              // If user types, it should be a URL or empty (for placeholder)
-                              // Data URIs from uploads are set via handleFileChange
                               field.onChange(e.target.value);
                             }}
                           />
@@ -251,14 +294,13 @@ export function NewsEditor() {
                         />
                       </div>
                       <FormDescription>
-                        Introduce una URL de imagen o sube una imagen. Deja vacío para un marcador de posición predeterminado.
+                        Introduce una URL de imagen o sube una imagen (max 5MB). Deja vacío para un marcador de posición predeterminado.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                {/* Show preview if imageUrl is not the placeholder and is a valid looking src */}
                 {watchedImageUrl && watchedImageUrl !== 'https://placehold.co/600x400.png' && (watchedImageUrl.startsWith('http') || watchedImageUrl.startsWith('data:image')) && (
                   <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border">
                      <Image src={watchedImageUrl} alt="Vista previa de la imagen actual" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="imagen previa"/>
@@ -325,7 +367,7 @@ export function NewsEditor() {
                     ) : (
                        <Send className="mr-2 h-4 w-4" />
                     )}
-                    Enviar Artículo
+                    Guardar Artículo
                   </Button>
                    <Button type="button" variant="outline" onClick={resetFormAndPreview} className="flex-1 sm:flex-none">
                     <RotateCcw className="mr-2 h-4 w-4" />
@@ -345,7 +387,7 @@ export function NewsEditor() {
           <NewsPreview
             title={watchedTitle}
             text={watchedText}
-            imageUrl={watchedImageUrl} // watchedImageUrl will already be placeholder if needed
+            imageUrl={watchedImageUrl}
             isFeatured={watchedIsFeatured}
           />
         </div>
