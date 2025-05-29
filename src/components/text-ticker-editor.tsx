@@ -324,9 +324,6 @@ export function TextTickerEditor() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor de Textos Ticker</h1>
-        <p className="mt-2 text-muted-foreground">
-          Gestiona los mensajes que aparecerán en el ticker de noticias.
-        </p>
       </header>
 
       <div className="space-y-8 mt-8">
