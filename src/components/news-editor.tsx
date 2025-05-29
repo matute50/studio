@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import type { NewsArticle } from '@/types';
 
 import { suggestAlternativeTitles, SuggestAlternativeTitlesInput } from '@/ai/flows/suggest-alternative-titles';
 import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; 
@@ -15,11 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { NewsPreview } from './news-preview';
-import { Loader2, Sparkles, Send, RotateCcw, Upload } from 'lucide-react';
+import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
@@ -55,21 +56,52 @@ export function NewsEditor() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [articles, setArticles] = React.useState<NewsArticle[]>([]);
+  const [isLoadingArticles, setIsLoadingArticles] = React.useState(true);
+  const [errorLoadingArticles, setErrorLoadingArticles] = React.useState<string | null>(null);
+
   const form = useForm<NewsArticleFormValues>({
     resolver: zodResolver(newsArticleSchema),
     defaultValues: {
       title: '',
       text: '',
-      imageUrl: '', // Default to empty, transform will handle placeholder if needed
+      imageUrl: '', 
       isFeatured: false,
     },
     mode: "onChange",
   });
 
-  const watchedTitle = form.watch('title');
-  const watchedText = form.watch('text');
   const watchedImageUrl = form.watch('imageUrl');
-  const watchedIsFeatured = form.watch('isFeatured');
+
+  const fetchArticles = async () => {
+    setIsLoadingArticles(true);
+    setErrorLoadingArticles(null);
+    try {
+      const { data, error } = await supabase
+        .from('articles')
+        .select('*')
+        .order('createdAt', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+      setArticles(data || []);
+    } catch (error: any) {
+      console.error("Error cargando artículos:", error);
+      setErrorLoadingArticles(`No se pudieron cargar los artículos: ${error.message}`);
+      toast({
+        title: "Error al Cargar Artículos",
+        description: `No se pudieron cargar los artículos guardados: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingArticles(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchArticles();
+  }, []);
 
   const handleSuggestTitles = async () => {
     const currentTitle = form.getValues('title');
@@ -121,6 +153,7 @@ export function NewsEditor() {
       
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
+        form.setValue('imageUrl', uploadedUrl); // Update form value with the Supabase URL
         toast({
           title: "Imagen Subida",
           description: "La imagen se ha subido correctamente a Supabase Storage.",
@@ -140,16 +173,17 @@ export function NewsEditor() {
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      imageUrl: finalImageUrl,
+      imageUrl: finalImageUrl, // Use finalImageUrl which might be Supabase URL or original
       isFeatured: data.isFeatured,
       // createdAt y updatedAt son gestionados por Supabase si las columnas existen con valores por defecto
     };
 
     try {
-      const { error: insertError } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from('articles') 
         .insert([articleToInsert])
-        .select(); 
+        .select()
+        .single(); // Assuming you want the inserted record back
 
       if (insertError) {
         throw insertError; 
@@ -160,11 +194,9 @@ export function NewsEditor() {
         description: "Tu artículo de noticias ha sido guardado en Supabase.",
       });
       resetFormAndPreview(); 
+      fetchArticles(); // Recargar artículos después de guardar
     } catch (error: any) {
       console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
-      
-      // The primary debugging path for Supabase DB errors is the Supabase Dashboard logs.
-      // Client-side error objects from Supabase can be difficult to inspect directly.
       
       let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
       if (error && typeof error.message === 'string' && error.message.trim() !== '') {
@@ -173,27 +205,26 @@ export function NewsEditor() {
          specificErrorMessage = `Código de error: ${error.code}`;
       }
 
-      // Check if the error message, status, or details hint at a 404 for the 'articles' table
       const isLikelyNotFoundError = 
-        (error?.status === 404) || // Direct HTTP status check
-        (typeof error?.message === 'string' && error.message.toLowerCase().includes('not found')) || 
-        (typeof error?.message === 'string' && error.message.includes('404')) ||
+        (error?.status === 404 || (typeof error?.code === 'string' && error.code.includes('404'))) || 
+        (typeof error?.message === 'string' && error.message.toLowerCase().includes('relation') && error.message.toLowerCase().includes('does not exist')) ||
+        (typeof error?.message === 'string' && error.message.toLowerCase().includes('not found')) ||
         (typeof error?.details === 'string' && error.details.toLowerCase().includes('not found')) || 
-        (typeof error?.code === 'string' && error.code === 'PGRST_RSRC_NOT_FOUND'); // PostgREST specific code for resource not found
+        (typeof error?.code === 'string' && error.code === 'PGRST116'); // PostgREST code for "relation ... does not exist"
 
       let toastDescription = `Falló el intento de guardar en Supabase. Mensaje del cliente (puede ser limitado): "${specificErrorMessage}".`;
       
       if (isLikelyNotFoundError) {
-        toastDescription = `Error al contactar la tabla 'articles' (Error 404 Not Found). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible debido a la configuración (ej. políticas RLS). Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
+        toastDescription = `Error al contactar la tabla 'articles' (Error 404 o similar). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible. Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
       } else {
-        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles.`;
+        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible.`;
       }
 
       toast({
         title: "Error Crítico al Guardar Artículo",
         description: toastDescription,
         variant: "destructive",
-        duration: 12000, 
+        duration: 15000, 
       });
     } finally {
       setIsSubmitting(false);
@@ -208,9 +239,12 @@ export function NewsEditor() {
       isFeatured: false,
     });
     setSuggestedTitles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // Reset file input
+    }
     toast({
       title: "Formulario Reiniciado",
-      description: "El editor y la vista previa han sido limpiados.",
+      description: "El editor ha sido limpiado.",
     });
   };
 
@@ -240,8 +274,21 @@ export function NewsEditor() {
       };
       reader.readAsDataURL(file);
     }
-    if (event.target) {
-      event.target.value = ""; 
+     // No resetear event.target.value aquí para permitir que la UI muestre la selección
+  };
+  
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Fecha desconocida';
+    try {
+      return new Date(dateString).toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (e) {
+      return dateString; // Devuelve la cadena original si hay error de formato
     }
   };
 
@@ -252,7 +299,7 @@ export function NewsEditor() {
         <p className="text-muted-foreground mt-2">Crea noticias impactantes con asistencia de IA y guárdalas en Supabase.</p>
       </header>
 
-      <div className="grid lg:grid-cols-2 gap-8 items-start">
+      <div className="grid lg:grid-cols-2 gap-12 items-start">
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Editor de Artículos</CardTitle>
@@ -355,7 +402,7 @@ export function NewsEditor() {
                 />
 
                 <div className="space-y-4">
-                  <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !watchedText || watchedText.length < 20} className="w-full sm:w-auto">
+                  <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !form.getValues('text') || form.getValues('text').length < 20} className="w-full sm:w-auto">
                     {isSuggestingTitles ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -404,21 +451,79 @@ export function NewsEditor() {
           </CardContent>
         </Card>
 
-        <div className="sticky top-8">
+        <div className="space-y-6">
           <CardHeader className="px-0 pt-0 lg:px-4">
-            <CardTitle>Vista Previa en Vivo</CardTitle>
-            <CardDescription>Mira cómo tu artículo toma forma en tiempo real.</CardDescription>
+            <CardTitle>Artículos Guardados</CardTitle>
+            <CardDescription>Lista de todos los artículos de noticias almacenados en Supabase.</CardDescription>
           </CardHeader>
-          <NewsPreview
-            title={watchedTitle}
-            text={watchedText}
-            imageUrl={watchedImageUrl}
-            isFeatured={watchedIsFeatured}
-          />
+          {isLoadingArticles && (
+            <div className="flex justify-center items-center py-10">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="ml-2 text-muted-foreground">Cargando artículos...</p>
+            </div>
+          )}
+          {errorLoadingArticles && (
+            <Alert variant="destructive">
+              <Newspaper className="h-4 w-4" />
+              <AlertTitle>Error al Cargar Artículos</AlertTitle>
+              <AlertDescription>{errorLoadingArticles}</AlertDescription>
+            </Alert>
+          )}
+          {!isLoadingArticles && !errorLoadingArticles && articles.length === 0 && (
+            <div className="text-center py-10">
+              <Newspaper className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">No hay artículos guardados todavía.</p>
+              <p className="text-sm text-muted-foreground">Usa el editor para crear tu primer artículo.</p>
+            </div>
+          )}
+          {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
+            <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
+              {articles.map((article) => (
+                <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg break-words">{article.title}</CardTitle>
+                        {article.isFeatured && (
+                            <Badge className="ml-2 whitespace-nowrap bg-accent text-accent-foreground">Destacado</Badge>
+                        )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4 items-start pt-0">
+                    <div className="relative w-full md:w-[120px] h-[90px] rounded-md overflow-hidden border bg-muted">
+                      {article.imageUrl && (article.imageUrl.startsWith('http') || article.imageUrl.startsWith('data:image')) ? (
+                        <Image
+                          src={article.imageUrl}
+                          alt={`Imagen para ${article.title}`}
+                          layout="fill"
+                          objectFit="cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = 'https://placehold.co/120x90.png'; 
+                            target.srcset = '';
+                          }}
+                          data-ai-hint="noticia miniatura"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                           <ImageOff className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground line-clamp-3 break-words">
+                        {article.text}
+                      </p>
+                    </div>
+                  </CardContent>
+                   <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 px-6 justify-end">
+                      <p>Publicado: {formatDate(article.createdAt)}</p>
+                   </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-    

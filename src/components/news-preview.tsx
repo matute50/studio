@@ -5,14 +5,22 @@ import type { NewsArticle } from '@/types';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ImageOff } from 'lucide-react';
 
 interface NewsPreviewProps extends Omit<NewsArticle, 'id'> {}
 
+// Este componente ya no se utiliza activamente en NewsEditor, 
+// pero se mantiene por si se decide reutilizar o por referencia.
+// La funcionalidad de vista previa en vivo ha sido reemplazada
+// por una lista de artículos guardados en NewsEditor.
 export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewProps) {
   const displayTitle = title || "Vista Previa del Título del Artículo";
   const displayText = text || "El contenido del artículo aparecerá aquí mientras escribes. ¡Escribe algo atractivo e informativo!";
-  // imageUrl will be the placeholder string if it was originally empty, thanks to the form schema's transform.
   
+  const isValidImageUrl = imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image') || imageUrl.startsWith('https://placehold.co/'));
+  const imageToDisplay = isValidImageUrl ? imageUrl : 'https://placehold.co/600x400.png';
+  const altText = isValidImageUrl ? (title || 'Vista previa de la imagen del artículo') : 'Imagen de marcador de posición';
+
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
       <CardHeader>
@@ -26,30 +34,26 @@ export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewPr
         )}
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
-        {/* Ensure imageUrl is not an empty string before rendering Image to prevent potential issues if transform somehow fails */}
-        {imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image') || imageUrl.startsWith('https://placehold.co/')) ? (
-          <div className="relative w-full aspect-video rounded-md overflow-hidden">
+        <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted">
+          {isValidImageUrl ? (
             <Image
-              src={imageUrl} // Directly use imageUrl as it's handled by the form schema
-              alt={title || 'Vista previa de la imagen del artículo'}
+              src={imageToDisplay}
+              alt={altText}
               fill
               style={{ objectFit: 'cover' }}
-              onError={(e) => (e.currentTarget.src = 'https://placehold.co/600x400.png')}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = 'https://placehold.co/600x400.png'; // Fallback on error
+                target.srcset = '';
+              }}
               data-ai-hint="noticia articulo"
             />
-          </div>
-        ) : (
-           <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted flex items-center justify-center">
-            <Image
-              src="https://placehold.co/600x400.png" // Fallback if imageUrl is somehow invalid for <Image>
-              alt="Imagen de marcador de posición"
-              width={600}
-              height={400}
-              style={{ objectFit: 'cover' }}
-              data-ai-hint="marcador imagen"
-            />
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageOff className="w-16 h-16 text-muted-foreground" />
+            </div>
+          )}
+        </div>
         <CardDescription className="text-foreground/90 whitespace-pre-wrap break-words flex-grow prose prose-sm sm:prose-base max-w-none">
           {displayText}
         </CardDescription>
