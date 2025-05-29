@@ -297,7 +297,7 @@ export function AdManager() {
         <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Publicidad</h1>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-8 items-start">
+      <div className="grid lg:grid-cols-2 gap-8 items-start">
         <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
           <CardHeader>
             <CardTitle>{editingAdId ? "Editar Anuncio" : "Crear Nuevo Anuncio"}</CardTitle>
@@ -375,7 +375,7 @@ export function AdManager() {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
+        <div className="lg:col-span-1 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
           <h2 className="text-2xl font-semibold text-foreground mb-4">Anuncios Existentes</h2>
           {isLoadingAds && (
             <div className="flex justify-center items-center py-10">
@@ -466,3 +466,4 @@ export function AdManager() {
   );
 }
 
+    
