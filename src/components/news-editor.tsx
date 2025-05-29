@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +46,7 @@ const newsArticleSchema = z.object({
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""),
-  isFeatured: z.boolean().default(false),
+  isFeatured: z.boolean().default(false), // This default will now apply as there's no form input for it
 });
 
 type NewsArticleFormValues = z.infer<typeof newsArticleSchema>;
@@ -69,7 +69,7 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '', 
-      isFeatured: false,
+      isFeatured: false, // isFeatured will default to false from schema
     },
     mode: "onChange",
   });
@@ -177,12 +177,16 @@ export function NewsEditor() {
       title: data.title,
       text: data.text,
       imageUrl: finalImageUrl, 
-      isFeatured: data.isFeatured,
-      updatedAt: new Date().toISOString(), // Ensure updatedAt is set on creation as well
+      isFeatured: data.isFeatured, // Will be false by default from schema, managed by card switches
+      updatedAt: new Date().toISOString(),
       // createdAt will be handled by Supabase (DEFAULT now())
     };
   
    try {
+      // Logic to unfeature other articles if this one is marked as featured is now primarily handled by handleFeatureToggle.
+      // If data.isFeatured was true (which it won't be from the form anymore), this block would run.
+      // For now, this specific block `if (articleToInsert.isFeatured)` when creating a NEW article will not execute
+      // as `articleToInsert.isFeatured` will be false due to schema default.
       if (articleToInsert.isFeatured) {
         const { error: unfeatureError } = await supabase
           .from('articles')
@@ -190,6 +194,7 @@ export function NewsEditor() {
           .eq('isFeatured', true);
         if (unfeatureError) {
           console.warn("Error al desmarcar otros artículos como destacados al crear uno nuevo:", unfeatureError);
+          // No es un error crítico para la creación del nuevo artículo, solo un aviso.
         }
       }
 
@@ -263,7 +268,7 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '',
-      isFeatured: false,
+      isFeatured: false, // Reset to false
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
@@ -337,7 +342,7 @@ export function NewsEditor() {
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
           .eq('isFeatured', true)
-          .neq('id', articleId); // No desmarcar el artículo que estamos intentando marcar
+          .neq('id', articleId); 
 
         if (unfeatureError) {
           console.error("Error al desmarcar otros artículos:", unfeatureError);
@@ -368,7 +373,7 @@ export function NewsEditor() {
       }
 
       toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
-      fetchArticles(); // Volver a cargar los artículos para reflejar el cambio
+      fetchArticles(); 
     } catch (error: any) {
       toast({
         title: "Error al Actualizar Destacado",
@@ -463,27 +468,7 @@ export function NewsEditor() {
                   </div>
                 )}
 
-
-                <FormField
-                  control={form.control}
-                  name="isFeatured"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                      <div className="space-y-0.5">
-                        <FormLabel>Artículo Destacado al Crear</FormLabel>
-                        <FormDescription>
-                          Marcar este artículo como destacado al guardarlo.
-                        </FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
+                {/* Switch "Artículo Destacado al Crear" eliminado */}
 
                 <div className="space-y-4">
                   <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !form.getValues('text') || form.getValues('text').length < 20} className="w-full sm:w-auto">
@@ -568,7 +553,7 @@ export function NewsEditor() {
                         {article.isFeatured && (
                           <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
                         )}
-                        <div className="flex items-center space-x-1"> {/* Reducido space-x-1.5 a space-x-1 */}
+                        <div className="flex items-center space-x-1"> 
                           <Label htmlFor={`featured-switch-${article.id}`} className="text-xs text-muted-foreground">
                             Destacado
                           </Label>
@@ -584,7 +569,7 @@ export function NewsEditor() {
                               }
                             }}
                             disabled={isTogglingFeature}
-                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" // Clases para reducir tamaño
+                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" 
                             aria-label={`Marcar ${article.title} como destacado`}
                           />
                         </div>
@@ -634,3 +619,4 @@ export function NewsEditor() {
   );
 }
     
+
