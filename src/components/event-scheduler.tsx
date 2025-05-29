@@ -6,17 +6,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { es } from 'date-fns/locale'; // Importar el locale español
 import type { CalendarEvent } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Importado CardHeader y CardTitle
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog"; // Renombrado para evitar colisión
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle } from 'lucide-react';
@@ -26,7 +26,6 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
   eventDateTime: z.date({
-    // Se elimina: required_error: "Por favor, selecciona una fecha y hora.",
     invalid_type_error: "Fecha y hora no válidas.",
   }),
 });
@@ -266,6 +265,7 @@ export function EventScheduler() {
                         onSelect={setCalendarDate}
                         className="rounded-md border self-center shadow-sm"
                         disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
+                        locale={es} // Añadir locale español
                       />
                        <div className="p-3 border rounded-md bg-muted/50 shadow-sm">
                         <FormLabel className="text-sm font-medium mb-2 block text-center">Hora del Evento</FormLabel>
@@ -387,3 +387,5 @@ export function EventScheduler() {
     
 
       
+
+    
