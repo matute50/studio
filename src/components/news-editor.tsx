@@ -142,6 +142,10 @@ export function NewsEditor() {
       text: data.text,
       imageUrl: finalImageUrl,
       isFeatured: data.isFeatured,
+      // Supabase maneja createdAt y updatedAt automáticamente si las columnas existen con valores por defecto
+      // y los nombres coinciden (o se mapean correctamente por el cliente JS).
+      // La convención en PG es snake_case (e.g., created_at),
+      // pero si creaste las columnas como "createdAt" (camelCase con comillas), deben coincidir.
     };
 
     try {
@@ -169,21 +173,23 @@ export function NewsEditor() {
 
       let toastMessageForUser = "Error desconocido. Consulta los logs del servidor.";
       try {
-        if (error && typeof error.message === 'string' && error.message.trim() !== '') {
-          toastMessageForUser = error.message;
+        // Check if the error object seems like a Supabase PostgREST error with a status
+        if (error && typeof error.message === 'string') {
+            if (error.message.includes('404')) { // A 404 on table insert usually means table not found or RLS issue
+                 toastMessageForUser = "Error 404: La tabla 'articles' no fue encontrada o no es accesible. Verifica su existencia y permisos RLS en Supabase.";
+            } else if (error.message) {
+                 toastMessageForUser = error.message;
+            }
         } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
           toastMessageForUser = `Código de error: ${error.code}.`;
         }
       } catch (e_extract) {
         // If trying to access error properties itself causes an error, log that and use generic.
-        // This inner console.error might also be problematic if 'e_extract' is complex.
-        // console.error("Error al intentar extraer detalles del error para el toast:", e_extract);
-        // toastMessageForUser remains generic
       }
       
       toast({
         title: "Error al Guardar Artículo",
-        description: `No se pudo guardar el artículo. ${toastMessageForUser} Por favor, revisa la consola del navegador para el mensaje de error inicial (si está disponible) y, MUY IMPORTANTE, los logs de tu API y Base de Datos en el panel de Supabase para el detalle completo del error.`,
+        description: `No se pudo guardar el artículo. ${toastMessageForUser} Por favor, revisa la consola del navegador para el mensaje de error inicial (si está disponible) y, MUY IMPORTANTE, los logs de tu API y Base de Datos en el panel de Supabase para el detalle completo del error. Un error 404 usualmente indica que la tabla 'articles' no existe o no es accesible.`,
         variant: "destructive",
         duration: 10000, // Longer duration for this important message
       });
@@ -412,3 +418,5 @@ export function NewsEditor() {
     </div>
   );
 }
+
+    
