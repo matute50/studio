@@ -31,6 +31,10 @@ export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv
 
 // Helper to convert data URI to Blob
 async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
+  if (!dataURI.startsWith('data:image/')) {
+    console.error('Error: Data URI no parece ser una imagen válida. Data URI (primeros 100 caracteres):', dataURI.substring(0, 100));
+    return null;
+  }
   try {
     const response = await fetch(dataURI);
     if (!response.ok) {
@@ -40,8 +44,8 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
       return null;
     }
     const blob = await response.blob();
-    if (!blob || !blob.type) { 
-      console.error('El Blob no tiene tipo MIME o es nulo. Data URI podría estar malformado o ser inválido:', dataURI.substring(0, 100));
+    if (!blob || !blob.type || !blob.type.startsWith('image/')) { 
+      console.error('El Blob no tiene tipo MIME de imagen o es nulo. Data URI podría estar malformado o ser inválido:', dataURI.substring(0, 100), 'Blob type:', blob?.type);
       return null;
     }
     return blob;
@@ -49,7 +53,6 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
     console.error('Error en dataURIToBlob:', error);
     if (error instanceof Error) {
         console.error('Mensaje de error en dataURIToBlob:', error.message);
-        console.error('Stack de error en dataURIToBlob:', error.stack);
     }
     return null;
   }
@@ -63,7 +66,7 @@ export async function uploadImageToSupabase(
     console.error('Error: Nombre del bucket inválido o no proporcionado:', bucketName);
     return null;
   }
-  if (!dataURI || typeof dataURI !== 'string' || !dataURI.startsWith('data:image/')) {
+  if (!dataURI || typeof dataURI !== 'string' ) { // Simplified check, specific image check in dataURIToBlob
     console.error('Error: Data URI inválido o no proporcionado. Data URI (primeros 100 caracteres):', dataURI ? dataURI.substring(0,100) + "..." : "undefined/null");
     return null;
   }
@@ -78,11 +81,12 @@ export async function uploadImageToSupabase(
     }
     console.log('Blob creado exitosamente:', { type: blob.type, size: blob.size });
 
-    const fileExt = blob.type.split('/')[1];
-    if (!fileExt) {
-        console.error('No se pudo determinar la extensión del archivo desde el tipo MIME del Blob:', blob.type);
+    const fileExtMatch = blob.type.match(/^image\/(png|jpeg|gif|webp|svg\+xml)$/);
+    if (!fileExtMatch || !fileExtMatch[1]) {
+        console.error('No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob:', blob.type);
         return null;
     }
+    const fileExt = fileExtMatch[1] === 'svg+xml' ? 'svg' : fileExtMatch[1];
     const fileName = `article_img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
     console.log('Subiendo archivo a Supabase Storage con bucket:', bucketName, 'y filePath:', filePath);
@@ -97,30 +101,9 @@ export async function uploadImageToSupabase(
 
     if (uploadError) {
       console.error("--- Supabase Storage Upload Error DETECTED ---"); // This line is seen by the user.
-
-      let clientSideErrorDetails = "Client-side error object details are limited.";
-      if (uploadError && typeof uploadError === 'object') {
-        const supaErr = uploadError as any;
-        const parts: string[] = [];
-        if (supaErr.name) parts.push(`Name: ${String(supaErr.name)}`);
-        if (supaErr.message) parts.push(`Message: ${String(supaErr.message)}`);
-        if (supaErr.status) parts.push(`Status: ${String(supaErr.status)}`);
-        else if (supaErr.statusCode) parts.push(`StatusCode: ${String(supaErr.statusCode)}`);
-        if (supaErr.error) parts.push(`ErrorProp: ${String(supaErr.error)}`);
-        if (supaErr.error_description) parts.push(`ErrorDesc: ${String(supaErr.error_description)}`);
-        
-        if (parts.length > 0) {
-          clientSideErrorDetails = parts.join(', ');
-        } else {
-          try {
-            clientSideErrorDetails = `Attempted JSON.stringify: ${JSON.stringify(uploadError)}`;
-          } catch (e) {
-            clientSideErrorDetails = "Error object could not be stringified and has no common error properties.";
-          }
-        }
-      }
-      console.error("Client-side interpretation of error:", clientSideErrorDetails);
-      console.warn("IMPORTANT: The most reliable way to diagnose this issue is to check your Supabase Dashboard Logs. Navigate to Project > Logs > Storage Logs for server-side error details.");
+      // PRIORITIZE THIS WARNING:
+      console.warn("IMPORTANT: Client-side error details are often limited or misleading for storage issues. For the TRUE error reason (e.g., RLS, bucket policy), please check your Supabase Dashboard: Project > Logs > Storage Logs.");
+      console.error("Attempting to log raw client-side error object (may be uninformative):", uploadError);
       return null;
     }
 
@@ -150,12 +133,8 @@ export async function uploadImageToSupabase(
     console.error('Error general en la función uploadImageToSupabase (bloque catch principal):', error);
     if (error instanceof Error) {
       console.error('Mensaje del error general:', error.message);
-      console.error('Stack del error general:', error.stack);
-    } else {
-      console.error('Error general (no es instancia de Error, valor directo):', String(error));
     }
     console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs).");
     return null;
   }
 }
-    
