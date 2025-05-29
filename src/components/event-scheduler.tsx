@@ -15,7 +15,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -83,6 +82,8 @@ export function EventScheduler() {
       newDateTime.setMilliseconds(0);
       form.setValue('eventDateTime', newDateTime, { shouldValidate: true, shouldDirty: true });
     } else {
+      // Si no hay fecha seleccionada en el calendario, el eventDateTime es inválido o no establecido.
+      // Forzamos un valor inválido (undefined) para que la validación Zod actúe si es un campo requerido.
       form.setValue('eventDateTime', undefined, { shouldValidate: true, shouldDirty: true });
     }
   }, [calendarDate, eventHour, eventMinute, form]);
@@ -127,9 +128,10 @@ export function EventScheduler() {
   const onSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
+    // data.eventDateTime ya es un objeto Date gracias al useEffect y Zod.
     const eventPayload = {
       name: data.name,
-      eventDateTime: data.eventDateTime.toISOString(),
+      eventDateTime: data.eventDateTime.toISOString(), // Zod asegura que eventDateTime es Date
       updatedAt: now,
     };
 
@@ -261,64 +263,43 @@ export function EventScheduler() {
                 <FormField
                   control={form.control}
                   name="eventDateTime"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                  render={() => ( // No necesitamos 'field' aquí ya que manejamos el valor con estados locales
+                    <FormItem className="space-y-3">
                       <FormLabel>Fecha y Hora del Evento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP HH:mm", { locale: es })
-                              ) : (
-                                <span>Elige fecha y hora</span>
-                              )}
-                              <CalendarDays className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={calendarDate}
-                            onSelect={setCalendarDate}
-                            initialFocus
-                          />
-                           <div className="p-3 border-t border-border">
-                            <FormLabel className="text-sm font-medium mb-2 block">Hora del Evento</FormLabel>
-                            <div className="flex items-center gap-2">
-                                <Select value={eventHour} onValueChange={setEventHour}>
-                                  <SelectTrigger className="w-[80px]">
-                                    <SelectValue placeholder="HH" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {hourOptions.map(hour => (
-                                      <SelectItem key={hour} value={hour}>{hour}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <span>:</span>
-                                <Select value={eventMinute} onValueChange={setEventMinute}>
-                                  <SelectTrigger className="w-[80px]">
-                                    <SelectValue placeholder="MM" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {minuteOptions.map(minute => (
-                                      <SelectItem key={minute} value={minute}>{minute}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                            </div>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
+                      <Calendar
+                        mode="single"
+                        selected={calendarDate}
+                        onSelect={setCalendarDate}
+                        className="rounded-md border self-center shadow-sm"
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} // Deshabilitar días pasados
+                      />
+                       <div className="p-3 border rounded-md bg-muted/50 shadow-sm">
+                        <FormLabel className="text-sm font-medium mb-2 block text-center">Hora del Evento</FormLabel>
+                        <div className="flex items-center justify-center gap-2">
+                            <Select value={eventHour} onValueChange={setEventHour}>
+                              <SelectTrigger className="w-[80px]">
+                                <SelectValue placeholder="HH" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {hourOptions.map(hour => (
+                                  <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="font-semibold text-muted-foreground">:</span>
+                            <Select value={eventMinute} onValueChange={setEventMinute}>
+                              <SelectTrigger className="w-[80px]">
+                                <SelectValue placeholder="MM" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {minuteOptions.map(minute => (
+                                  <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                        </div>
+                      </div>
+                      <FormMessage /> {/* Mostrará el mensaje de error para eventDateTime */}
                     </FormItem>
                   )}
                 />
@@ -408,3 +389,4 @@ export function EventScheduler() {
   );
 }
 
+    
