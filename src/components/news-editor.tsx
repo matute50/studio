@@ -60,7 +60,7 @@ export function NewsEditor() {
     defaultValues: {
       title: '',
       text: '',
-      imageUrl: '',
+      imageUrl: '', // Default to empty, transform will handle placeholder if needed
       isFeatured: false,
     },
     mode: "onChange",
@@ -115,7 +115,7 @@ export function NewsEditor() {
     setIsSubmitting(true);
     let finalImageUrl = data.imageUrl;
 
-    if (data.imageUrl.startsWith('data:image/')) {
+    if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
       const uploadedUrl = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
       
@@ -140,11 +140,9 @@ export function NewsEditor() {
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      imageUrl: finalImageUrl, // Nombre de campo esperado por la BD (según tu especificación)
-      isFeatured: data.isFeatured, // Nombre de campo esperado por la BD (según tu especificación)
-      // Supabase maneja createdAt y updatedAt automáticamente si las columnas existen con valores por defecto
-      // y los nombres coinciden (o se mapean correctamente por el cliente JS).
-      // En este caso, asumimos que Supabase mapeará `createdAt` y `updatedAt` si las columnas se llaman así.
+      imageUrl: finalImageUrl,
+      isFeatured: data.isFeatured,
+      // createdAt y updatedAt son gestionados por Supabase si las columnas existen con valores por defecto
     };
 
     try {
@@ -154,7 +152,7 @@ export function NewsEditor() {
         .select(); 
 
       if (insertError) {
-        throw insertError;
+        throw insertError; 
       }
 
       toast({
@@ -175,9 +173,25 @@ export function NewsEditor() {
          specificErrorMessage = `Código de error: ${error.code}`;
       }
 
+      // Check if the error message, status, or details hint at a 404 for the 'articles' table
+      const isLikelyNotFoundError = 
+        (error?.status === 404) || // Direct HTTP status check
+        (typeof error?.message === 'string' && error.message.toLowerCase().includes('not found')) || 
+        (typeof error?.message === 'string' && error.message.includes('404')) ||
+        (typeof error?.details === 'string' && error.details.toLowerCase().includes('not found')) || 
+        (typeof error?.code === 'string' && error.code === 'PGRST_RSRC_NOT_FOUND'); // PostgREST specific code for resource not found
+
+      let toastDescription = `Falló el intento de guardar en Supabase. Mensaje del cliente (puede ser limitado): "${specificErrorMessage}".`;
+      
+      if (isLikelyNotFoundError) {
+        toastDescription = `Error al contactar la tabla 'articles' (Error 404 Not Found). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible debido a la configuración (ej. políticas RLS). Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
+      } else {
+        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles.`;
+      }
+
       toast({
         title: "Error Crítico al Guardar Artículo",
-        description: `Falló el intento de guardar en Supabase. Mensaje del cliente (puede ser limitado): "${specificErrorMessage}". Un error 404 previo en los logs del servidor indica que la tabla 'articles' NO EXISTE o NO ES ACCESIBLE. Por favor, verifica URGENTEMENTE tu configuración de base de datos y RLS en el panel de Supabase.`,
+        description: toastDescription,
         variant: "destructive",
         duration: 12000, 
       });
@@ -341,7 +355,7 @@ export function NewsEditor() {
                 />
 
                 <div className="space-y-4">
-                  <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || watchedText.length < 20} className="w-full sm:w-auto">
+                  <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !watchedText || watchedText.length < 20} className="w-full sm:w-auto">
                     {isSuggestingTitles ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
