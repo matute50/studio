@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import Link from 'next/link'; // Import Link
 import type { Advertisement } from '@/types';
 import { addDays, parseISO } from 'date-fns';
 
@@ -17,7 +18,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag, CalendarClock } from 'lucide-react';
+import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag, CalendarClock, Home } from 'lucide-react'; // Import Home
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -30,7 +31,7 @@ const adSchema = z.object({
   imageUrl: z.string()
     .refine(
       (value) => {
-        if (value === "") return false; // Image is required
+        if (value === "") return false; 
         if (value.startsWith("https://placehold.co/")) return true; 
         if (value.startsWith("data:image/")) {
           return /^data:image\/(?:gif|png|jpeg|bmp|webp|svg\+xml)(?:;charset=utf-8)?;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
@@ -87,7 +88,6 @@ export function AdManager() {
       if (error) throw error;
       setAds(data || []);
     } catch (error: any) {
-      console.error("Error cargando anuncios:", error);
       const description = `No se pudieron cargar los anuncios: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'anuncios' exista y tenga RLS configuradas.`;
       setErrorLoadingAds(description);
       toast({
@@ -179,7 +179,6 @@ export function AdManager() {
       fetchAds();
       resetFormAndPreview();
     } catch (error: any) {
-      console.error("Error al guardar anuncio:", error);
       let description = "No se pudo guardar el anuncio. Inténtalo de nuevo.";
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
@@ -225,12 +224,10 @@ export function AdManager() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
-        console.warn(`'formatDate' recibió una cadena de fecha inválida: "${dateString}"`);
         return 'Fecha inválida';
       }
       return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch (e: any) {
-      console.error("Error en 'formatDate':", dateString, e instanceof Error ? e.message : String(e));
       return 'Error al formatear fecha';
     }
   };
@@ -240,7 +237,6 @@ export function AdManager() {
     try {
       const createdDate = parseISO(createdAt);
       if (isNaN(createdDate.getTime())) {
-        console.warn(`calculateAndFormatExpiryDate recibió una cadena de fecha de creación inválida: "${createdAt}"`);
         return 'Fecha de creación inválida';
       }
       const expiryDate = addDays(createdDate, 30);
@@ -250,7 +246,6 @@ export function AdManager() {
         day: 'numeric',
       });
     } catch (e: any) {
-      console.error("Error en 'calculateAndFormatExpiryDate':", createdAt, e instanceof Error ? e.message : String(e));
       return 'Error al calcular vencimiento';
     }
   };
@@ -293,7 +288,6 @@ export function AdManager() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error al eliminar anuncio:", error);
       toast({ title: "Error al Eliminar", description: `No se pudo eliminar el anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -316,7 +310,6 @@ export function AdManager() {
       toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
       fetchAds(); 
     } catch (error: any) {
-      console.error("Error al actualizar estado del anuncio:", error);
       toast({ title: "Error al Actualizar Estado", description: `No se pudo actualizar el estado del anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsTogglingActive(false);
@@ -326,9 +319,17 @@ export function AdManager() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8 text-center">
+      <header className="mb-4 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Publicidad</h1>
       </header>
+      <div className="mb-6 text-left">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm">
+            <Home className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Button>
+        </Link>
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
@@ -520,3 +521,6 @@ export function AdManager() {
     </div>
   );
 }
+
+
+    

@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale'; 
-
+import Link from 'next/link'; // Import Link
 import type { CalendarEvent } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -20,7 +20,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle } from 'lucide-react';
+import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home } from 'lucide-react'; // Import Home
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -105,7 +105,6 @@ export function EventScheduler() {
       if (error) throw error;
       setEvents(data || []);
     } catch (error: any) {
-      console.error("Error cargando eventos:", error);
       const description = `No se pudieron cargar los eventos: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'eventos_calendario' exista y tenga RLS configuradas.`;
       setErrorLoadingEvents(description);
       toast({
@@ -195,7 +194,6 @@ export function EventScheduler() {
       fetchEvents();
       resetFormAndDateTimePickers();
     } catch (error: any) {
-      console.error("Error al guardar evento(s):", error);
       toast({
         title: "Error al Guardar",
         description: `No se pudo guardar el evento/los eventos: ${error.message || 'Error desconocido'}. Revisa los logs de Supabase.`,
@@ -247,7 +245,6 @@ export function EventScheduler() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error al eliminar evento:", error);
       toast({ title: "Error al Eliminar", description: `No se pudo eliminar el evento: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -261,7 +258,6 @@ export function EventScheduler() {
     try {
       return format(parseISO(isoDateString), "PPPp", { locale: es });
     } catch (e) {
-      console.warn(`Error al formatear fecha: ${isoDateString}`, e);
       return 'Fecha inválida';
     }
   };
@@ -269,9 +265,17 @@ export function EventScheduler() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8 text-center">
+      <header className="mb-4 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Agenda de Eventos</h1>
       </header>
+      <div className="mb-6 text-left">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm">
+            <Home className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Button>
+        </Link>
+      </div>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
@@ -432,3 +436,6 @@ export function EventScheduler() {
     </div>
   );
 }
+
+
+    

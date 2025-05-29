@@ -5,6 +5,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link'; // Import Link
 import type { TextoTicker } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -13,9 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3 } from 'lucide-react';
+import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, Home } from 'lucide-react'; // Import Home
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -61,7 +62,6 @@ export function TextTickerEditor() {
 
       if (error) {
          if (error.code === '42703' && error.message.includes('column') && error.message.toLowerCase().includes('createdat') && error.message.includes('does not exist')) {
-            console.warn("Advertencia: La columna 'createdAt' no existe o no es accesible en 'textos_ticker'. Los textos se cargarán sin orden específico por fecha de creación. Para habilitar el ordenamiento, asegúrate de que la columna 'createdAt' (TIMESTAMPTZ) exista y sea accesible.");
             const { data: dataUnordered, error: errorUnordered } = await supabase
                 .from('textos_ticker')
                 .select('*');
@@ -77,8 +77,7 @@ export function TextTickerEditor() {
       let consoleErrorMessage = "Error cargando textos del ticker.";
       if (error?.message) consoleErrorMessage += ` Mensaje: ${error.message}`;
       if (error?.code) consoleErrorMessage += ` Código: ${error.code}`;
-      console.error(consoleErrorMessage, error); 
-
+      
       let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
@@ -135,7 +134,6 @@ export function TextTickerEditor() {
         fetchTexts();
         resetForm();
       } catch (error: any) {
-        console.error("Error al actualizar texto del ticker:", error);
         let description = "No se pudo actualizar el texto del ticker. Inténtalo de nuevo.";
         if (error?.message) description = `Error: ${error.message}`;
         if (error?.code) description += ` (Código: ${error.code})`;
@@ -176,7 +174,6 @@ export function TextTickerEditor() {
         resetForm();
       } catch (error: any)
       {
-        console.error("Error al crear texto para ticker:", error);
         let description = "No se pudo crear el texto para el ticker. Inténtalo de nuevo.";
         
         const errorCode = (typeof error?.code === 'string') ? error.code : "";
@@ -244,7 +241,6 @@ export function TextTickerEditor() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error al eliminar texto del ticker:", error);
       let description = "No se pudo eliminar el texto. Inténtalo de nuevo.";
       if (error?.message) {
         description = `Error: ${error.message}.`;
@@ -280,7 +276,6 @@ export function TextTickerEditor() {
       toast({ title: "Estado de Activo Actualizado", description: "El estado del texto del ticker ha sido actualizado." });
       fetchTexts();
     } catch (error: any) {
-      console.error("Error al actualizar estado activo:", error);
       let description = "No se pudo actualizar el estado activo del texto.";
       if (error?.message) description = `Error: ${error.message}`;
       if (error?.code) description += ` (Código: ${error.code})`;
@@ -299,23 +294,29 @@ export function TextTickerEditor() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
-        console.warn(`'formatDate' recibió una cadena de fecha inválida que no pudo ser parseada: "${dateString}"`);
         return 'Fecha inválida';
       }
       return date.toLocaleDateString('es-ES', {
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
       });
     } catch (e: any) {
-      console.error("Error inesperado en 'formatDate' al procesar:", dateString, e.message);
       return 'Error al formatear fecha';
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8 text-center">
+      <header className="mb-4 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor de Textos Ticker</h1>
       </header>
+      <div className="mb-6 text-left">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm">
+            <Home className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Button>
+        </Link>
+      </div>
 
       <div className="space-y-8 mt-8">
         <Card className="shadow-xl lg:max-w-3xl mx-auto" ref={editorFormCardRef}>
@@ -439,13 +440,13 @@ export function TextTickerEditor() {
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+          <AlertDialogHeaderComponent>
+            <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Esto eliminará permanentemente el texto del ticker: 
               "{textToDelete?.text.substring(0, 50) || 'seleccionado'}{textToDelete && textToDelete.text.length > 50 ? '...' : ''}"
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setTextToDelete(null); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
@@ -458,3 +459,6 @@ export function TextTickerEditor() {
     </div>
   );
 }
+
+
+    

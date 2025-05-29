@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
+import Link from 'next/link'; // Import Link
 import type { NewsArticle } from '@/types';
 
 import { suggestAlternativeTitles, SuggestAlternativeTitlesInput } from '@/ai/flows/suggest-alternative-titles';
@@ -18,9 +19,9 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle } from 'lucide-react';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home } from 'lucide-react'; // Import Home
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -98,7 +99,6 @@ export function NewsEditor() {
       }
       setArticles(data || []);
     } catch (error: any) {
-      console.error("Error cargando artículos:", error);
       const description = `No se pudieron cargar los artículos guardados: ${error.message || 'Error desconocido'}.`;
       setErrorLoadingArticles(description);
       toast({
@@ -144,7 +144,6 @@ export function NewsEditor() {
         });
       }
     } catch (error) {
-      console.error("Error al sugerir títulos:", error);
       toast({
         title: "Error al Sugerir Títulos",
         description: "No se pudo generar sugerencias de títulos. Por favor, inténtalo de nuevo.",
@@ -219,16 +218,20 @@ export function NewsEditor() {
         resetFormAndPreview();
         setEditingArticleId(null);
       } catch (error: any) {
-         console.error("--- ERROR AL ACTUALIZAR ARTÍCULO EN SUPABASE ---", error);
          let description = "No se pudo actualizar el artículo. Inténtalo de nuevo.";
-         if (error?.message) {
-           description = `Error: ${error.message}`;
+         const errorCode = (typeof error?.code === 'string') ? error.code : "";
+         const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+         if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+            description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase.";
+         } else if (error?.message) {
+           description = `Error al actualizar: ${error.message}.`;
          }
          toast({
             title: "Error al Actualizar Artículo",
             description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
             variant: "destructive",
-            duration: 9000,
+            duration: 10000,
          });
       }
     } else { 
@@ -236,7 +239,7 @@ export function NewsEditor() {
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
-        isFeatured: data.isFeatured,
+        isFeatured: false, // Nuevos artículos no son destacados por defecto
         createdAt: now,
         updatedAt: now, 
       };
@@ -257,8 +260,6 @@ export function NewsEditor() {
         fetchArticles(); 
         resetFormAndPreview(); 
       } catch (error: any) {
-        console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
-        
         let description = "No se pudo crear el artículo. Inténtalo de nuevo.";
         const errorCode = (typeof error?.code === 'string') ? error.code : "";
         const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
@@ -315,7 +316,6 @@ export function NewsEditor() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
-        console.warn(`'formatDate' recibió una cadena de fecha inválida que no pudo ser parseada: "${dateString}"`);
         return 'Fecha inválida';
       }
       return date.toLocaleDateString('es-ES', {
@@ -326,7 +326,6 @@ export function NewsEditor() {
         minute: '2-digit',
       });
     } catch (e: any) {
-      console.error("Error inesperado en 'formatDate' al procesar:", dateString, e.message);
       return 'Error al formatear fecha';
     }
   };
@@ -344,7 +343,6 @@ export function NewsEditor() {
           .neq('id', articleId); 
 
         if (unfeatureError) {
-          console.warn("Error al desmarcar otros artículos:", unfeatureError.message);
         }
 
         const { error: featureError } = await supabase
@@ -365,7 +363,6 @@ export function NewsEditor() {
       toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
       fetchArticles();
     } catch (error: any) {
-      console.error("Error al actualizar destacado:", error);
       toast({
         title: "Error al Actualizar Destacado",
         description: error.message || "No se pudo actualizar el estado de destacado del artículo.",
@@ -429,7 +426,6 @@ export function NewsEditor() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error al eliminar artículo:", error);
       let description = "No se pudo eliminar el artículo. Inténtalo de nuevo.";
       if (error?.message) {
         description = `Error: ${error.message}`;
@@ -444,9 +440,17 @@ export function NewsEditor() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-8 text-center">
+      <header className="mb-4 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
       </header>
+      <div className="mb-6 text-left">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm">
+            <Home className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Button>
+        </Link>
+      </div>
 
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         <Card className="shadow-xl" ref={editorFormCardRef}>
@@ -631,7 +635,7 @@ export function NewsEditor() {
                                 toast({title: "Error", description: "Falta ID del artículo para cambiar estado.", variant: "destructive"});
                               }
                             }}
-                            disabled={isTogglingFeature}
+                            disabled={isTogglingFeature || isSubmitting}
                             className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" 
                             aria-label={`Marcar ${article.title} como destacado`}
                           />
@@ -691,13 +695,13 @@ export function NewsEditor() {
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+          <AlertDialogHeaderComponent>
+            <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Esto eliminará permanentemente el artículo 
               "{articleToDelete?.title || 'seleccionado'}" de la base de datos.
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setArticleToDelete(null); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
@@ -711,4 +715,6 @@ export function NewsEditor() {
     </div>
   );
 }
+    
+
     
