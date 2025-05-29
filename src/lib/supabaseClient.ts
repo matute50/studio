@@ -96,107 +96,31 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error("--- Supabase Storage Upload Error DETECTED ---"); // Line 100
+      console.error("--- Supabase Storage Upload Error DETECTED ---"); // This line is seen by the user.
 
-      // Log 1: Direct log of the error object
-      console.error("1. Raw uploadError object:", uploadError);
-
-      // Log 2: Type of error
-      console.error("2. typeof uploadError:", typeof uploadError);
-
-      // Log 3: instanceof Error
-      let isInstanceOfError = false;
-      try {
-        isInstanceOfError = uploadError instanceof Error;
-      } catch (e) { /* ignore, might not be an object */ }
-      console.error("3. uploadError instanceof Error:", isInstanceOfError);
-
-      // Log 4: Constructor name
-      let constructorName = 'N/A';
-      if (uploadError && typeof (uploadError as any)?.constructor === 'function') {
-        constructorName = (uploadError as any).constructor.name;
-      }
-      console.error("4. uploadError.constructor.name:", constructorName);
-
-      // Log 5: String conversion
-      let stringRepresentation = 'N/A';
-      try {
-        stringRepresentation = String(uploadError);
-      } catch (e) { stringRepresentation = "Error converting to string: " + String(e); }
-      console.error("5. String(uploadError):", stringRepresentation);
-
-      // Log 6: JSON.stringify with circular replacer
-      let jsonStringified = 'N/A';
-      try {
-        const getCircularReplacer = () => {
-          const seen = new WeakSet();
-          return (_key: string, value: any) => {
-            if (typeof value === "object" && value !== null) {
-              if (seen.has(value)) {
-                return "[Circular Reference]";
-              }
-              seen.add(value);
-            }
-            return value;
-          };
-        };
-        jsonStringified = JSON.stringify(uploadError, getCircularReplacer(), 2);
-      } catch (e: any) {
-        jsonStringified = "Error during JSON.stringify: " + String(e.message || e);
-      }
-      console.error("6. JSON.stringify(uploadError):", jsonStringified);
-
-      // Log 7: Individual properties, explicitly casting to string
+      let clientSideErrorDetails = "Client-side error object details are limited.";
       if (uploadError && typeof uploadError === 'object') {
-        const err = uploadError as any;
-        console.error("7a. err.message:", String(err.message ?? 'N/A'));
-        console.error("7b. err.name:", String(err.name ?? 'N/A'));
-        console.error("7c. err.stack:", String(err.stack ?? 'N/A'));
-        console.error("7d. err.status (HTTP status):", String(err.status ?? err.statusCode ?? 'N/A'));
-        console.error("7e. err.error (Supabase code/string):", String(err.error ?? 'N/A'));
-        console.error("7f. err.error_description (Supabase desc):", String(err.error_description ?? 'N/A'));
-        console.error("7g. err.code (sometimes present):", String(err.code ?? 'N/A'));
-
-
-        // Log 8: All enumerable keys
-        try {
-          const keys = Object.keys(err);
-          console.error("8. Enumerable keys:", keys.length > 0 ? keys.join(', ') : 'None');
-          if (keys.length > 0) {
-            keys.forEach(key => {
-              try {
-                console.error(`   - Key '${key}':`, String(err[key]));
-              } catch (e) {
-                console.error(`   - Key '${key}': Error accessing/stringifying value - ${String(e)}`);
-              }
-            });
+        const supaErr = uploadError as any;
+        const parts: string[] = [];
+        if (supaErr.name) parts.push(`Name: ${String(supaErr.name)}`);
+        if (supaErr.message) parts.push(`Message: ${String(supaErr.message)}`);
+        if (supaErr.status) parts.push(`Status: ${String(supaErr.status)}`);
+        else if (supaErr.statusCode) parts.push(`StatusCode: ${String(supaErr.statusCode)}`);
+        if (supaErr.error) parts.push(`ErrorProp: ${String(supaErr.error)}`);
+        if (supaErr.error_description) parts.push(`ErrorDesc: ${String(supaErr.error_description)}`);
+        
+        if (parts.length > 0) {
+          clientSideErrorDetails = parts.join(', ');
+        } else {
+          try {
+            clientSideErrorDetails = `Attempted JSON.stringify: ${JSON.stringify(uploadError)}`;
+          } catch (e) {
+            clientSideErrorDetails = "Error object could not be stringified and has no common error properties.";
           }
-        } catch (e) {
-          console.error("8. Error getting enumerable keys:", String(e));
         }
-
-        // Log 9: All own property names (enumerable or not)
-        try {
-          const ownPropertyNames = Object.getOwnPropertyNames(err);
-          console.error("9. Own property names:", ownPropertyNames.length > 0 ? ownPropertyNames.join(', ') : 'None');
-           if (ownPropertyNames.length > 0) {
-            ownPropertyNames.forEach(key => {
-              try {
-                console.error(`   - OwnProp '${key}':`, String(err[key]));
-              } catch (e) {
-                console.error(`   - OwnProp '${key}': Error accessing/stringifying value - ${String(e)}`);
-              }
-            });
-          }
-        } catch (e) {
-          console.error("9. Error getting own property names:", String(e));
-        }
-
-      } else if (uploadError) { // If not an object but still truthy (e.g. a string)
-        console.error("7. uploadError is not an object, direct string value:", String(uploadError));
       }
-
-      console.error("--- End of Supabase Storage Upload Error Details ---");
+      console.error("Client-side interpretation of error:", clientSideErrorDetails);
+      console.warn("IMPORTANT: The most reliable way to diagnose this issue is to check your Supabase Dashboard Logs. Navigate to Project > Logs > Storage Logs for server-side error details.");
       return null;
     }
 
@@ -230,8 +154,8 @@ export async function uploadImageToSupabase(
     } else {
       console.error('Error general (no es instancia de Error, valor directo):', String(error));
     }
+    console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs).");
     return null;
   }
 }
-
     
