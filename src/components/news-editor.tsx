@@ -8,13 +8,13 @@ import * as z from 'zod';
 import Image from 'next/image';
 
 import { suggestAlternativeTitles, SuggestAlternativeTitlesInput } from '@/ai/flows/suggest-alternative-titles';
-import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; // Import Supabase
+import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; 
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label'; // Not used directly, but good to keep if FormLabel is used elsewhere
+import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +27,8 @@ const newsArticleSchema = z.object({
   imageUrl: z.string()
     .refine(
       (value) => {
-        if (value === "") return true; // Handled by transform
-        if (value.startsWith("https://placehold.co/")) return true; // Placeholder is valid
+        if (value === "") return true; 
+        if (value.startsWith("https://placehold.co/")) return true; 
         if (value.startsWith("data:image/")) {
           return /^data:image\/(?:gif|png|jpeg|bmp|webp|svg\+xml)(?:;charset=utf-8)?;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
         }
@@ -147,9 +147,12 @@ export function NewsEditor() {
     try {
       const { error: insertError } = await supabase
         .from('articles') 
-        .insert([articleToInsert]);
+        .insert([articleToInsert])
+        .select(); // Added .select() to potentially get more detailed errors if RLS is involved in insert
 
       if (insertError) {
+        // If .select() is used and RLS prevents returning the row, insertError might still be populated.
+        // If insert itself fails (e.g. constraint violation), insertError will be populated.
         throw insertError;
       }
 
@@ -159,18 +162,66 @@ export function NewsEditor() {
       });
       resetFormAndPreview(); 
     } catch (error: any) {
-      console.error("--- Error al Guardar Artículo en Supabase ---");
-      console.error("Mensaje:", error?.message);
-      console.error("Detalles:", error?.details);
-      console.error("Pista:", error?.hint);
-      console.error("Código:", error?.code);
-      console.error("Objeto de error completo:", error);
-      console.error("--- Fin del Error de Guardado ---");
+      console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
+
+      // Direct log of the error object
+      console.error("1. Error object (direct log):", error);
+
+      // Type and instanceof
+      console.error("2. typeof error:", typeof error);
+      console.error("3. error instanceof Error:", error instanceof Error);
+
+      // Attempt to stringify
+      try {
+        console.error("4. JSON.stringify(error):", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      } catch (e: any) {
+        console.error("4. JSON.stringify(error) FAILED:", e.message);
+      }
+
+      // Log known properties individually and safely
+      const safeGetProperty = (obj: any, propName: string) => {
+        try {
+          return obj && typeof obj === 'object' && propName in obj ? String(obj[propName]) : `[Propiedad '${propName}' no encontrada o no es string]`;
+        } catch (e: any) {
+          return `[Error al acceder a propiedad '${propName}': ${e.message}]`;
+        }
+      };
+
+      console.error("5. Mensaje (error.message):", safeGetProperty(error, 'message'));
+      console.error("6. Detalles (error.details):", safeGetProperty(error, 'details'));
+      console.error("7. Pista (error.hint):", safeGetProperty(error, 'hint'));
+      console.error("8. Código (error.code):", safeGetProperty(error, 'code'));
+      console.error("9. Stack (error.stack):", safeGetProperty(error, 'stack'));
+
+      // Enumerate properties
+      try {
+        if (error && typeof error === 'object') {
+          console.error("10. Claves enumerables (Object.keys):", Object.keys(error));
+          for (const key of Object.keys(error)) {
+            console.error(`  - ${key}:`, safeGetProperty(error, key));
+          }
+        } else {
+          console.error("10. El error no es un objeto, no se pueden enumerar claves.");
+        }
+      } catch (e: any) {
+        console.error("10. Error al enumerar claves del error:", e.message);
+      }
+      
+      console.error("--- FIN DETALLES DEL ERROR DE GUARDADO ---");
+
+
+      let displayMessage = 'Error desconocido.';
+      if (error && typeof error.message === 'string' && error.message.trim() !== '') {
+        displayMessage = error.message;
+      } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
+        displayMessage = `Error con código: ${error.code}.`;
+      }
       
       toast({
         title: "Error al Guardar",
-        description: `No se pudo guardar el artículo: ${error?.message || 'Error desconocido. Revisa la consola para más detalles.'}`,
+        description: `No se pudo guardar el artículo. ${displayMessage} Revisa la consola y los logs de Supabase (API o Database) para más detalles.`,
         variant: "destructive",
+        duration: 9000,
       });
     } finally {
       setIsSubmitting(false);
@@ -397,3 +448,5 @@ export function NewsEditor() {
     </div>
   );
 }
+
+
