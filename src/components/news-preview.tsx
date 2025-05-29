@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { NewsArticle } from '@/types';
@@ -10,6 +11,7 @@ interface NewsPreviewProps extends Omit<NewsArticle, 'id'> {}
 export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewProps) {
   const displayTitle = title || "Article Title Preview";
   const displayText = text || "Article content will appear here as you type. Write something engaging and informative!";
+  // imageUrl will be the placeholder string if it was originally empty, thanks to the form schema's transform.
   
   return (
     <Card className="overflow-hidden shadow-lg h-full flex flex-col">
@@ -24,10 +26,11 @@ export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewPr
         )}
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4">
-        {imageUrl ? (
+        {/* Ensure imageUrl is not an empty string before rendering Image to prevent potential issues if transform somehow fails */}
+        {imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('data:image') || imageUrl.startsWith('https://placehold.co/')) ? (
           <div className="relative w-full aspect-video rounded-md overflow-hidden">
             <Image
-              src={imageUrl}
+              src={imageUrl} // Directly use imageUrl as it's handled by the form schema
               alt={title || 'Article image preview'}
               fill
               style={{ objectFit: 'cover' }}
@@ -38,7 +41,7 @@ export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewPr
         ) : (
            <div className="relative w-full aspect-video rounded-md overflow-hidden bg-muted flex items-center justify-center">
             <Image
-              src="https://placehold.co/600x400.png"
+              src="https://placehold.co/600x400.png" // Fallback if imageUrl is somehow invalid for <Image>
               alt="Placeholder image"
               width={600}
               height={400}
@@ -54,3 +57,4 @@ export function NewsPreview({ title, text, imageUrl, isFeatured }: NewsPreviewPr
     </Card>
   );
 }
+

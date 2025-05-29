@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -18,12 +19,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { NewsPreview } from './news-preview';
-import { Loader2, Sparkles, Send, RotateCcw } from 'lucide-react';
+import { Loader2, Sparkles, Send, RotateCcw, Upload } from 'lucide-react';
 
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters." }).max(150, { message: "Title must be 150 characters or less." }),
   text: z.string().min(20, { message: "Article text must be at least 20 characters." }),
-  imageUrl: z.string().url({ message: "Please enter a valid image URL." }).or(z.literal("").transform(() => "https://placehold.co/600x400.png")), // Default to placeholder if empty
+  imageUrl: z.string()
+    .refine(
+      (value) => {
+        if (value === "") return true; // Handled by transform
+        if (value.startsWith("https://placehold.co/")) return true; // Placeholder is valid
+        if (value.startsWith("data:image/")) {
+          // Basic regex for data URI (supports common image types)
+          return /^data:image\/(?:gif|png|jpeg|bmp|webp|svg\+xml)(?:;charset=utf-8)?;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
+        }
+        // Validate as a URL
+        try {
+          new URL(value);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      },
+      { message: "Please enter a valid URL or upload an image." }
+    )
+    .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
+    .default(""), // Default to empty string, which will be transformed to placeholder
   isFeatured: z.boolean().default(false),
 });
 
@@ -34,13 +55,14 @@ export function NewsEditor() {
   const [suggestedTitles, setSuggestedTitles] = React.useState<string[]>([]);
   const [isSuggestingTitles, setIsSuggestingTitles] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const form = useForm<NewsArticleFormValues>({
     resolver: zodResolver(newsArticleSchema),
     defaultValues: {
       title: '',
       text: '',
-      imageUrl: '',
+      imageUrl: '', // Default to empty, schema transform handles placeholder
       isFeatured: false,
     },
     mode: "onChange", // useful for live preview updates
@@ -68,7 +90,7 @@ export function NewsEditor() {
     setSuggestedTitles([]);
     try {
       const input: SuggestAlternativeTitlesInput = {
-        articleTitle: currentTitle || "Untitled Article", // Provide a fallback if title is empty
+        articleTitle: currentTitle || "Untitled Article",
         articleContent: currentText,
       };
       const result = await suggestAlternativeTitles(input);
@@ -93,17 +115,15 @@ export function NewsEditor() {
 
   const onSubmit = async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
+    // The data.imageUrl will now correctly be the placeholder, a user-entered URL, or a data URI from upload.
     console.log("Simulated submission data:", data);
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     toast({
       title: "Article Submitted!",
       description: "Your news article has been 'saved' (simulated).",
     });
-    // form.reset(); // Optionally reset form
-    // setSuggestedTitles([]); // Clear suggestions
     setIsSubmitting(false);
   };
   
@@ -111,7 +131,7 @@ export function NewsEditor() {
     form.reset({
       title: '',
       text: '',
-      imageUrl: '',
+      imageUrl: '', // Will be transformed to placeholder by schema
       isFeatured: false,
     });
     setSuggestedTitles([]);
@@ -119,6 +139,39 @@ export function NewsEditor() {
       title: "Form Reset",
       description: "The editor and preview have been cleared.",
     });
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Basic validation (optional, can be more robust)
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+         toast({
+          title: "File too large",
+          description: "Please upload an image smaller than 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        form.setValue('imageUrl', reader.result as string, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
+    }
+    // Clear the file input so the same file can be selected again if needed
+    if (event.target) {
+      event.target.value = "";
+    }
   };
 
   return (
@@ -170,23 +223,45 @@ export function NewsEditor() {
                   name="imageUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Image URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://example.com/image.png" {...field} 
-                         onChange={e => field.onChange(e.target.value === "" ? "" : e.target.value)} // Ensure empty string is passed if cleared
+                      <FormLabel>Image URL or Upload</FormLabel>
+                      <div className="flex flex-col sm:flex-row gap-2 items-start">
+                        <FormControl className="flex-grow">
+                          <Input 
+                            placeholder="https://example.com/image.png or upload" 
+                            {...field} 
+                            // If field value is placeholder, show empty to encourage input or upload
+                            value={field.value === "https://placehold.co/600x400.png" ? "" : field.value}
+                            onChange={e => {
+                              // If user types, it should be a URL or empty (for placeholder)
+                              // Data URIs from uploads are set via handleFileChange
+                              field.onChange(e.target.value);
+                            }}
+                          />
+                        </FormControl>
+                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
+                          <Upload className="mr-2 h-4 w-4" />
+                          Upload Image
+                        </Button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleFileChange}
                         />
-                      </FormControl>
-                       <FormDescription>
-                        Enter a valid URL for the article image. Leave empty for a default placeholder.
+                      </div>
+                      <FormDescription>
+                        Enter an image URL, or upload an image. Leave empty for a default placeholder.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                {watchedImageUrl && watchedImageUrl !== 'https://placehold.co/600x400.png' && (
+                {/* Show preview if imageUrl is not the placeholder and is a valid looking src */}
+                {watchedImageUrl && watchedImageUrl !== 'https://placehold.co/600x400.png' && (watchedImageUrl.startsWith('http') || watchedImageUrl.startsWith('data:image')) && (
                   <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border">
-                     <Image src={watchedImageUrl} alt="Current Image URL Preview" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="thumbnail image"/>
+                     <Image src={watchedImageUrl} alt="Current Image URL Preview" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="image preview"/>
                   </div>
                 )}
 
@@ -270,7 +345,7 @@ export function NewsEditor() {
           <NewsPreview
             title={watchedTitle}
             text={watchedText}
-            imageUrl={watchedImageUrl || 'https://placehold.co/600x400.png'} // Pass placeholder if empty
+            imageUrl={watchedImageUrl} // watchedImageUrl will already be placeholder if needed
             isFeatured={watchedIsFeatured}
           />
         </div>
@@ -278,3 +353,4 @@ export function NewsEditor() {
     </div>
   );
 }
+
