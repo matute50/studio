@@ -115,7 +115,6 @@ export function NewsEditor() {
     setIsSubmitting(true);
     let finalImageUrl = data.imageUrl;
 
-    // If imageUrl is a data URI, upload it to Supabase Storage
     if (data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
       const uploadedUrl = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
@@ -131,14 +130,10 @@ export function NewsEditor() {
           title: "Error al Subir Imagen",
           description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original.",
           variant: "destructive",
-          duration: 9000, // Mostrar el toast por más tiempo
+          duration: 9000,
         });
-        // Optionally stop submission or use placeholder:
-        // finalImageUrl = "https://placehold.co/600x400.png"; 
-        // For now, let's allow proceeding with whatever imageUrl was (could be placeholder, could be dataURI if user wants to debug)
-        // Better: Stop if upload fails critically
         setIsSubmitting(false);
-        return; // Stop the submission if image upload fails
+        return; 
       }
     }
 
@@ -147,12 +142,11 @@ export function NewsEditor() {
       text: data.text,
       image_url: finalImageUrl,
       is_featured: data.isFeatured,
-      // created_at will be handled by Supabase (default now())
     };
 
     try {
       const { error: insertError } = await supabase
-        .from('articles') // Make sure 'articles' table exists in Supabase
+        .from('articles') 
         .insert([articleToInsert]);
 
       if (insertError) {
@@ -163,12 +157,19 @@ export function NewsEditor() {
         title: "¡Artículo Guardado!",
         description: "Tu artículo de noticias ha sido guardado en Supabase.",
       });
-      resetFormAndPreview(); // Reset form on successful save
+      resetFormAndPreview(); 
     } catch (error: any) {
-      console.error("Error guardando el artículo en Supabase:", error);
+      console.error("--- Error al Guardar Artículo en Supabase ---");
+      console.error("Mensaje:", error?.message);
+      console.error("Detalles:", error?.details);
+      console.error("Pista:", error?.hint);
+      console.error("Código:", error?.code);
+      console.error("Objeto de error completo:", error);
+      console.error("--- Fin del Error de Guardado ---");
+      
       toast({
         title: "Error al Guardar",
-        description: `No se pudo guardar el artículo: ${error.message}`,
+        description: `No se pudo guardar el artículo: ${error?.message || 'Error desconocido. Revisa la consola para más detalles.'}`,
         variant: "destructive",
       });
     } finally {
@@ -217,7 +218,7 @@ export function NewsEditor() {
       reader.readAsDataURL(file);
     }
     if (event.target) {
-      event.target.value = ""; // Reset file input to allow re-uploading the same file
+      event.target.value = ""; 
     }
   };
 
@@ -396,7 +397,3 @@ export function NewsEditor() {
     </div>
   );
 }
-
-    
-
-    
