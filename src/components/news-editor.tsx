@@ -15,12 +15,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label'; 
+import { Label }
+from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
@@ -146,7 +149,7 @@ export function NewsEditor() {
   const onSubmit = async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
     let finalImageUrl = data.imageUrl;
-
+  
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
       const uploadedUrl = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
@@ -169,57 +172,64 @@ export function NewsEditor() {
         return; 
       }
     }
-
+  
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      imageUrl: finalImageUrl, // Use finalImageUrl which might be Supabase URL or original
+      imageUrl: finalImageUrl, 
       isFeatured: data.isFeatured,
       // createdAt y updatedAt son gestionados por Supabase si las columnas existen con valores por defecto
     };
-
+  
     try {
       const { data: insertedData, error: insertError } = await supabase
         .from('articles') 
         .insert([articleToInsert])
         .select()
-        .single(); // Assuming you want the inserted record back
-
+        .single(); 
+  
       if (insertError) {
         throw insertError; 
       }
-
+  
       toast({
         title: "¡Artículo Guardado!",
         description: "Tu artículo de noticias ha sido guardado en Supabase.",
       });
       resetFormAndPreview(); 
-      fetchArticles(); // Recargar artículos después de guardar
+      fetchArticles(); 
     } catch (error: any) {
       console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
       
       let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
+      let errorCode = "Desconocido";
+      
       if (error && typeof error.message === 'string' && error.message.trim() !== '') {
         specificErrorMessage = error.message;
-      } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
-         specificErrorMessage = `Código de error: ${error.code}`;
+      } else if (error && typeof error.details === 'string' && error.details.trim() !== '') {
+        specificErrorMessage = error.details;
       }
-
+      
+      if (error && typeof error.code === 'string' && error.code.trim() !== '') {
+         errorCode = error.code;
+      } else if (error && typeof error.status === 'number') {
+         errorCode = error.status.toString();
+      }
+      
       const isLikelyNotFoundError = 
-        (error?.status === 404 || (typeof error?.code === 'string' && error.code.includes('404'))) || 
-        (typeof error?.message === 'string' && error.message.toLowerCase().includes('relation') && error.message.toLowerCase().includes('does not exist')) ||
-        (typeof error?.message === 'string' && error.message.toLowerCase().includes('not found')) ||
-        (typeof error?.details === 'string' && error.details.toLowerCase().includes('not found')) || 
-        (typeof error?.code === 'string' && error.code === 'PGRST116'); // PostgREST code for "relation ... does not exist"
-
-      let toastDescription = `Falló el intento de guardar en Supabase. Mensaje del cliente (puede ser limitado): "${specificErrorMessage}".`;
+        (error?.status === 404 || errorCode === '404') || 
+        (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
+        (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
+        (errorCode === 'PGRST116'); // PostgREST code for "relation ... does not exist"
+  
+      let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}. Mensaje: "${specificErrorMessage}".`;
       
       if (isLikelyNotFoundError) {
-        toastDescription = `Error al contactar la tabla 'articles' (Error 404 o similar). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible. Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
+        toastDescription = `Error al contactar la tabla 'articles' (Error 404 o similar - Código: ${errorCode}). Esto usualmente significa que la tabla 'articles' NO EXISTE en tu base de datos Supabase o no es accesible. Por favor, verifica URGENTEMENTE tu configuración de tabla y RLS en el panel de Supabase.`;
       } else {
         toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible.`;
       }
-
+  
       toast({
         title: "Error Crítico al Guardar Artículo",
         description: toastDescription,
@@ -231,6 +241,7 @@ export function NewsEditor() {
     }
   };
   
+  
   const resetFormAndPreview = () => {
     form.reset({
       title: '',
@@ -240,7 +251,7 @@ export function NewsEditor() {
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
-      fileInputRef.current.value = ""; // Reset file input
+      fileInputRef.current.value = ""; 
     }
     toast({
       title: "Formulario Reiniciado",
@@ -259,7 +270,7 @@ export function NewsEditor() {
         });
         return;
       }
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) { 
          toast({
           title: "Archivo demasiado grande",
           description: "Por favor, sube una imagen de menos de 5MB.",
@@ -274,10 +285,9 @@ export function NewsEditor() {
       };
       reader.readAsDataURL(file);
     }
-     // No resetear event.target.value aquí para permitir que la UI muestre la selección
   };
   
-  const formatDate = (dateString?: string) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Fecha desconocida';
     try {
       return new Date(dateString).toLocaleDateString('es-ES', {
@@ -288,7 +298,7 @@ export function NewsEditor() {
         minute: '2-digit',
       });
     } catch (e) {
-      return dateString; // Devuelve la cadena original si hay error de formato
+      return dateString; 
     }
   };
 
@@ -451,8 +461,8 @@ export function NewsEditor() {
           </CardContent>
         </Card>
 
-        <div className="space-y-6">
-          <CardHeader className="px-0 pt-0 lg:px-4">
+        <div className="space-y-4">
+          <CardHeader className="px-0 pt-0 lg:px-2">
             <CardTitle>Artículos Guardados</CardTitle>
             <CardDescription>Lista de todos los artículos de noticias almacenados en Supabase.</CardDescription>
           </CardHeader>
@@ -463,11 +473,11 @@ export function NewsEditor() {
             </div>
           )}
           {errorLoadingArticles && (
-            <Alert variant="destructive">
-              <Newspaper className="h-4 w-4" />
-              <AlertTitle>Error al Cargar Artículos</AlertTitle>
-              <AlertDescription>{errorLoadingArticles}</AlertDescription>
-            </Alert>
+             <Alert variant="destructive">
+               <Newspaper className="h-4 w-4" />
+               <AlertTitle>Error al Cargar Artículos</AlertTitle>
+               <AlertDescription>{errorLoadingArticles}</AlertDescription>
+             </Alert>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length === 0 && (
             <div className="text-center py-10">
@@ -477,20 +487,20 @@ export function NewsEditor() {
             </div>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
-            <div className="space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
+            <div className="space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
               {articles.map((article) => (
                 <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2 pt-3 px-4">
                     <div className="flex justify-between items-start">
-                        <CardTitle className="text-lg break-words">{article.title}</CardTitle>
+                        <CardTitle className="text-base font-semibold break-words">{article.title}</CardTitle>
                         {article.isFeatured && (
-                            <Badge className="ml-2 whitespace-nowrap bg-accent text-accent-foreground">Destacado</Badge>
+                            <Badge className="ml-2 whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
                         )}
                     </div>
                   </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-4 items-start pt-0">
-                    <div className="relative w-full md:w-[120px] h-[90px] rounded-md overflow-hidden border bg-muted">
-                      {article.imageUrl && (article.imageUrl.startsWith('http') || article.imageUrl.startsWith('data:image')) ? (
+                  <CardContent className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-3 items-start pt-0 pb-3 px-4">
+                    <div className="relative w-full md:w-[80px] h-[60px] rounded-md overflow-hidden border bg-muted">
+                      {(article.imageUrl && (article.imageUrl.startsWith('http') || article.imageUrl.startsWith('data:image'))) ? (
                         <Image
                           src={article.imageUrl}
                           alt={`Imagen para ${article.title}`}
@@ -498,24 +508,24 @@ export function NewsEditor() {
                           objectFit="cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
-                            target.src = 'https://placehold.co/120x90.png'; 
+                            target.src = 'https://placehold.co/80x60.png'; 
                             target.srcset = '';
                           }}
                           data-ai-hint="noticia miniatura"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-muted">
-                           <ImageOff className="w-8 h-8 text-muted-foreground" />
+                           <ImageOff className="w-6 h-6 text-muted-foreground" />
                         </div>
                       )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm text-muted-foreground line-clamp-3 break-words">
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                         {article.text}
                       </p>
                     </div>
                   </CardContent>
-                   <CardFooter className="text-xs text-muted-foreground pt-2 pb-3 px-6 justify-end">
+                   <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-4 justify-end">
                       <p>Publicado: {formatDate(article.createdAt)}</p>
                    </CardFooter>
                 </Card>
@@ -527,3 +537,5 @@ export function NewsEditor() {
     </div>
   );
 }
+
+    
