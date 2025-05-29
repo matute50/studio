@@ -25,8 +25,9 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 
 const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
-  eventDateTime: z.date({
-    invalid_type_error: "Fecha y hora no válidas.",
+  eventDateTime: z.date({ // Este campo se usará para validar la hora y como plantilla.
+    invalid_type_error: "La hora configurada no es válida.",
+    required_error: "Por favor, selecciona al menos una fecha y configura la hora."
   }),
 });
 
@@ -47,7 +48,7 @@ export function EventScheduler() {
   const [eventToDelete, setEventToDelete] = React.useState<CalendarEvent | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
-  const [calendarDate, setCalendarDate] = React.useState<Date | undefined>();
+  const [calendarDates, setCalendarDates] = React.useState<Date[] | undefined>();
   const [eventHour, setEventHour] = React.useState<string>("00");
   const [eventMinute, setEventMinute] = React.useState<string>("00");
 
@@ -62,8 +63,12 @@ export function EventScheduler() {
   });
 
   React.useEffect(() => {
-    if (calendarDate) {
-      const newDateTime = new Date(calendarDate);
+    // Usa la primera fecha seleccionada (si existe) para construir el eventDateTime del formulario.
+    // Esto es principalmente para la validación de la hora a través del esquema Zod.
+    const representativeDate = calendarDates && calendarDates.length > 0 ? calendarDates[0] : undefined;
+
+    if (representativeDate) {
+      const newDateTime = new Date(representativeDate);
       const hour = parseInt(eventHour, 10);
       const minute = parseInt(eventMinute, 10);
       
@@ -81,9 +86,11 @@ export function EventScheduler() {
       newDateTime.setMilliseconds(0);
       form.setValue('eventDateTime', newDateTime, { shouldValidate: true, shouldDirty: true });
     } else {
+      // Si no hay fechas seleccionadas, el eventDateTime del formulario es undefined.
+      // Zod se quejará de que 'eventDateTime' es requerido si se intenta enviar.
       form.setValue('eventDateTime', undefined, { shouldValidate: true, shouldDirty: true });
     }
-  }, [calendarDate, eventHour, eventMinute, form]);
+  }, [calendarDates, eventHour, eventMinute, form]);
 
 
   const fetchEvents = async () => {
@@ -116,7 +123,7 @@ export function EventScheduler() {
 
   const resetFormAndDateTimePickers = () => {
     form.reset({ name: '', eventDateTime: undefined });
-    setCalendarDate(undefined);
+    setCalendarDates(undefined);
     setEventHour("00");
     setEventMinute("00");
     setEditingEventId(null);
@@ -125,14 +132,17 @@ export function EventScheduler() {
   const onSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
-    const eventPayload = {
-      name: data.name,
-      eventDateTime: data.eventDateTime.toISOString(),
-      updatedAt: now,
-    };
 
     try {
       if (editingEventId) {
+        // Lógica para ACTUALIZAR un evento existente (un solo evento)
+        const eventPayload = {
+          name: data.name,
+          // data.eventDateTime ya tiene la fecha y hora combinadas por el useEffect
+          eventDateTime: data.eventDateTime.toISOString(), 
+          updatedAt: now,
+        };
+
         const { data: updatedData, error: updateError } = await supabase
           .from('eventos_calendario')
           .update(eventPayload)
@@ -142,22 +152,55 @@ export function EventScheduler() {
         if (updateError) throw updateError;
         toast({ title: "¡Evento Actualizado!", description: `El evento "${updatedData?.name}" ha sido actualizado.` });
       } else {
-        const payloadWithCreation = { ...eventPayload, createdAt: now };
+        // Lógica para CREAR nuevos eventos (potencialmente múltiples)
+        if (!calendarDates || calendarDates.length === 0) {
+          toast({
+            title: "Error de Validación",
+            description: "Por favor, selecciona al menos una fecha en el calendario.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        const eventsToCreate = calendarDates.map(date => {
+          const eventSpecificDateTime = new Date(date);
+          const hour = parseInt(eventHour, 10);
+          const minute = parseInt(eventMinute, 10);
+
+          eventSpecificDateTime.setHours(isNaN(hour) ? 0 : hour);
+          eventSpecificDateTime.setMinutes(isNaN(minute) ? 0 : minute);
+          eventSpecificDateTime.setSeconds(0);
+          eventSpecificDateTime.setMilliseconds(0);
+
+          return {
+            name: data.name,
+            eventDateTime: eventSpecificDateTime.toISOString(),
+            createdAt: now,
+            updatedAt: now,
+          };
+        });
+        
         const { data: insertedData, error: insertError } = await supabase
           .from('eventos_calendario')
-          .insert([payloadWithCreation])
-          .select()
-          .single();
+          .insert(eventsToCreate)
+          .select();
+
         if (insertError) throw insertError;
-        toast({ title: "¡Evento Guardado!", description: `El evento "${insertedData?.name}" ha sido programado.` });
+        
+        const numCreated = insertedData?.length || 0;
+        toast({ 
+          title: "¡Eventos Guardados!", 
+          description: `${numCreated} evento${numCreated === 1 ? '' : 's'} "${data.name}" ha${numCreated === 1 ? ' SIDO' : 'N SIDO'} programado${numCreated === 1 ? '' : 's'}.` 
+        });
       }
       fetchEvents();
       resetFormAndDateTimePickers();
     } catch (error: any) {
-      let description = "No se pudo guardar el evento. Inténtalo de nuevo.";
+      let description = "No se pudo guardar el evento/los eventos. Inténtalo de nuevo.";
       if (error?.message) description = `Error: ${error.message}`;
       toast({
-        title: "Error al Guardar Evento",
+        title: "Error al Guardar",
         description: `${description} Revisa la consola y los logs de Supabase.`,
         variant: "destructive",
       });
@@ -172,9 +215,9 @@ export function EventScheduler() {
     const dt = parseISO(eventToEdit.eventDateTime);
     form.reset({
       name: eventToEdit.name,
-      eventDateTime: dt,
+      eventDateTime: dt, // El form se resetea con la fecha/hora del evento a editar
     });
-    setCalendarDate(dt);
+    setCalendarDates([dt]); // El calendario selecciona solo la fecha del evento a editar
     setEventHour(dt.getHours().toString().padStart(2, '0'));
     setEventMinute(dt.getMinutes().toString().padStart(2, '0'));
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -254,17 +297,26 @@ export function EventScheduler() {
 
                 <FormField
                   control={form.control}
-                  name="eventDateTime"
+                  name="eventDateTime" // Este campo en el form maneja la validación de la hora
                   render={() => ( 
                     <FormItem className="space-y-3">
-                      <FormLabel>Fecha y Hora del Evento</FormLabel>
+                      <FormLabel>Fecha(s) y Hora del Evento</FormLabel>
                       <Calendar
-                        mode="single"
-                        selected={calendarDate}
-                        onSelect={setCalendarDate}
+                        mode="multiple" // Cambiado a multiple
+                        selected={calendarDates}
+                        onSelect={setCalendarDates}
                         className="rounded-md border self-center shadow-sm"
                         disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
-                        locale={es} // Añadir locale español
+                        locale={es}
+                        footer={
+                            calendarDates && calendarDates.length > 0 ? (
+                                <p className="text-xs text-muted-foreground pt-2 text-center">
+                                {calendarDates.length} fecha{calendarDates.length === 1 ? '' : 's'} seleccionada{calendarDates.length === 1 ? '' : 's'}.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground pt-2 text-center">Selecciona una o más fechas.</p>
+                            )
+                        }
                       />
                        <div className="p-3 border rounded-md bg-muted/50 shadow-sm">
                         <FormLabel className="text-sm font-medium mb-2 block text-center">Hora del Evento</FormLabel>
@@ -292,6 +344,7 @@ export function EventScheduler() {
                             </Select>
                         </div>
                       </div>
+                      {/* La FormMessage aquí se mostrará si form.eventDateTime (basado en la primera fecha) tiene un error */}
                       {form.formState.errors.eventDateTime && (
                         <FormMessage>{form.formState.errors.eventDateTime.message}</FormMessage>
                       )}
@@ -302,7 +355,7 @@ export function EventScheduler() {
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {editingEventId ? "Actualizar Evento" : "Guardar Evento"}
+                    {editingEventId ? "Actualizar Evento" : "Guardar Evento(s)"}
                     </Button>
                     {editingEventId && (
                     <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto">
@@ -383,10 +436,5 @@ export function EventScheduler() {
     </div>
   );
 }
-    
-
-      
-
-    
 
     
