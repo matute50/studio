@@ -55,49 +55,48 @@ export function TextTickerEditor() {
     setIsLoadingTexts(true);
     setErrorLoadingTexts(null);
     try {
+      // Attempt to fetch and order by createdAt if the column exists
       const { data, error } = await supabase
         .from('textos_ticker')
         .select('*')
         .order('createdAt', { ascending: false });
 
-
       if (error) {
-        // Specific check for missing 'createdAt' column error
-        if (error.code === '42703' && error.message.includes('column "createdat" does not exist')) {
-             console.warn("Advertencia: La columna 'createdAt' no existe en 'textos_ticker'. Los textos no se ordenarán por fecha de creación.");
-             const { data: dataUnordered, error: errorUnordered } = await supabase
+        // Specific check for missing 'createdAt' column error (PostgreSQL error code 42703)
+        if (error.code === '42703' && error.message.includes('column') && error.message.toLowerCase().includes('createdat') && error.message.includes('does not exist')) {
+            console.warn("Advertencia: La columna 'createdAt' no existe o no es accesible en 'textos_ticker'. Los textos se cargarán sin orden específico por fecha de creación. Para habilitar el ordenamiento, asegúrate de que la columna 'createdAt' (TIMESTAMPTZ) exista y sea accesible.");
+            // Fallback: Fetch without ordering if 'createdAt' ordering fails
+            const { data: dataUnordered, error: errorUnordered } = await supabase
                 .from('textos_ticker')
                 .select('*');
-            if (errorUnordered) throw errorUnordered;
+            if (errorUnordered) throw errorUnordered; // Throw if even the unordered fetch fails
             setTexts(dataUnordered || []);
         } else {
-            throw error;
+            throw error; // Re-throw other errors
         }
       } else {
         setTexts(data || []);
       }
-
     } catch (error: any) {
       let consoleErrorMessage = "Error cargando textos del ticker.";
-      let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
-      
-      const errorCode = (typeof error?.code === 'string') ? error.code : "";
-      const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
-
       if (error?.message) {
         consoleErrorMessage += ` Mensaje: ${error.message}`;
       }
       if (error?.code) {
         consoleErrorMessage += ` Código: ${error.code}`;
       }
-      
       console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
       console.error("Objeto de error original:", error); 
+
+      let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
+      
+      const errorCode = (typeof error?.code === 'string') ? error.code : "";
+      const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
       } else if (errorCode === '42703' || (errorMessageLowerCase.includes('column') && errorMessageLowerCase.includes('does not exist'))) {
-        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento o una columna como 'isActive' o 'updatedAt') NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes.`;
+        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento, o 'isActive', 'updatedAt') NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes. Error original: ${error.message || 'Desconocido'}`;
       } else if (error?.message) {
         description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas correctamente. Revisa los logs del panel de Supabase.`;
       }
@@ -129,7 +128,7 @@ export function TextTickerEditor() {
 
     if (editingTextId) {
       // Actualizar texto existente
-      const textToUpdate = {
+      const textToUpdate: Partial<TextoTicker> = { // Use Partial here
         text: data.text,
         updatedAt: now,
       };
@@ -147,9 +146,18 @@ export function TextTickerEditor() {
         fetchTexts();
         resetForm();
       } catch (error: any) {
-        console.error("Error al actualizar texto del ticker:", error);
+        console.error("--- ERROR AL ACTUALIZAR TEXTO DEL TICKER (Inicio del bloque catch) ---");
         let description = "No se pudo actualizar el texto del ticker. Inténtalo de nuevo.";
         if (error?.message) description = `Error: ${error.message}`;
+        if (error?.code) description += ` (Código: ${error.code})`;
+        
+        const errorCode = (typeof error?.code === 'string') ? error.code : "";
+        const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+        if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+            description = "Error CRÍTICO al actualizar: La tabla 'textos_ticker' NO EXISTE o no es accesible. Revisa la configuración de Supabase.";
+        }
+
         toast({
           title: "Error al Actualizar Texto",
           description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
@@ -160,7 +168,7 @@ export function TextTickerEditor() {
 
     } else {
       // Crear nuevo texto
-      const textToInsert = {
+      const textToInsert: Omit<TextoTicker, 'id'> = { // Use Omit here
         text: data.text,
         createdAt: now,
         updatedAt: now,
@@ -181,16 +189,17 @@ export function TextTickerEditor() {
         resetForm();
       } catch (error: any)
       {
-        console.error("Error al crear texto para ticker:", error);
+        console.error("--- ERROR AL CREAR TEXTO PARA TICKER (Inicio del bloque catch) ---");
         let description = "No se pudo crear el texto para el ticker. Inténtalo de nuevo.";
         
         const errorCode = (typeof error?.code === 'string') ? error.code : "";
         const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
         if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-          description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+          description = "Error CRÍTICO al crear: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
         } else if (error?.message) {
           description = `Error al crear texto: ${error.message}. Revisa los logs del panel de Supabase.`;
+           if (error?.code) description += ` (Código: ${error.code})`;
         }
         
         toast({
@@ -248,10 +257,11 @@ export function TextTickerEditor() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error al eliminar texto del ticker:", error);
+      console.error("--- ERROR AL ELIMINAR TEXTO DEL TICKER (Inicio del bloque catch) ---");
       let description = "No se pudo eliminar el texto. Inténtalo de nuevo.";
       if (error?.message) {
         description = `Error: ${error.message}. Revisa los logs del panel de Supabase para más detalles.`;
+         if (error?.code) description += ` (Código: ${error.code})`;
       }
       toast({ title: "Error al Eliminar Texto", description, variant: "destructive", duration: 9000 });
     } finally {
@@ -285,9 +295,12 @@ export function TextTickerEditor() {
       toast({ title: "Estado de Activo Actualizado", description: "El estado del texto del ticker ha sido actualizado." });
       fetchTexts();
     } catch (error: any) {
+      let description = "No se pudo actualizar el estado activo del texto.";
+      if (error?.message) description = `Error: ${error.message}`;
+      if (error?.code) description += ` (Código: ${error.code})`;
       toast({
         title: "Error al Actualizar Estado",
-        description: error.message || "No se pudo actualizar el estado activo del texto.",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -348,7 +361,7 @@ export function TextTickerEditor() {
                     {editingTextId ? "Actualizar Texto" : "Guardar Texto"}
                   </Button>
                   {editingTextId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto">
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:flex-1">
                       <XCircle className="mr-2 h-4 w-4" />
                       Cancelar Edición
                     </Button>
@@ -460,4 +473,3 @@ export function TextTickerEditor() {
     </div>
   );
 }
-
