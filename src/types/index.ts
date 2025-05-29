@@ -17,3 +17,10 @@ export interface TextoTicker {
   isActive?: boolean;
 }
 
+export interface CalendarEvent {
+  id?: string;
+  name: string;
+  eventDateTime: string; // Stored as ISO string
+  createdAt?: string;
+  updatedAt?: string;
+}
