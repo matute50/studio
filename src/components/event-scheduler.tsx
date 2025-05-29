@@ -263,7 +263,7 @@ export function EventScheduler() {
                 <FormField
                   control={form.control}
                   name="eventDateTime"
-                  render={() => ( // No necesitamos 'field' aquí ya que manejamos el valor con estados locales
+                  render={() => ( 
                     <FormItem className="space-y-3">
                       <FormLabel>Fecha y Hora del Evento</FormLabel>
                       <Calendar
@@ -271,7 +271,7 @@ export function EventScheduler() {
                         selected={calendarDate}
                         onSelect={setCalendarDate}
                         className="rounded-md border self-center shadow-sm"
-                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} // Deshabilitar días pasados
+                        disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
                       />
                        <div className="p-3 border rounded-md bg-muted/50 shadow-sm">
                         <FormLabel className="text-sm font-medium mb-2 block text-center">Hora del Evento</FormLabel>
@@ -299,13 +299,13 @@ export function EventScheduler() {
                             </Select>
                         </div>
                       </div>
-                      <FormMessage /> {/* Mostrará el mensaje de error para eventDateTime */}
+                      <FormMessage /> 
                     </FormItem>
                   )}
                 />
                 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button type="submit" disabled={isSubmitting} className="w-full sm:flex-1">
+                    <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {editingEventId ? "Actualizar Evento" : "Guardar Evento"}
                     </Button>
