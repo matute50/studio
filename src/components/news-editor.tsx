@@ -15,14 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Label }
-from '@/components/ui/label'; 
+import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'; // Added FormDescription
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 
 const newsArticleSchema = z.object({
@@ -62,6 +61,7 @@ export function NewsEditor() {
   const [articles, setArticles] = React.useState<NewsArticle[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = React.useState(true);
   const [errorLoadingArticles, setErrorLoadingArticles] = React.useState<string | null>(null);
+  const [isTogglingFeature, setIsTogglingFeature] = React.useState(false);
 
   const form = useForm<NewsArticleFormValues>({
     resolver: zodResolver(newsArticleSchema),
@@ -178,10 +178,20 @@ export function NewsEditor() {
       text: data.text,
       imageUrl: finalImageUrl, 
       isFeatured: data.isFeatured,
-      // createdAt y updatedAt son gestionados por Supabase si las columnas existen con valores por defecto
+      updatedAt: new Date().toISOString(), // Ensure updatedAt is set on creation as well
     };
   
    try {
+      if (articleToInsert.isFeatured) {
+        const { error: unfeatureError } = await supabase
+          .from('articles')
+          .update({ isFeatured: false, updatedAt: new Date().toISOString() })
+          .eq('isFeatured', true);
+        if (unfeatureError) {
+          console.warn("Error al desmarcar otros artículos como destacados al crear uno nuevo:", unfeatureError);
+        }
+      }
+
       const { data: insertedData, error: insertError } = await supabase
         .from('articles') 
         .insert([articleToInsert])
@@ -230,7 +240,7 @@ export function NewsEditor() {
       let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
       
       if (isLikelyNotFoundError) {
-        toastDescription = `Error crítico al guardar el artículo: La tabla 'articles' parece NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas (id, title, text, imageUrl, isFeatured, createdAt, updatedAt).`;
+        toastDescription = `Error CRÍTICO al guardar: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt" - nota el camelCase si lo usaste).`;
       } else {
         toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
       }
@@ -314,6 +324,58 @@ export function NewsEditor() {
       return 'Error al formatear fecha';
     }
   };
+
+  const handleFeatureToggle = async (articleId: string, newFeaturedState: boolean) => {
+    setIsTogglingFeature(true);
+    try {
+      const now = new Date().toISOString();
+
+      if (newFeaturedState) {
+        const { error: unfeatureError } = await supabase
+          .from('articles')
+          .update({ isFeatured: false, updatedAt: now })
+          .eq('isFeatured', true)
+          .neq('id', articleId); 
+
+        if (unfeatureError) {
+          console.error("Error al desmarcar otros artículos:", unfeatureError);
+          throw unfeatureError;
+        }
+
+        const { error: featureError } = await supabase
+          .from('articles')
+          .update({ isFeatured: true, updatedAt: now })
+          .eq('id', articleId);
+
+        if (featureError) {
+          console.error("Error al marcar artículo como destacado:", featureError);
+          throw featureError;
+        }
+      } else {
+        const { error: unfeatureError } = await supabase
+          .from('articles')
+          .update({ isFeatured: false, updatedAt: now })
+          .eq('id', articleId);
+
+        if (unfeatureError) {
+          console.error("Error al desmarcar artículo:", unfeatureError);
+          throw unfeatureError;
+        }
+      }
+
+      toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
+      fetchArticles(); 
+    } catch (error: any) {
+      toast({
+        title: "Error al Actualizar Destacado",
+        description: error.message || "No se pudo actualizar el estado de destacado del artículo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsTogglingFeature(false);
+    }
+  };
+
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -404,9 +466,9 @@ export function NewsEditor() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Artículo Destacado</FormLabel>
+                        <FormLabel>Artículo Destacado al Crear</FormLabel>
                         <FormDescription>
-                          Marcar este artículo como destacado.
+                          Marcar este artículo como destacado al guardarlo.
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -451,7 +513,7 @@ export function NewsEditor() {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                  <Button type="submit" disabled={isSubmitting} className="flex-1">
+                  <Button type="submit" disabled={isSubmitting || isTogglingFeature} className="flex-1">
                     {isSubmitting ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -459,7 +521,7 @@ export function NewsEditor() {
                     )}
                     Guardar Artículo
                   </Button>
-                   <Button type="button" variant="outline" onClick={resetFormAndPreview} className="flex-1 sm:flex-none">
+                   <Button type="button" variant="outline" onClick={resetFormAndPreview} className="flex-1 sm:flex-none" disabled={isTogglingFeature}>
                     <RotateCcw className="mr-2 h-4 w-4" />
                     Reiniciar Formulario
                   </Button>
@@ -479,8 +541,8 @@ export function NewsEditor() {
           {errorLoadingArticles && (
              <Alert variant="destructive">
                <Newspaper className="h-4 w-4" />
-               <AlertTitle>Error al Cargar Artículos</AlertTitle>
-               <AlertDescription>{errorLoadingArticles}</AlertDescription>
+               <ShadcnAlertTitle>Error al Cargar Artículos</ShadcnAlertTitle>
+               <ShadcnAlertDescription>{errorLoadingArticles}</ShadcnAlertDescription>
              </Alert>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length === 0 && (
@@ -494,11 +556,35 @@ export function NewsEditor() {
               articles.map((article) => (
                 <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-2 pt-3 px-4">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex-grow">
                         <CardTitle className="text-base font-semibold break-words">{article.title}</CardTitle>
+                      </div>
+                      <div className="flex flex-col items-end space-y-1 flex-shrink-0">
                         {article.isFeatured && (
-                            <Badge className="ml-2 whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
+                          <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
                         )}
+                        <div className="flex items-center space-x-1.5">
+                          <Label htmlFor={`featured-switch-${article.id}`} className="text-xs text-muted-foreground">
+                            Destacado
+                          </Label>
+                          <Switch
+                            id={`featured-switch-${article.id}`}
+                            checked={!!article.isFeatured}
+                            onCheckedChange={(isChecked) => {
+                              if (article.id) {
+                                handleFeatureToggle(article.id, isChecked);
+                              } else {
+                                console.warn("Article ID is missing, cannot toggle feature state.");
+                                toast({title: "Error", description: "Falta ID del artículo para cambiar estado.", variant: "destructive"});
+                              }
+                            }}
+                            disabled={isTogglingFeature}
+                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input"
+                            aria-label={`Marcar ${article.title} como destacado`}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-3 items-start pt-0 pb-3 px-4">
@@ -530,6 +616,9 @@ export function NewsEditor() {
                   </CardContent>
                    <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-4 justify-end">
                       <p>Publicado: {formatDate(article.createdAt)}</p>
+                      {article.updatedAt && article.updatedAt !== article.createdAt && (
+                        <p className="ml-2 text-xs text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
+                      )}
                    </CardFooter>
                 </Card>
               ))
