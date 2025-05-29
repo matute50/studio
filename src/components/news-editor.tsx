@@ -195,8 +195,8 @@ export function NewsEditor() {
       }
     }
 
-    if (editingArticleId) { // Lógica de Actualización
-      const articleToUpdate: Partial<NewsArticle> = {
+    if (editingArticleId) { 
+      const articleToUpdate = { // No es necesario NewsArticle completo, solo campos a actualizar
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
@@ -219,24 +219,26 @@ export function NewsEditor() {
         resetFormAndPreview();
         setEditingArticleId(null);
       } catch (error: any) {
-         console.error("--- ERROR AL ACTUALIZAR ARTÍCULO EN SUPABASE ---", error);
-         let specificErrorMessage = "Error desconocido al actualizar.";
-         if (error?.message) specificErrorMessage = error.message;
+         console.error("Error al actualizar artículo:", error);
+         let description = "No se pudo actualizar el artículo. Inténtalo de nuevo.";
+         if (error?.message) {
+           description = `Error: ${error.message}`;
+         }
          toast({
             title: "Error al Actualizar Artículo",
-            description: `No se pudo actualizar el artículo: ${specificErrorMessage}. Revisa la consola y los logs de Supabase.`,
+            description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
             variant: "destructive",
             duration: 9000,
          });
       } finally {
         setIsSubmitting(false);
       }
-    } else { // Lógica de Creación
-      const articleToInsert: Omit<NewsArticle, 'id' | 'createdAt'> = {
+    } else { 
+      const articleToInsert = { // No es necesario NewsArticle completo, solo campos a insertar
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
-        isFeatured: false, // Siempre false al crear, se gestiona con el switch en la tarjeta
+        isFeatured: data.isFeatured, // Se mantiene el valor del formulario (aunque siempre será false por defecto si se eliminó el switch)
         updatedAt: now, 
         createdAt: now,
       };
@@ -259,47 +261,26 @@ export function NewsEditor() {
         fetchArticles(); 
         resetFormAndPreview(); 
       } catch (error: any) {
-        console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
-        
-        let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
-        let errorCode = "Desconocido";
-        let errorStatus = "Desconocido"; 
-  
-        if (error && typeof error.message === 'string' && error.message.trim() !== '') {
-          specificErrorMessage = error.message;
-        } else if (error && typeof error.details === 'string' && error.details.trim() !== '') {
-          specificErrorMessage = error.details;
+        console.error("Error al crear artículo:", error);
+        let description = "No se pudo crear el artículo. Inténtalo de nuevo.";
+        if (error?.message) {
+          description = `Error: ${error.message}`;
         }
         
-        if (error && typeof error.code === 'string' && error.code.trim() !== '') {
-           errorCode = error.code;
-        }
-        
-         if (error && typeof (error as any).status === 'number') { 
-           errorStatus = (error as any).status.toString();
-         } else if (error && typeof (error as any).statusCode === 'number') { 
-           errorStatus = (error as any).statusCode.toString();
-         }
-  
-        const isLikelyNotFoundError = 
-          (errorStatus === '404') || 
-          (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
-          (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-          (errorCode === 'PGRST116'); 
-    
-        let toastDescription = `Falló el intento de guardar en Supabase.`;
-        
-        if (isLikelyNotFoundError) {
-          toastDescription = `Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus || 'desconocido'} - Código ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas por el código: id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt".`;
-        } else {
-          toastDescription += ` Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}". Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles.`;
+        const errorCode = (typeof error?.code === 'string') ? error.code : "";
+        const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+        if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist'))) {
+          description = "Error CRÍTICO: La tabla 'articles' no existe o no es accesible en Supabase. Por favor, verifica la configuración de tu base de datos.";
+        } else if (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe'))) {
+           description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase.";
         }
     
         toast({
-          title: "Error Crítico al Guardar Artículo",
-          description: toastDescription,
+          title: "Error al Crear Artículo",
+          description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
           variant: "destructive",
-          duration: 15000, 
+          duration: 10000, 
         });
       } finally {
         setIsSubmitting(false);
@@ -364,6 +345,7 @@ export function NewsEditor() {
       const now = new Date().toISOString();
 
       if (newFeaturedState) {
+        // Desmarcar cualquier otro artículo destacado
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -372,8 +354,10 @@ export function NewsEditor() {
 
         if (unfeatureError) {
           console.error("Error al desmarcar otros artículos:", unfeatureError);
+          // Considerar si este error debe detener el proceso o solo registrarse
         }
 
+        // Marcar el artículo actual como destacado
         const { error: featureError } = await supabase
           .from('articles')
           .update({ isFeatured: true, updatedAt: now })
@@ -381,9 +365,10 @@ export function NewsEditor() {
 
         if (featureError) {
           console.error("Error al marcar artículo como destacado:", featureError);
-          throw featureError;
+          throw featureError; // Lanzar para que se maneje en el catch general
         }
       } else {
+        // Simplemente desmarcar el artículo actual
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -391,12 +376,12 @@ export function NewsEditor() {
 
         if (unfeatureError) {
           console.error("Error al desmarcar artículo:", unfeatureError);
-          throw unfeatureError;
+          throw unfeatureError; // Lanzar para que se maneje en el catch general
         }
       }
 
       toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
-      fetchArticles(); 
+      fetchArticles(); // Recargar artículos para reflejar el cambio
     } catch (error: any) {
       toast({
         title: "Error al Actualizar Destacado",
@@ -461,10 +446,12 @@ export function NewsEditor() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("--- ERROR AL ELIMINAR ARTÍCULO ---", error);
-      let specificErrorMessage = "Error desconocido al eliminar.";
-      if (error?.message) specificErrorMessage = error.message;
-      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el artículo: ${specificErrorMessage}`, variant: "destructive" });
+      console.error("Error al eliminar artículo:", error);
+      let description = "No se pudo eliminar el artículo. Inténtalo de nuevo.";
+      if (error?.message) {
+        description = `Error: ${error.message}`;
+      }
+      toast({ title: "Error al Eliminar Artículo", description: `${description} Revisa la consola para más detalles.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
@@ -658,7 +645,6 @@ export function NewsEditor() {
                               if (article.id) {
                                 handleFeatureToggle(article.id, isChecked);
                               } else {
-                                console.warn("Article ID is missing, cannot toggle feature state.");
                                 toast({title: "Error", description: "Falta ID del artículo para cambiar estado.", variant: "destructive"});
                               }
                             }}
@@ -747,3 +733,4 @@ export function NewsEditor() {
     
 
     
+

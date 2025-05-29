@@ -32,28 +32,19 @@ export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv
 // Helper to convert data URI to Blob
 async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
   if (!dataURI.startsWith('data:image/')) {
-    console.error('Error: Data URI no parece ser una imagen válida. Data URI (primeros 100 caracteres):', dataURI.substring(0, 100));
     return null;
   }
   try {
     const response = await fetch(dataURI);
     if (!response.ok) {
-      console.error(`Error al hacer fetch del Data URI: ${response.status} ${response.statusText}`);
-      const responseText = await response.text().catch(() => 'No se pudo leer el cuerpo de la respuesta.');
-      console.error('Cuerpo de la respuesta del fetch (si disponible):', responseText);
       return null;
     }
     const blob = await response.blob();
     if (!blob || !blob.type || !blob.type.startsWith('image/')) { 
-      console.error('El Blob no tiene tipo MIME de imagen o es nulo. Data URI podría estar malformado o ser inválido:', dataURI.substring(0, 100), 'Blob type:', blob?.type);
       return null;
     }
     return blob;
   } catch (error) {
-    console.error('Error en dataURIToBlob:', error);
-    if (error instanceof Error) {
-        console.error('Mensaje de error en dataURIToBlob:', error.message);
-    }
     return null;
   }
 }
@@ -66,20 +57,18 @@ export async function uploadImageToSupabase(
     console.error('Error: Nombre del bucket inválido o no proporcionado:', bucketName);
     return null;
   }
-  if (!dataURI || typeof dataURI !== 'string' ) { // Simplified check, specific image check in dataURIToBlob
-    console.error('Error: Data URI inválido o no proporcionado. Data URI (primeros 100 caracteres):', dataURI ? dataURI.substring(0,100) + "..." : "undefined/null");
+  if (!dataURI || typeof dataURI !== 'string' ) { 
+    console.error('Error: Data URI inválido o no proporcionado.');
     return null;
   }
 
   try {
-    console.log('Intentando convertir Data URI a Blob...');
     const blob = await dataURIToBlob(dataURI);
 
     if (!blob) {
       console.error('Falló la conversión de Data URI a Blob. No se puede proceder con la subida.');
       return null;
     }
-    console.log('Blob creado exitosamente:', { type: blob.type, size: blob.size });
 
     const fileExtMatch = blob.type.match(/^image\/(png|jpeg|gif|webp|svg\+xml)$/);
     if (!fileExtMatch || !fileExtMatch[1]) {
@@ -89,7 +78,6 @@ export async function uploadImageToSupabase(
     const fileExt = fileExtMatch[1] === 'svg+xml' ? 'svg' : fileExtMatch[1];
     const fileName = `article_img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
-    console.log('Subiendo archivo a Supabase Storage con bucket:', bucketName, 'y filePath:', filePath);
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
@@ -100,37 +88,37 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error("--- Supabase Storage Upload Error DETECTED ---"); // This line is seen by the user.
-      // PRIORITIZE THIS WARNING:
-      console.warn("IMPORTANT: Client-side error details are often limited or misleading for storage issues. For the TRUE error reason (e.g., RLS, bucket policy), please check your Supabase Dashboard: Project > Logs > Storage Logs.");
-      console.error("Attempting to log raw client-side error object (may be uninformative):", uploadError);
+      console.error("--- Supabase Storage Upload Error DETECTED ---");
+      console.warn(
+        "IMPORTANT: Client-side error details are often limited or misleading for storage issues. For the TRUE error reason (e.g., RLS, bucket policy), please check your Supabase Dashboard: Project > Logs > Storage Logs."
+      );
+      console.error(
+        "Original uploadError object for direct console inspection:",
+        uploadError
+      );
       return null;
     }
 
-    console.log('Subida a Supabase Storage exitosa. Obteniendo URL pública...');
     const { data: publicURLData } = supabase.storage
       .from(bucketName)
       .getPublicUrl(filePath);
     
     if (!publicURLData || !publicURLData.publicUrl) {
-        console.error('No se pudo obtener la URL pública para la imagen subida. El archivo podría estar en el bucket pero inaccesible. Path:', filePath);
+        console.error('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible.');
         try {
           const { error: removeError } = await supabase.storage.from(bucketName).remove([filePath]);
           if (removeError) {
             console.error('Error al intentar eliminar el archivo huérfano:', removeError);
-          } else {
-            console.log('Archivo huérfano (sin URL pública) eliminado de Supabase Storage.');
           }
         } catch (removeCatchError) {
           console.error('Excepción al intentar eliminar el archivo huérfano:', removeCatchError);
         }
         return null;
     }
-    console.log('URL pública obtenida:', publicURLData.publicUrl);
     return publicURLData.publicUrl;
 
   } catch (error) { 
-    console.error('Error general en la función uploadImageToSupabase (bloque catch principal):', error);
+    console.error('Error general en la función uploadImageToSupabase (bucket: ', bucketName, '):', error);
     if (error instanceof Error) {
       console.error('Mensaje del error general:', error.message);
     }
