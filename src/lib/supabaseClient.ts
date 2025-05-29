@@ -40,7 +40,7 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
       return null;
     }
     const blob = await response.blob();
-    if (!blob || !blob.type) { // Check if blob itself or blob.type is null/empty
+    if (!blob || !blob.type) { 
       console.error('El Blob no tiene tipo MIME o es nulo. Data URI podría estar malformado o ser inválido:', dataURI.substring(0, 100));
       return null;
     }
@@ -87,20 +87,46 @@ export async function uploadImageToSupabase(
     const filePath = `${fileName}`;
     console.log('Subiendo archivo a Supabase Storage con bucket:', bucketName, 'y filePath:', filePath);
 
-
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
         contentType: blob.type,
         cacheControl: '3600',
-        upsert: false, // Consider true if you want to overwrite
+        upsert: false, 
       });
 
     if (uploadError) {
-      console.error("--- Supabase Storage Upload Error DETECTED ---");
-      console.error("Raw uploadError object:", uploadError);
-      
-      // Attempt to stringify with circular reference handler
+      console.error("--- Supabase Storage Upload Error DETECTED ---"); // Line 100
+
+      // Log 1: Direct log of the error object
+      console.error("1. Raw uploadError object:", uploadError);
+
+      // Log 2: Type of error
+      console.error("2. typeof uploadError:", typeof uploadError);
+
+      // Log 3: instanceof Error
+      let isInstanceOfError = false;
+      try {
+        isInstanceOfError = uploadError instanceof Error;
+      } catch (e) { /* ignore, might not be an object */ }
+      console.error("3. uploadError instanceof Error:", isInstanceOfError);
+
+      // Log 4: Constructor name
+      let constructorName = 'N/A';
+      if (uploadError && typeof (uploadError as any)?.constructor === 'function') {
+        constructorName = (uploadError as any).constructor.name;
+      }
+      console.error("4. uploadError.constructor.name:", constructorName);
+
+      // Log 5: String conversion
+      let stringRepresentation = 'N/A';
+      try {
+        stringRepresentation = String(uploadError);
+      } catch (e) { stringRepresentation = "Error converting to string: " + String(e); }
+      console.error("5. String(uploadError):", stringRepresentation);
+
+      // Log 6: JSON.stringify with circular replacer
+      let jsonStringified = 'N/A';
       try {
         const getCircularReplacer = () => {
           const seen = new WeakSet();
@@ -114,23 +140,62 @@ export async function uploadImageToSupabase(
             return value;
           };
         };
-        console.error("JSON.stringify(uploadError, getCircularReplacer(), 2):", JSON.stringify(uploadError, getCircularReplacer(), 2));
-      } catch (e) {
-        console.error("No se pudo convertir uploadError a JSON (incluso con manejador de circularidad):", e);
+        jsonStringified = JSON.stringify(uploadError, getCircularReplacer(), 2);
+      } catch (e: any) {
+        jsonStringified = "Error during JSON.stringify: " + String(e.message || e);
+      }
+      console.error("6. JSON.stringify(uploadError):", jsonStringified);
+
+      // Log 7: Individual properties, explicitly casting to string
+      if (uploadError && typeof uploadError === 'object') {
+        const err = uploadError as any;
+        console.error("7a. err.message:", String(err.message ?? 'N/A'));
+        console.error("7b. err.name:", String(err.name ?? 'N/A'));
+        console.error("7c. err.stack:", String(err.stack ?? 'N/A'));
+        console.error("7d. err.status (HTTP status):", String(err.status ?? err.statusCode ?? 'N/A'));
+        console.error("7e. err.error (Supabase code/string):", String(err.error ?? 'N/A'));
+        console.error("7f. err.error_description (Supabase desc):", String(err.error_description ?? 'N/A'));
+        console.error("7g. err.code (sometimes present):", String(err.code ?? 'N/A'));
+
+
+        // Log 8: All enumerable keys
+        try {
+          const keys = Object.keys(err);
+          console.error("8. Enumerable keys:", keys.length > 0 ? keys.join(', ') : 'None');
+          if (keys.length > 0) {
+            keys.forEach(key => {
+              try {
+                console.error(`   - Key '${key}':`, String(err[key]));
+              } catch (e) {
+                console.error(`   - Key '${key}': Error accessing/stringifying value - ${String(e)}`);
+              }
+            });
+          }
+        } catch (e) {
+          console.error("8. Error getting enumerable keys:", String(e));
+        }
+
+        // Log 9: All own property names (enumerable or not)
+        try {
+          const ownPropertyNames = Object.getOwnPropertyNames(err);
+          console.error("9. Own property names:", ownPropertyNames.length > 0 ? ownPropertyNames.join(', ') : 'None');
+           if (ownPropertyNames.length > 0) {
+            ownPropertyNames.forEach(key => {
+              try {
+                console.error(`   - OwnProp '${key}':`, String(err[key]));
+              } catch (e) {
+                console.error(`   - OwnProp '${key}': Error accessing/stringifying value - ${String(e)}`);
+              }
+            });
+          }
+        } catch (e) {
+          console.error("9. Error getting own property names:", String(e));
+        }
+
+      } else if (uploadError) { // If not an object but still truthy (e.g. a string)
+        console.error("7. uploadError is not an object, direct string value:", String(uploadError));
       }
 
-      // Log known properties if the error is an object
-      if (uploadError && typeof uploadError === 'object') {
-        const err = uploadError as any; // Cast to any to access potential properties
-        console.error("uploadError.message:", String(err.message || 'N/A'));
-        console.error("uploadError.name:", String(err.name || 'N/A'));
-        console.error("uploadError.stack:", String(err.stack || 'N/A'));
-        console.error("uploadError.status (HTTP status code):", String(err.status || err.statusCode || 'N/A')); // Common for HTTP errors
-        console.error("uploadError.error (Supabase specific error code/string):", String(err.error || 'N/A'));
-        console.error("uploadError.error_description (Supabase specific description):", String(err.error_description || 'N/A'));
-      } else if (uploadError) { // If not an object but still truthy
-        console.error("uploadError (no es un objeto, valor directo):", String(uploadError));
-      }
       console.error("--- End of Supabase Storage Upload Error Details ---");
       return null;
     }
@@ -142,7 +207,6 @@ export async function uploadImageToSupabase(
     
     if (!publicURLData || !publicURLData.publicUrl) {
         console.error('No se pudo obtener la URL pública para la imagen subida. El archivo podría estar en el bucket pero inaccesible. Path:', filePath);
-        // Attempt to remove the orphaned file as a best effort
         try {
           const { error: removeError } = await supabase.storage.from(bucketName).remove([filePath]);
           if (removeError) {
@@ -158,7 +222,7 @@ export async function uploadImageToSupabase(
     console.log('URL pública obtenida:', publicURLData.publicUrl);
     return publicURLData.publicUrl;
 
-  } catch (error) { // Catching errors from dataURIToBlob, filename generation, or unexpected Supabase client errors
+  } catch (error) { 
     console.error('Error general en la función uploadImageToSupabase (bloque catch principal):', error);
     if (error instanceof Error) {
       console.error('Mensaje del error general:', error.message);
@@ -169,3 +233,5 @@ export async function uploadImageToSupabase(
     return null;
   }
 }
+
+    
