@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale'; // Importar el locale español
+import { es } from 'date-fns/locale'; 
+
 import type { CalendarEvent } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -27,7 +28,6 @@ const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
   eventDateTime: z.date({ 
     invalid_type_error: "La hora configurada no es válida.",
-    // No custom required_error, Zod will use its default
   }),
 });
 
@@ -99,7 +99,7 @@ export function EventScheduler() {
       const { data, error } = await supabase
         .from('eventos_calendario')
         .select('*')
-        .gte('eventDateTime', twelveHoursAgo.toISOString()) // Keep events whose eventDateTime is not older than 12 hours ago
+        .gte('eventDateTime', twelveHoursAgo.toISOString()) 
         .order('eventDateTime', { ascending: true });
 
       if (error) throw error;
@@ -262,6 +262,7 @@ export function EventScheduler() {
     try {
       return format(parseISO(isoDateString), "PPPp", { locale: es });
     } catch (e) {
+      console.warn(`Error al formatear fecha: ${isoDateString}`, e);
       return 'Fecha inválida';
     }
   };
