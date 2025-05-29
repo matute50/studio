@@ -295,7 +295,6 @@ export function AdManager() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Publicidad</h1>
-        <p className="text-muted-foreground mt-2">Crea, gestiona y visualiza los anuncios publicitarios.</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -466,3 +465,4 @@ export function AdManager() {
     </div>
   );
 }
+
