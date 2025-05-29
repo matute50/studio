@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle } from 'lucide-react';
@@ -238,7 +238,7 @@ export function NewsEditor() {
         imageUrl: finalImageUrl,
         isFeatured: false, // Siempre false al crear, se gestiona con el switch en la tarjeta
         updatedAt: now, 
-        createdAt: now, // Añadir createdAt explícitamente
+        createdAt: now,
       };
     
       try {
@@ -275,9 +275,9 @@ export function NewsEditor() {
            errorCode = error.code;
         }
         
-         if (error && typeof (error as any).status === 'number') { // Común para errores de fetch/http
+         if (error && typeof (error as any).status === 'number') { 
            errorStatus = (error as any).status.toString();
-         } else if (error && typeof (error as any).statusCode === 'number') { // A veces usado
+         } else if (error && typeof (error as any).statusCode === 'number') { 
            errorStatus = (error as any).statusCode.toString();
          }
   
@@ -285,12 +285,12 @@ export function NewsEditor() {
           (errorStatus === '404') || 
           (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
           (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-          (errorCode === 'PGRST116'); // PGRST116: "The result contains 0 rows" (puede indicar tabla no encontrada en select/update)
+          (errorCode === 'PGRST116'); 
     
         let toastDescription = `Falló el intento de guardar en Supabase.`;
         
         if (isLikelyNotFoundError) {
-          toastDescription = `Error CRÍTICO: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus || 'desconocido'} - Código ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt").`;
+          toastDescription = `Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus || 'desconocido'} - Código ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan con las esperadas por el código: id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt".`;
         } else {
           toastDescription += ` Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}". Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles.`;
         }
@@ -555,7 +555,7 @@ export function NewsEditor() {
                 )}
 
                 {suggestedTitles.length > 0 && (
-                  <div className="mt-4 space-y-2 p-3 border rounded-md bg-secondary/50">
+                  <div className="space-y-2 p-3 border rounded-md bg-secondary/50">
                     <h4 className="font-semibold text-sm text-secondary-foreground">Títulos Alternativos:</h4>
                     <ul className="list-disc list-inside space-y-1">
                       {suggestedTitles.map((title, index) => (
@@ -590,6 +590,7 @@ export function NewsEditor() {
                   </Button>
                   <Button 
                     type="submit" 
+                    variant="destructive"
                     disabled={isSubmitting || isTogglingFeature} 
                     className="w-full sm:flex-1"
                   >
