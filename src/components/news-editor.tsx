@@ -319,7 +319,6 @@ export function NewsEditor() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
-        <p className="text-muted-foreground mt-2">Crea noticias impactantes con asistencia de IA y guárdalas en Supabase.</p>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-12 items-start">
