@@ -43,9 +43,6 @@ export default function HomePage() {
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-3">
           Panel de Control NewsFlash
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Bienvenido al centro de operaciones de NewsFlash. Desde aquí puedes acceder a todos los módulos de gestión de contenido.
-        </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
         {modules.map((module) => (
@@ -70,3 +67,4 @@ export default function HomePage() {
     </main>
   );
 }
+
