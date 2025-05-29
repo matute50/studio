@@ -128,8 +128,6 @@ export function AdManager() {
           variant: "destructive",
           duration: 9000, 
         });
-        // Decide if you want to stop submission or save with original URL
-        // For now, we'll try to save with original URL if it's a valid http/https one
         if (!finalImageUrl.startsWith('http')) {
             setIsSubmitting(false);
             return;
@@ -276,6 +274,7 @@ export function AdManager() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Publicidad</h1>
+        <p className="text-muted-foreground mt-2">Crea, gestiona y visualiza los anuncios publicitarios.</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -325,6 +324,9 @@ export function AdManager() {
                           onChange={handleFileChange}
                         />
                       </div>
+                       <FormDescription>
+                        Introduce una URL o sube una imagen (máx 5MB).
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -377,11 +379,11 @@ export function AdManager() {
           )}
           {!isLoadingAds && !errorLoadingAds && ads.map((ad) => (
             <Card key={ad.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3 pt-4 px-4">
-                <CardTitle className="text-lg font-semibold break-words">{ad.name}</CardTitle>
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-md font-semibold break-words">{ad.name}</CardTitle>
               </CardHeader>
-              <CardContent className="pb-3 pt-0 px-4">
-                <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted mb-2">
+              <CardContent className="pb-2 pt-0 px-3">
+                <div className="relative w-full aspect-[16/9] max-h-32 rounded-md overflow-hidden border bg-muted mb-1.5">
                   {(ad.imageUrl && (ad.imageUrl.startsWith('http') || ad.imageUrl.startsWith('data:image'))) ? (
                     <Image
                       src={ad.imageUrl}
@@ -397,7 +399,7 @@ export function AdManager() {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-muted">
-                       <ImageOff className="w-8 h-8 text-muted-foreground" />
+                       <ImageOff className="w-6 h-6 text-muted-foreground" />
                     </div>
                   )}
                 </div>
@@ -406,12 +408,12 @@ export function AdManager() {
                     <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(ad.updatedAt)}</p>
                  )}
               </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(ad)} disabled={isSubmitting} className="h-8 px-3 text-xs">
-                  <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Editar
+              <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
+                <Button variant="outline" size="sm" onClick={() => handleEdit(ad)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Edit3 className="mr-1 h-3 w-3" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(ad)} disabled={isSubmitting} className="h-8 px-3 text-xs">
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Eliminar
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(ad)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Trash2 className="mr-1 h-3 w-3" /> Eliminar
                 </Button>
               </CardFooter>
             </Card>
