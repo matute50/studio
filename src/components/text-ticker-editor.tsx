@@ -330,7 +330,7 @@ export function TextTickerEditor() {
       </header>
 
       <div className="space-y-8 mt-8">
-        <Card className="shadow-xl lg:max-w-2xl mx-auto" ref={editorFormCardRef}>
+        <Card className="shadow-xl lg:max-w-3xl mx-auto" ref={editorFormCardRef}>
           <CardHeader>
             <CardTitle>{editingTextId ? "Editar Texto del Ticker" : "Nuevo Texto para Ticker"}</CardTitle>
           </CardHeader>
@@ -464,5 +464,3 @@ export function TextTickerEditor() {
     </div>
   );
 }
-
-    
