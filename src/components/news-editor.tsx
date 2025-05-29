@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle } from 'lucide-react';
@@ -47,7 +47,6 @@ const newsArticleSchema = z.object({
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""),
-  // isFeatured ya no está en el formulario principal, pero se mantiene en el esquema para la estructura de datos.
   isFeatured: z.boolean().default(false), 
 });
 
@@ -202,6 +201,7 @@ export function NewsEditor() {
         text: data.text,
         imageUrl: finalImageUrl,
         updatedAt: now,
+        // isFeatured no se actualiza desde el formulario principal de edición
       };
 
       try {
@@ -236,8 +236,9 @@ export function NewsEditor() {
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
-        isFeatured: false, 
+        isFeatured: false, // Siempre false al crear, se gestiona con el switch en la tarjeta
         updatedAt: now, 
+        createdAt: now, // Añadir createdAt explícitamente
       };
     
       try {
@@ -274,9 +275,9 @@ export function NewsEditor() {
            errorCode = error.code;
         }
         
-         if (error && typeof (error as any).status === 'number') {
+         if (error && typeof (error as any).status === 'number') { // Común para errores de fetch/http
            errorStatus = (error as any).status.toString();
-         } else if (error && typeof (error as any).statusCode === 'number') { 
+         } else if (error && typeof (error as any).statusCode === 'number') { // A veces usado
            errorStatus = (error as any).statusCode.toString();
          }
   
@@ -284,14 +285,14 @@ export function NewsEditor() {
           (errorStatus === '404') || 
           (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
           (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-          (errorCode === 'PGRST116'); 
+          (errorCode === 'PGRST116'); // PGRST116: "The result contains 0 rows" (puede indicar tabla no encontrada en select/update)
     
-        let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
+        let toastDescription = `Falló el intento de guardar en Supabase.`;
         
         if (isLikelyNotFoundError) {
-          toastDescription = `Error CRÍTICO al guardar: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt" - nota el camelCase si lo usaste).`;
+          toastDescription = `Error CRÍTICO: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus || 'desconocido'} - Código ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt").`;
         } else {
-          toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
+          toastDescription += ` Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}". Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles.`;
         }
     
         toast({
@@ -553,8 +554,33 @@ export function NewsEditor() {
                   </div>
                 )}
 
-                <div className="space-y-4">
-                  <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !form.getValues('text') || form.getValues('text').length < 20} className="w-full sm:w-auto">
+                {suggestedTitles.length > 0 && (
+                  <div className="mt-4 space-y-2 p-3 border rounded-md bg-secondary/50">
+                    <h4 className="font-semibold text-sm text-secondary-foreground">Títulos Alternativos:</h4>
+                    <ul className="list-disc list-inside space-y-1">
+                      {suggestedTitles.map((title, index) => (
+                        <li key={index} className="text-sm text-secondary-foreground/90">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="p-0 h-auto text-left text-primary hover:underline"
+                            onClick={() => form.setValue('title', title, { shouldValidate: true })}
+                          >
+                            {title}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-4">
+                  <Button 
+                    type="button" 
+                    onClick={handleSuggestTitles} 
+                    disabled={isSuggestingTitles || !form.getValues('text') || form.getValues('text').length < 20} 
+                    className="w-full sm:w-auto"
+                  >
                     {isSuggestingTitles ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -562,35 +588,21 @@ export function NewsEditor() {
                     )}
                     Sugerir Títulos
                   </Button>
-
-                  {suggestedTitles.length > 0 && (
-                    <div className="space-y-2 p-3 border rounded-md bg-secondary/50">
-                      <h4 className="font-semibold text-sm text-secondary-foreground">Títulos Alternativos:</h4>
-                      <ul className="list-disc list-inside space-y-1">
-                        {suggestedTitles.map((title, index) => (
-                          <li key={index} className="text-sm text-secondary-foreground/90">
-                            <Button
-                              variant="link"
-                              size="sm"
-                              className="p-0 h-auto text-left text-primary hover:underline"
-                              onClick={() => form.setValue('title', title, { shouldValidate: true })}
-                            >
-                              {title}
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-2 pt-4">
-                  <Button type="submit" disabled={isSubmitting || isTogglingFeature} className="flex-1">
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || isTogglingFeature} 
+                    className="w-full sm:flex-1"
+                  >
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {editingArticleId ? 'Actualizar Artículo' : 'Guardar Artículo'}
                   </Button>
                   {editingArticleId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="flex-1 sm:flex-none">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={cancelEdit} 
+                      className="w-full sm:w-auto"
+                    >
                       <XCircle className="mr-2 h-4 w-4" />
                       Cancelar Edición
                     </Button>
@@ -729,6 +741,8 @@ export function NewsEditor() {
     </div>
   );
 }
+    
+
     
 
     
