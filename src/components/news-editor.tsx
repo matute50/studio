@@ -203,7 +203,7 @@ export function NewsEditor() {
       
       let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
       let errorCode = "Desconocido";
-      let errorStatus = "Desconocido";
+      let errorStatus = "Desconocido"; // Initialize errorStatus
 
       if (error && typeof error.message === 'string' && error.message.trim() !== '') {
         specificErrorMessage = error.message;
@@ -214,16 +214,19 @@ export function NewsEditor() {
       if (error && typeof error.code === 'string' && error.code.trim() !== '') {
          errorCode = error.code;
       }
-       if (error && typeof error.status === 'number') {
-         errorStatus = error.status.toString();
-      }
+       // Try to get status from error object, specific to Supabase or HTTP errors
+       if (error && typeof (error as any).status === 'number') {
+         errorStatus = (error as any).status.toString();
+       } else if (error && typeof (error as any).statusCode === 'number') { // Common alternative
+         errorStatus = (error as any).statusCode.toString();
+       }
 
 
       const isLikelyNotFoundError = 
         (errorStatus === '404') || 
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-        (errorCode === 'PGRST116'); 
+        (errorCode === 'PGRST116'); // PGRST116: "The relation <name> does not exist"
   
       let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
       
@@ -291,12 +294,11 @@ export function NewsEditor() {
   };
   
   const formatDate = (dateString?: string | null) => {
-    if (!dateString) { // Catches null, undefined, ""
+    if (!dateString) { 
       return 'Fecha desconocida';
     }
     try {
       const date = new Date(dateString);
-      // Check if the date is valid after parsing
       if (isNaN(date.getTime())) {
         console.warn(`'formatDate' recibió una cadena de fecha inválida que no pudo ser parseada: "${dateString}"`);
         return 'Fecha inválida';
@@ -309,7 +311,6 @@ export function NewsEditor() {
         minute: '2-digit',
       });
     } catch (e) {
-      // This catch might be redundant if isNaN check is robust, but keep for safety
       console.error("Error inesperado en 'formatDate' al procesar:", dateString, e);
       return 'Error al formatear fecha';
     }
@@ -474,11 +475,8 @@ export function NewsEditor() {
           </CardContent>
         </Card>
 
-        <div className="space-y-4">
-          <CardHeader className="px-0 pt-0 lg:px-2 pb-2">
-            <CardTitle>Artículos Guardados</CardTitle>
-            <CardDescription>Lista de todos los artículos de noticias almacenados en Supabase.</CardDescription>
-          </CardHeader>
+        <div className="space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
+          {/* CardHeader for "Saved Articles" and its description is removed as per request */}
           {isLoadingArticles && (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -500,8 +498,8 @@ export function NewsEditor() {
             </div>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
-            <div className="space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
-              {articles.map((article) => (
+            // Removed the wrapping CardHeader here
+              articles.map((article) => (
                 <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-2 pt-3 px-4">
                     <div className="flex justify-between items-start">
@@ -542,14 +540,12 @@ export function NewsEditor() {
                       <p>Publicado: {formatDate(article.createdAt)}</p>
                    </CardFooter>
                 </Card>
-              ))}
-            </div>
+              ))
+            
           )}
         </div>
       </div>
     </div>
   );
 }
-
     
-
