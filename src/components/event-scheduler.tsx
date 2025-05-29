@@ -18,6 +18,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,9 @@ const eventSchema = z.object({
 
 type EventFormValues = z.infer<typeof eventSchema>;
 
+const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
+const minuteOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
+
 export function EventScheduler() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -45,7 +49,6 @@ export function EventScheduler() {
   const [eventToDelete, setEventToDelete] = React.useState<CalendarEvent | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
-  // States for custom date/time picker parts
   const [calendarDate, setCalendarDate] = React.useState<Date | undefined>();
   const [eventHour, setEventHour] = React.useState<string>("00");
   const [eventMinute, setEventMinute] = React.useState<string>("00");
@@ -69,12 +72,12 @@ export function EventScheduler() {
       if (!isNaN(hour) && hour >= 0 && hour <= 23) {
         newDateTime.setHours(hour);
       } else {
-        newDateTime.setHours(0); // Default to 0 if invalid
+        newDateTime.setHours(0); 
       }
       if (!isNaN(minute) && minute >= 0 && minute <= 59) {
         newDateTime.setMinutes(minute);
       } else {
-        newDateTime.setMinutes(0); // Default to 0 if invalid
+        newDateTime.setMinutes(0); 
       }
       newDateTime.setSeconds(0);
       newDateTime.setMilliseconds(0);
@@ -97,7 +100,6 @@ export function EventScheduler() {
       if (error) throw error;
       setEvents(data || []);
     } catch (error: any) {
-      console.error("Error cargando eventos:", error);
       const description = `No se pudieron cargar los eventos: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'eventos_calendario' exista y tenga RLS configuradas.`;
       setErrorLoadingEvents(description);
       toast({
@@ -154,7 +156,6 @@ export function EventScheduler() {
       fetchEvents();
       resetFormAndDateTimePickers();
     } catch (error: any) {
-      console.error("Error guardando evento:", error);
       let description = "No se pudo guardar el evento. Inténtalo de nuevo.";
       if (error?.message) description = `Error: ${error.message}`;
       toast({
@@ -208,7 +209,6 @@ export function EventScheduler() {
         cancelEdit();
       }
     } catch (error: any) {
-      console.error("Error eliminando evento:", error);
       let description = "No se pudo eliminar el evento.";
       if (error?.message) description = `Error: ${error.message}`;
       toast({ title: "Error al Eliminar", description, variant: "destructive" });
@@ -228,9 +228,6 @@ export function EventScheduler() {
     }
   };
   
-  const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-  const minuteOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
-
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -264,7 +261,7 @@ export function EventScheduler() {
                 <FormField
                   control={form.control}
                   name="eventDateTime"
-                  render={({ field }) => ( // field here represents eventDateTime (Date object)
+                  render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Fecha y Hora del Evento</FormLabel>
                       <Popover>
@@ -290,32 +287,33 @@ export function EventScheduler() {
                           <Calendar
                             mode="single"
                             selected={calendarDate}
-                            onSelect={(date) => {
-                              setCalendarDate(date);
-                              // form.setValue will be called by useEffect
-                            }}
+                            onSelect={setCalendarDate}
                             initialFocus
                           />
                            <div className="p-3 border-t border-border">
-                            <FormLabel className="text-sm font-medium">Hora del Evento</FormLabel>
-                            <div className="flex items-center gap-2 mt-1">
-                                <Input
-                                  type="number"
-                                  min="0" max="23"
-                                  value={eventHour}
-                                  onChange={(e) => setEventHour(e.target.value.padStart(2, '0'))}
-                                  className="w-16"
-                                  placeholder="HH"
-                                />
+                            <FormLabel className="text-sm font-medium mb-2 block">Hora del Evento</FormLabel>
+                            <div className="flex items-center gap-2">
+                                <Select value={eventHour} onValueChange={setEventHour}>
+                                  <SelectTrigger className="w-[80px]">
+                                    <SelectValue placeholder="HH" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {hourOptions.map(hour => (
+                                      <SelectItem key={hour} value={hour}>{hour}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <span>:</span>
-                                <Input
-                                  type="number"
-                                  min="0" max="59"
-                                  value={eventMinute}
-                                  onChange={(e) => setEventMinute(e.target.value.padStart(2, '0'))}
-                                  className="w-16"
-                                  placeholder="MM"
-                                />
+                                <Select value={eventMinute} onValueChange={setEventMinute}>
+                                  <SelectTrigger className="w-[80px]">
+                                    <SelectValue placeholder="MM" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {minuteOptions.map(minute => (
+                                      <SelectItem key={minute} value={minute}>{minute}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                             </div>
                           </div>
                         </PopoverContent>
@@ -409,3 +407,4 @@ export function EventScheduler() {
     </div>
   );
 }
+
