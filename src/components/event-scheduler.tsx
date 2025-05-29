@@ -231,7 +231,6 @@ export function EventScheduler() {
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight text-primary">Agenda de Eventos</h1>
-        <p className="text-muted-foreground">Programa y gestiona tus próximos eventos.</p>
       </header>
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
@@ -387,5 +386,7 @@ export function EventScheduler() {
     
 
       
+
+    
 
     
