@@ -128,7 +128,7 @@ export function NewsEditor() {
       } else {
         toast({
           title: "Error al Subir Imagen",
-          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original.",
+          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
           variant: "destructive",
           duration: 9000, 
         });
@@ -140,8 +140,8 @@ export function NewsEditor() {
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      image_url: finalImageUrl,
-      is_featured: data.isFeatured,
+      imageUrl: finalImageUrl, // Cambiado de image_url
+      isFeatured: data.isFeatured, // Cambiado de is_featured
     };
 
     try {

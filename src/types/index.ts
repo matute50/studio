@@ -4,7 +4,6 @@ export interface NewsArticle {
   text: string;
   imageUrl: string; // Can be an empty string if no image, or placeholder, or actual URL
   isFeatured: boolean;
-  created_at?: string; // Usually managed by Supabase (timestamp with timezone)
-  // updatedAt is also typically managed by the database
-  // updatedAt?: string;
+  createdAt?: string; // Usually managed by Supabase (timestamp with timezone)
+  updatedAt?: string; // Usually managed by Supabase (timestamp with timezone)
 }
