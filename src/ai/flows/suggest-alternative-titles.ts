@@ -1,24 +1,24 @@
 // src/ai/flows/suggest-alternative-titles.ts
 'use server';
 /**
- * @fileOverview A flow for generating alternative titles for a news article.
+ * @fileOverview Un flujo para generar títulos alternativos para un artículo de noticias.
  *
- * - suggestAlternativeTitles - A function that generates alternative titles for a news article.
- * - SuggestAlternativeTitlesInput - The input type for the suggestAlternativeTitles function.
- * - SuggestAlternativeTitlesOutput - The return type for the suggestAlternativeTitles function.
+ * - suggestAlternativeTitles - Una función que genera títulos alternativos para un artículo de noticias.
+ * - SuggestAlternativeTitlesInput - El tipo de entrada para la función suggestAlternativeTitles.
+ * - SuggestAlternativeTitlesOutput - El tipo de retorno para la función suggestAlternativeTitles.
  */
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SuggestAlternativeTitlesInputSchema = z.object({
-  articleTitle: z.string().describe('The current title of the news article.'),
-  articleContent: z.string().describe('The content of the news article.'),
+  articleTitle: z.string().describe('El título actual del artículo de noticias.'),
+  articleContent: z.string().describe('El contenido del artículo de noticias.'),
 });
 export type SuggestAlternativeTitlesInput = z.infer<typeof SuggestAlternativeTitlesInputSchema>;
 
 const SuggestAlternativeTitlesOutputSchema = z.object({
-  alternativeTitles: z.array(z.string()).describe('An array of alternative titles for the news article.'),
+  alternativeTitles: z.array(z.string()).describe('Un array de títulos alternativos para el artículo de noticias.'),
 });
 export type SuggestAlternativeTitlesOutput = z.infer<typeof SuggestAlternativeTitlesOutputSchema>;
 
@@ -30,14 +30,14 @@ const prompt = ai.definePrompt({
   name: 'suggestAlternativeTitlesPrompt',
   input: {schema: SuggestAlternativeTitlesInputSchema},
   output: {schema: SuggestAlternativeTitlesOutputSchema},
-  prompt: `You are a professional news editor. Your task is to suggest alternative titles for a news article.
+  prompt: `Eres un editor de noticias profesional. Tu tarea es sugerir títulos alternativos para un artículo de noticias en español.
 
-  The current title of the article is: {{{articleTitle}}}
-  The content of the article is: {{{articleContent}}}
+  El título actual del artículo es: {{{articleTitle}}}
+  El contenido del artículo es: {{{articleContent}}}
 
-  Suggest 5 alternative titles that are engaging and relevant to the article content.
-  Return the titles as a JSON array of strings.
-  Make sure that the generated titles are appropriate for a general audience.
+  Sugiere 5 títulos alternativos en español que sean atractivos y relevantes para el contenido del artículo.
+  Devuelve los títulos como un array JSON de strings.
+  Asegúrate de que los títulos generados sean apropiados para una audiencia general de habla hispana.
   `,
 });
 
@@ -49,6 +49,7 @@ const suggestAlternativeTitlesFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    // Ensure we return an empty array if output or alternativeTitles is undefined
+    return output && output.alternativeTitles ? output : { alternativeTitles: [] };
   }
 );

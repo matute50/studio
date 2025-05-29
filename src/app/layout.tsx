@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'NewsFlash Editor',
-  description: 'Create and edit news articles with AI-powered title suggestions.',
+  title: 'Editor NewsFlash',
+  description: 'Crea y edita artículos de noticias con sugerencias de títulos impulsadas por IA.',
 };
 
 export default function RootLayout({
@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
         <Toaster />

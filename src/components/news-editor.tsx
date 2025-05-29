@@ -22,8 +22,8 @@ import { NewsPreview } from './news-preview';
 import { Loader2, Sparkles, Send, RotateCcw, Upload } from 'lucide-react';
 
 const newsArticleSchema = z.object({
-  title: z.string().min(5, { message: "Title must be at least 5 characters." }).max(150, { message: "Title must be 150 characters or less." }),
-  text: z.string().min(20, { message: "Article text must be at least 20 characters." }),
+  title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
+  text: z.string().min(20, { message: "El texto del artículo debe tener al menos 20 caracteres." }),
   imageUrl: z.string()
     .refine(
       (value) => {
@@ -41,7 +41,7 @@ const newsArticleSchema = z.object({
           return false;
         }
       },
-      { message: "Please enter a valid URL or upload an image." }
+      { message: "Por favor, introduce una URL válida o sube una imagen." }
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""), // Default to empty string, which will be transformed to placeholder
@@ -79,8 +79,8 @@ export function NewsEditor() {
 
     if (!currentText || currentText.length < 20) {
       toast({
-        title: "Content too short",
-        description: "Please write at least 20 characters in the article text before suggesting titles.",
+        title: "Contenido demasiado corto",
+        description: "Por favor, escribe al menos 20 caracteres en el texto del artículo antes de sugerir títulos.",
         variant: "destructive",
       });
       return;
@@ -90,22 +90,22 @@ export function NewsEditor() {
     setSuggestedTitles([]);
     try {
       const input: SuggestAlternativeTitlesInput = {
-        articleTitle: currentTitle || "Untitled Article",
+        articleTitle: currentTitle || "Artículo sin Título",
         articleContent: currentText,
       };
       const result = await suggestAlternativeTitles(input);
       setSuggestedTitles(result.alternativeTitles);
       if (result.alternativeTitles.length === 0) {
         toast({
-          title: "No suggestions",
-          description: "The AI couldn't generate alternative titles at this time. Try refining your article text.",
+          title: "No hay sugerencias",
+          description: "La IA no pudo generar títulos alternativos en este momento. Intenta refinar el texto de tu artículo.",
         });
       }
     } catch (error) {
-      console.error("Error suggesting titles:", error);
+      console.error("Error al sugerir títulos:", error);
       toast({
         title: "Error",
-        description: "Failed to suggest titles. Please try again.",
+        description: "Error al sugerir títulos. Por favor, inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -116,13 +116,13 @@ export function NewsEditor() {
   const onSubmit = async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
     // The data.imageUrl will now correctly be the placeholder, a user-entered URL, or a data URI from upload.
-    console.log("Simulated submission data:", data);
+    console.log("Datos de envío simulados:", data);
 
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     toast({
-      title: "Article Submitted!",
-      description: "Your news article has been 'saved' (simulated).",
+      title: "¡Artículo Enviado!",
+      description: "Tu artículo de noticias ha sido 'guardado' (simulado).",
     });
     setIsSubmitting(false);
   };
@@ -136,8 +136,8 @@ export function NewsEditor() {
     });
     setSuggestedTitles([]);
     toast({
-      title: "Form Reset",
-      description: "The editor and preview have been cleared.",
+      title: "Formulario Reiniciado",
+      description: "El editor y la vista previa han sido limpiados.",
     });
   };
 
@@ -147,16 +147,16 @@ export function NewsEditor() {
       // Basic validation (optional, can be more robust)
       if (!file.type.startsWith("image/")) {
         toast({
-          title: "Invalid file type",
-          description: "Please upload an image file.",
+          title: "Tipo de archivo no válido",
+          description: "Por favor, sube un archivo de imagen.",
           variant: "destructive",
         });
         return;
       }
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
          toast({
-          title: "File too large",
-          description: "Please upload an image smaller than 5MB.",
+          title: "Archivo demasiado grande",
+          description: "Por favor, sube una imagen de menos de 5MB.",
           variant: "destructive",
         });
         return;
@@ -177,15 +177,15 @@ export function NewsEditor() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">NewsFlash Editor</h1>
-        <p className="text-muted-foreground mt-2">Craft compelling news stories with AI-powered assistance.</p>
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
+        <p className="text-muted-foreground mt-2">Crea noticias impactantes con asistencia de IA.</p>
       </header>
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle>Article Editor</CardTitle>
-            <CardDescription>Fill in the details for your news article.</CardDescription>
+            <CardTitle>Editor de Artículos</CardTitle>
+            <CardDescription>Completa los detalles de tu artículo de noticias.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -195,9 +195,9 @@ export function NewsEditor() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel>Título</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter article title" {...field} />
+                        <Input placeholder="Introduce el título del artículo" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -209,9 +209,9 @@ export function NewsEditor() {
                   name="text"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Article Text</FormLabel>
+                      <FormLabel>Texto del Artículo</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Write your news article here..." {...field} rows={10} />
+                        <Textarea placeholder="Escribe tu artículo de noticias aquí..." {...field} rows={10} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -223,11 +223,11 @@ export function NewsEditor() {
                   name="imageUrl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Image URL or Upload</FormLabel>
+                      <FormLabel>URL de Imagen o Subir</FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2 items-start">
                         <FormControl className="flex-grow">
                           <Input 
-                            placeholder="https://example.com/image.png or upload" 
+                            placeholder="https://ejemplo.com/imagen.png o subir" 
                             {...field} 
                             // If field value is placeholder, show empty to encourage input or upload
                             value={field.value === "https://placehold.co/600x400.png" ? "" : field.value}
@@ -240,7 +240,7 @@ export function NewsEditor() {
                         </FormControl>
                         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                           <Upload className="mr-2 h-4 w-4" />
-                          Upload Image
+                          Subir Imagen
                         </Button>
                         <input
                           type="file"
@@ -251,7 +251,7 @@ export function NewsEditor() {
                         />
                       </div>
                       <FormDescription>
-                        Enter an image URL, or upload an image. Leave empty for a default placeholder.
+                        Introduce una URL de imagen o sube una imagen. Deja vacío para un marcador de posición predeterminado.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -261,7 +261,7 @@ export function NewsEditor() {
                 {/* Show preview if imageUrl is not the placeholder and is a valid looking src */}
                 {watchedImageUrl && watchedImageUrl !== 'https://placehold.co/600x400.png' && (watchedImageUrl.startsWith('http') || watchedImageUrl.startsWith('data:image')) && (
                   <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border">
-                     <Image src={watchedImageUrl} alt="Current Image URL Preview" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="image preview"/>
+                     <Image src={watchedImageUrl} alt="Vista previa de la imagen actual" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="imagen previa"/>
                   </div>
                 )}
 
@@ -272,9 +272,9 @@ export function NewsEditor() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                       <div className="space-y-0.5">
-                        <FormLabel>Featured Article</FormLabel>
+                        <FormLabel>Artículo Destacado</FormLabel>
                         <FormDescription>
-                          Mark this article as featured.
+                          Marcar este artículo como destacado.
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -294,12 +294,12 @@ export function NewsEditor() {
                     ) : (
                       <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Suggest Titles
+                    Sugerir Títulos
                   </Button>
 
                   {suggestedTitles.length > 0 && (
                     <div className="space-y-2 p-3 border rounded-md bg-secondary/50">
-                      <h4 className="font-semibold text-sm text-secondary-foreground">Alternative Titles:</h4>
+                      <h4 className="font-semibold text-sm text-secondary-foreground">Títulos Alternativos:</h4>
                       <ul className="list-disc list-inside space-y-1">
                         {suggestedTitles.map((title, index) => (
                           <li key={index} className="text-sm text-secondary-foreground/90">
@@ -325,11 +325,11 @@ export function NewsEditor() {
                     ) : (
                        <Send className="mr-2 h-4 w-4" />
                     )}
-                    Submit Article
+                    Enviar Artículo
                   </Button>
                    <Button type="button" variant="outline" onClick={resetFormAndPreview} className="flex-1 sm:flex-none">
                     <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset Form
+                    Reiniciar Formulario
                   </Button>
                 </div>
               </form>
@@ -339,8 +339,8 @@ export function NewsEditor() {
 
         <div className="sticky top-8">
           <CardHeader className="px-0 pt-0 lg:px-4">
-            <CardTitle>Live Preview</CardTitle>
-            <CardDescription>See your article take shape in real-time.</CardDescription>
+            <CardTitle>Vista Previa en Vivo</CardTitle>
+            <CardDescription>Mira cómo tu artículo toma forma en tiempo real.</CardDescription>
           </CardHeader>
           <NewsPreview
             title={watchedTitle}
@@ -353,4 +353,3 @@ export function NewsEditor() {
     </div>
   );
 }
-
