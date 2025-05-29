@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form'; // Added FormDescription
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -179,6 +179,7 @@ export function NewsEditor() {
       imageUrl: finalImageUrl, 
       isFeatured: data.isFeatured,
       updatedAt: new Date().toISOString(), // Ensure updatedAt is set on creation as well
+      // createdAt will be handled by Supabase (DEFAULT now())
     };
   
    try {
@@ -331,17 +332,19 @@ export function NewsEditor() {
       const now = new Date().toISOString();
 
       if (newFeaturedState) {
+        // Desmarcar cualquier otro artículo que esté actualmente destacado
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
           .eq('isFeatured', true)
-          .neq('id', articleId); 
+          .neq('id', articleId); // No desmarcar el artículo que estamos intentando marcar
 
         if (unfeatureError) {
           console.error("Error al desmarcar otros artículos:", unfeatureError);
           throw unfeatureError;
         }
 
+        // Marcar el artículo actual como destacado
         const { error: featureError } = await supabase
           .from('articles')
           .update({ isFeatured: true, updatedAt: now })
@@ -352,6 +355,7 @@ export function NewsEditor() {
           throw featureError;
         }
       } else {
+        // Simplemente desmarcar el artículo actual
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -364,7 +368,7 @@ export function NewsEditor() {
       }
 
       toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
-      fetchArticles(); 
+      fetchArticles(); // Volver a cargar los artículos para reflejar el cambio
     } catch (error: any) {
       toast({
         title: "Error al Actualizar Destacado",
@@ -564,7 +568,7 @@ export function NewsEditor() {
                         {article.isFeatured && (
                           <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
                         )}
-                        <div className="flex items-center space-x-1.5">
+                        <div className="flex items-center space-x-1"> {/* Reducido space-x-1.5 a space-x-1 */}
                           <Label htmlFor={`featured-switch-${article.id}`} className="text-xs text-muted-foreground">
                             Destacado
                           </Label>
@@ -580,7 +584,7 @@ export function NewsEditor() {
                               }
                             }}
                             disabled={isTogglingFeature}
-                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input"
+                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" // Clases para reducir tamaño
                             aria-label={`Marcar ${article.title} como destacado`}
                           />
                         </div>
@@ -630,4 +634,3 @@ export function NewsEditor() {
   );
 }
     
-
