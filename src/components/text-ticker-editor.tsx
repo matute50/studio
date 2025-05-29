@@ -56,15 +56,15 @@ export function TextTickerEditor() {
       setTexts(data || []);
     } catch (error: any) {
       console.error("Error cargando textos del ticker:", error); // This will log the raw error object
-      let description = `No se pudieron cargar los textos del ticker. Revisa la consola para más detalles.`;
+      let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
       
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
       } else if (error?.message) {
-        description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas.`;
+        description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas correctamente. Revisa los logs del panel de Supabase.`;
       }
 
       setErrorLoadingTexts(description);
@@ -72,7 +72,7 @@ export function TextTickerEditor() {
         title: "Error al Cargar Textos",
         description,
         variant: "destructive",
-        duration: 10000,
+        duration: 10000, // Longer duration for critical errors
       });
     } finally {
       setIsLoadingTexts(false);
@@ -119,16 +119,16 @@ export function TextTickerEditor() {
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
+        description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
       } else if (error?.message) {
-        description = `Error al crear texto: ${error.message}`;
+        description = `Error al crear texto: ${error.message}. Revisa los logs del panel de Supabase.`;
       }
       
       toast({
         title: "Error al Crear Texto",
         description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
         variant: "destructive",
-        duration: 10000,
+        duration: 10000, // Longer duration for critical errors
       });
     } finally {
       setIsSubmitting(false);
@@ -162,9 +162,9 @@ export function TextTickerEditor() {
       console.error("Error al eliminar texto del ticker:", error);
       let description = "No se pudo eliminar el texto. Inténtalo de nuevo.";
       if (error?.message) {
-        description = `Error: ${error.message}`;
+        description = `Error: ${error.message}. Revisa los logs del panel de Supabase para más detalles.`;
       }
-      toast({ title: "Error al Eliminar Texto", description: `${description} Revisa la consola y los logs de Supabase para más detalles.`, variant: "destructive", duration: 9000 });
+      toast({ title: "Error al Eliminar Texto", description, variant: "destructive", duration: 9000 });
     } finally {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
@@ -292,3 +292,4 @@ export function TextTickerEditor() {
   );
 }
 
+    
