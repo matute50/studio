@@ -87,6 +87,7 @@ export function AdManager() {
       if (error) throw error;
       setAds(data || []);
     } catch (error: any) {
+      console.error("Error cargando anuncios:", error);
       const description = `No se pudieron cargar los anuncios: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'anuncios' exista y tenga RLS configuradas.`;
       setErrorLoadingAds(description);
       toast({
@@ -162,7 +163,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
-          isActive: false, // Nuevo anuncio por defecto no activo
+          isActive: false, 
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('anuncios')
@@ -178,6 +179,7 @@ export function AdManager() {
       fetchAds();
       resetFormAndPreview();
     } catch (error: any) {
+      console.error("Error al guardar anuncio:", error);
       let description = "No se pudo guardar el anuncio. Inténtalo de nuevo.";
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
@@ -228,7 +230,7 @@ export function AdManager() {
       }
       return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch (e: any) {
-      console.error("Error en 'formatDate':", dateString, e.message);
+      console.error("Error en 'formatDate':", dateString, e instanceof Error ? e.message : String(e));
       return 'Error al formatear fecha';
     }
   };
@@ -248,7 +250,7 @@ export function AdManager() {
         day: 'numeric',
       });
     } catch (e: any) {
-      console.error("Error en 'calculateAndFormatExpiryDate':", createdAt, e.message);
+      console.error("Error en 'calculateAndFormatExpiryDate':", createdAt, e instanceof Error ? e.message : String(e));
       return 'Error al calcular vencimiento';
     }
   };
@@ -291,9 +293,8 @@ export function AdManager() {
         cancelEdit();
       }
     } catch (error: any) {
-      let description = "No se pudo eliminar el anuncio.";
-      if (error?.message) description = `Error: ${error.message}`;
-      toast({ title: "Error al Eliminar", description, variant: "destructive" });
+      console.error("Error al eliminar anuncio:", error);
+      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
@@ -313,11 +314,10 @@ export function AdManager() {
       if (error) throw error;
 
       toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
-      fetchAds(); // Recarga los anuncios para reflejar el cambio
+      fetchAds(); 
     } catch (error: any) {
-      let description = "No se pudo actualizar el estado del anuncio.";
-      if (error?.message) description = `Error: ${error.message}`;
-      toast({ title: "Error al Actualizar Estado", description, variant: "destructive" });
+      console.error("Error al actualizar estado del anuncio:", error);
+      toast({ title: "Error al Actualizar Estado", description: `No se pudo actualizar el estado del anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsTogglingActive(false);
     }

@@ -15,7 +15,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -105,6 +105,7 @@ export function EventScheduler() {
       if (error) throw error;
       setEvents(data || []);
     } catch (error: any) {
+      console.error("Error cargando eventos:", error);
       const description = `No se pudieron cargar los eventos: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'eventos_calendario' exista y tenga RLS configuradas.`;
       setErrorLoadingEvents(description);
       toast({
@@ -188,17 +189,16 @@ export function EventScheduler() {
         const numCreated = insertedData?.length || 0;
         toast({ 
           title: "¡Eventos Guardados!", 
-          description: `${numCreated} evento${numCreated === 1 ? '' : 's'} "${data.name}" ha${numCreated === 1 ? ' SIDO' : 'N SIDO'} programado${numCreated === 1 ? '' : 's'}.` 
+          description: `${numCreated} evento${numCreated === 1 ? '' : 's'} "${data.name}" ha${numCreated === 1 ? ' sido' : 'n sido'} programado${numCreated === 1 ? '' : 's'}.` 
         });
       }
       fetchEvents();
       resetFormAndDateTimePickers();
     } catch (error: any) {
-      let description = "No se pudo guardar el evento/los eventos. Inténtalo de nuevo.";
-      if (error?.message) description = `Error: ${error.message}`;
+      console.error("Error al guardar evento(s):", error);
       toast({
         title: "Error al Guardar",
-        description: `${description} Revisa la consola y los logs de Supabase.`,
+        description: `No se pudo guardar el evento/los eventos: ${error.message || 'Error desconocido'}. Revisa los logs de Supabase.`,
         variant: "destructive",
       });
     } finally {
@@ -247,9 +247,8 @@ export function EventScheduler() {
         cancelEdit();
       }
     } catch (error: any) {
-      let description = "No se pudo eliminar el evento.";
-      if (error?.message) description = `Error: ${error.message}`;
-      toast({ title: "Error al Eliminar", description, variant: "destructive" });
+      console.error("Error al eliminar evento:", error);
+      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el evento: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setShowDeleteConfirmDialog(false);
@@ -433,5 +432,3 @@ export function EventScheduler() {
     </div>
   );
 }
-
-    
