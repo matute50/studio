@@ -129,8 +129,9 @@ export function NewsEditor() {
       } else {
         toast({
           title: "Error al Subir Imagen",
-          description: "No se pudo subir la imagen a Supabase Storage. El artículo se guardará con la URL de marcador de posición o la URL original si la proporcionaste.",
+          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original.",
           variant: "destructive",
+          duration: 9000, // Mostrar el toast por más tiempo
         });
         // Optionally stop submission or use placeholder:
         // finalImageUrl = "https://placehold.co/600x400.png"; 
@@ -216,7 +217,7 @@ export function NewsEditor() {
       reader.readAsDataURL(file);
     }
     if (event.target) {
-      event.target.value = "";
+      event.target.value = ""; // Reset file input to allow re-uploading the same file
     }
   };
 
@@ -395,3 +396,5 @@ export function NewsEditor() {
     </div>
   );
 }
+
+    
