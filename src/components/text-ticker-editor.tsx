@@ -15,7 +15,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, XCircle } from 'lucide-react';
+import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3 } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -85,8 +85,11 @@ export function TextTickerEditor() {
       if (error?.code) {
         consoleErrorMessage += ` Código: ${error.code}`;
       }
+      // Log an initial, more informative message
       console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
+      // Log the original error object on a new line, as it might be trucated if logged inline with other strings
       console.error("Objeto de error original:", error); 
+
 
       let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
       
@@ -128,7 +131,7 @@ export function TextTickerEditor() {
 
     if (editingTextId) {
       // Actualizar texto existente
-      const textToUpdate: Partial<TextoTicker> = { // Use Partial here
+      const textToUpdate: Partial<TextoTicker> = { 
         text: data.text,
         updatedAt: now,
       };
@@ -168,11 +171,10 @@ export function TextTickerEditor() {
 
     } else {
       // Crear nuevo texto
-      const textToInsert: Omit<TextoTicker, 'id'> = { // Use Omit here
+      const textToInsert: Omit<TextoTicker, 'id' | 'updatedAt'> = { 
         text: data.text,
         createdAt: now,
-        updatedAt: now,
-        isActive: false, // Nuevos textos no son activos por defecto
+        isActive: false, 
       };
 
       try {
@@ -360,12 +362,6 @@ export function TextTickerEditor() {
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {editingTextId ? "Actualizar Texto" : "Guardar Texto"}
                   </Button>
-                  {editingTextId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:flex-1">
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Cancelar Edición
-                    </Button>
-                  )}
                 </div>
               </form>
             </Form>
