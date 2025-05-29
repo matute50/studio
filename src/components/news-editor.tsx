@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, RotateCcw, Upload, Newspaper, ImageOff } from 'lucide-react';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -46,7 +46,7 @@ const newsArticleSchema = z.object({
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""),
-  isFeatured: z.boolean().default(false), // This default will now apply as there's no form input for it
+  isFeatured: z.boolean().default(false),
 });
 
 type NewsArticleFormValues = z.infer<typeof newsArticleSchema>;
@@ -69,7 +69,7 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '', 
-      isFeatured: false, // isFeatured will default to false from schema
+      isFeatured: false,
     },
     mode: "onChange",
   });
@@ -177,16 +177,11 @@ export function NewsEditor() {
       title: data.title,
       text: data.text,
       imageUrl: finalImageUrl, 
-      isFeatured: data.isFeatured, // Will be false by default from schema, managed by card switches
+      isFeatured: data.isFeatured, 
       updatedAt: new Date().toISOString(),
-      // createdAt will be handled by Supabase (DEFAULT now())
     };
   
    try {
-      // Logic to unfeature other articles if this one is marked as featured is now primarily handled by handleFeatureToggle.
-      // If data.isFeatured was true (which it won't be from the form anymore), this block would run.
-      // For now, this specific block `if (articleToInsert.isFeatured)` when creating a NEW article will not execute
-      // as `articleToInsert.isFeatured` will be false due to schema default.
       if (articleToInsert.isFeatured) {
         const { error: unfeatureError } = await supabase
           .from('articles')
@@ -194,7 +189,6 @@ export function NewsEditor() {
           .eq('isFeatured', true);
         if (unfeatureError) {
           console.warn("Error al desmarcar otros artículos como destacados al crear uno nuevo:", unfeatureError);
-          // No es un error crítico para la creación del nuevo artículo, solo un aviso.
         }
       }
 
@@ -268,16 +262,17 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '',
-      isFeatured: false, // Reset to false
+      isFeatured: false,
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
-    toast({
-      title: "Formulario Reiniciado",
-      description: "El editor ha sido limpiado.",
-    });
+    // No toast for reset form, as the button is removed
+    // toast({
+    //   title: "Formulario Reiniciado",
+    //   description: "El editor ha sido limpiado.",
+    // });
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,7 +332,6 @@ export function NewsEditor() {
       const now = new Date().toISOString();
 
       if (newFeaturedState) {
-        // Desmarcar cualquier otro artículo que esté actualmente destacado
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -349,7 +343,6 @@ export function NewsEditor() {
           throw unfeatureError;
         }
 
-        // Marcar el artículo actual como destacado
         const { error: featureError } = await supabase
           .from('articles')
           .update({ isFeatured: true, updatedAt: now })
@@ -360,7 +353,6 @@ export function NewsEditor() {
           throw featureError;
         }
       } else {
-        // Simplemente desmarcar el artículo actual
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -468,8 +460,6 @@ export function NewsEditor() {
                   </div>
                 )}
 
-                {/* Switch "Artículo Destacado al Crear" eliminado */}
-
                 <div className="space-y-4">
                   <Button type="button" onClick={handleSuggestTitles} disabled={isSuggestingTitles || !form.getValues('text') || form.getValues('text').length < 20} className="w-full sm:w-auto">
                     {isSuggestingTitles ? (
@@ -509,10 +499,6 @@ export function NewsEditor() {
                        <Send className="mr-2 h-4 w-4" />
                     )}
                     Guardar Artículo
-                  </Button>
-                   <Button type="button" variant="outline" onClick={resetFormAndPreview} className="flex-1 sm:flex-none" disabled={isTogglingFeature}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Reiniciar Formulario
                   </Button>
                 </div>
               </form>
