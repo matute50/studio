@@ -16,10 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label'; 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff } from 'lucide-react';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -46,7 +47,8 @@ const newsArticleSchema = z.object({
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""),
-  isFeatured: z.boolean().default(false),
+  // isFeatured ya no está en el formulario principal, pero se mantiene en el esquema para la estructura de datos.
+  isFeatured: z.boolean().default(false), 
 });
 
 type NewsArticleFormValues = z.infer<typeof newsArticleSchema>;
@@ -57,11 +59,18 @@ export function NewsEditor() {
   const [isSuggestingTitles, setIsSuggestingTitles] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+
 
   const [articles, setArticles] = React.useState<NewsArticle[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = React.useState(true);
   const [errorLoadingArticles, setErrorLoadingArticles] = React.useState<string | null>(null);
   const [isTogglingFeature, setIsTogglingFeature] = React.useState(false);
+
+  const [editingArticleId, setEditingArticleId] = React.useState<string | null>(null);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
+  const [articleToDelete, setArticleToDelete] = React.useState<NewsArticle | null>(null);
+
 
   const form = useForm<NewsArticleFormValues>({
     resolver: zodResolver(newsArticleSchema),
@@ -146,9 +155,23 @@ export function NewsEditor() {
     }
   };
 
+  const resetFormAndPreview = () => {
+    form.reset({
+      title: '',
+      text: '',
+      imageUrl: '',
+      isFeatured: false, // El valor por defecto del schema Zod
+    });
+    setSuggestedTitles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; 
+    }
+  };
+
   const onSubmit = async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
     let finalImageUrl = data.imageUrl;
+    const now = new Date().toISOString();
   
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
@@ -172,109 +195,122 @@ export function NewsEditor() {
         return; 
       }
     }
-  
-    const articleToInsert = {
-      title: data.title,
-      text: data.text,
-      imageUrl: finalImageUrl, 
-      isFeatured: data.isFeatured, 
-      updatedAt: new Date().toISOString(),
-    };
-  
-   try {
-      if (articleToInsert.isFeatured) {
-        const { error: unfeatureError } = await supabase
+
+    if (editingArticleId) { // Lógica de Actualización
+      const articleToUpdate: Partial<NewsArticle> = {
+        title: data.title,
+        text: data.text,
+        imageUrl: finalImageUrl,
+        updatedAt: now,
+        // isFeatured se maneja a través de handleFeatureToggle, no se actualiza desde el formulario principal.
+      };
+
+      try {
+        const { data: updatedData, error: updateError } = await supabase
           .from('articles')
-          .update({ isFeatured: false, updatedAt: new Date().toISOString() })
-          .eq('isFeatured', true);
-        if (unfeatureError) {
-          console.warn("Error al desmarcar otros artículos como destacados al crear uno nuevo:", unfeatureError);
+          .update(articleToUpdate)
+          .eq('id', editingArticleId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        toast({ title: "Artículo Actualizado", description: `El artículo "${updatedData?.title || ''}" ha sido actualizado.` });
+        fetchArticles();
+        resetFormAndPreview();
+        setEditingArticleId(null);
+      } catch (error: any) {
+         console.error("--- ERROR AL ACTUALIZAR ARTÍCULO EN SUPABASE ---", error);
+         let specificErrorMessage = "Error desconocido al actualizar.";
+         if (error?.message) specificErrorMessage = error.message;
+         toast({
+            title: "Error al Actualizar Artículo",
+            description: `No se pudo actualizar el artículo: ${specificErrorMessage}. Revisa la consola y los logs de Supabase.`,
+            variant: "destructive",
+            duration: 9000,
+         });
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else { // Lógica de Creación
+      const articleToInsert: Omit<NewsArticle, 'id' | 'createdAt'> = {
+        title: data.title,
+        text: data.text,
+        imageUrl: finalImageUrl,
+        isFeatured: false, // Nuevos artículos no son destacados por defecto desde el form
+        updatedAt: now, 
+      };
+    
+      try {
+        // La lógica de desmarcar otros artículos destacados al crear uno nuevo
+        // se maneja principalmente a través de `handleFeatureToggle` ahora.
+        // Si se necesitara hacer un artículo destacado al crearlo, y desmarcar otros,
+        // se debería reintroducir el switch 'isFeatured' en el formulario y adaptar la lógica aquí.
+        const { data: insertedData, error: insertError } = await supabase
+          .from('articles') 
+          .insert([articleToInsert])
+          .select()
+          .single(); 
+    
+        if (insertError) {
+          throw insertError; 
         }
-      }
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from('articles') 
-        .insert([articleToInsert])
-        .select()
-        .single(); 
+    
+        toast({
+          title: "¡Artículo Guardado!",
+          description: `Tu artículo "${insertedData?.title || ''}" ha sido guardado en Supabase.`,
+        });
+        fetchArticles(); 
+        resetFormAndPreview(); 
+      } catch (error: any) {
+        console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
+        
+        let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
+        let errorCode = "Desconocido";
+        let errorStatus = "Desconocido"; 
   
-      if (insertError) {
-        throw insertError; 
-      }
+        if (error && typeof error.message === 'string' && error.message.trim() !== '') {
+          specificErrorMessage = error.message;
+        } else if (error && typeof error.details === 'string' && error.details.trim() !== '') {
+          specificErrorMessage = error.details;
+        }
+        
+        if (error && typeof error.code === 'string' && error.code.trim() !== '') {
+           errorCode = error.code;
+        }
+        
+         if (error && typeof (error as any).status === 'number') {
+           errorStatus = (error as any).status.toString();
+         } else if (error && typeof (error as any).statusCode === 'number') { 
+           errorStatus = (error as any).statusCode.toString();
+         }
   
-      toast({
-        title: "¡Artículo Guardado!",
-        description: "Tu artículo de noticias ha sido guardado en Supabase.",
-      });
-      fetchArticles(); 
-      resetFormAndPreview(); 
-    } catch (error: any) {
-      console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
-      
-      let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
-      let errorCode = "Desconocido";
-      let errorStatus = "Desconocido"; 
-
-      if (error && typeof error.message === 'string' && error.message.trim() !== '') {
-        specificErrorMessage = error.message;
-      } else if (error && typeof error.details === 'string' && error.details.trim() !== '') {
-        specificErrorMessage = error.details;
+        const isLikelyNotFoundError = 
+          (errorStatus === '404') || 
+          (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
+          (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
+          (errorCode === 'PGRST116'); 
+    
+        let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
+        
+        if (isLikelyNotFoundError) {
+          toastDescription = `Error CRÍTICO al guardar: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt" - nota el camelCase si lo usaste).`;
+        } else {
+          toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
+        }
+    
+        toast({
+          title: "Error Crítico al Guardar Artículo",
+          description: toastDescription,
+          variant: "destructive",
+          duration: 15000, 
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-      
-      if (error && typeof error.code === 'string' && error.code.trim() !== '') {
-         errorCode = error.code;
-      }
-      
-       if (error && typeof (error as any).status === 'number') {
-         errorStatus = (error as any).status.toString();
-       } else if (error && typeof (error as any).statusCode === 'number') { 
-         errorStatus = (error as any).statusCode.toString();
-       }
-
-      const isLikelyNotFoundError = 
-        (errorStatus === '404') || 
-        (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
-        (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-        (errorCode === 'PGRST116'); 
-  
-      let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
-      
-      if (isLikelyNotFoundError) {
-        toastDescription = `Error CRÍTICO al guardar: La tabla 'articles' PARECE NO EXISTIR o no es accesible (Error ${errorStatus} - ${errorCode}). Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate de que la tabla esté creada en el esquema 'public' y que las columnas coincidan (id, title, text, "imageUrl", "isFeatured", "createdAt", "updatedAt" - nota el camelCase si lo usaste).`;
-      } else {
-        toastDescription += ` Por favor, revisa la consola del navegador y, más importante aún, los logs de API y Base de Datos en tu panel de Supabase para más detalles. Un error común es no tener la tabla 'articles' creada o accesible, o que las políticas RLS impidan la inserción.`;
-      }
-  
-      toast({
-        title: "Error Crítico al Guardar Artículo",
-        description: toastDescription,
-        variant: "destructive",
-        duration: 15000, 
-      });
-    } finally {
-      setIsSubmitting(false);
     }
   };
   
-  
-  const resetFormAndPreview = () => {
-    form.reset({
-      title: '',
-      text: '',
-      imageUrl: '',
-      isFeatured: false,
-    });
-    setSuggestedTitles([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; 
-    }
-    // No toast for reset form, as the button is removed
-    // toast({
-    //   title: "Formulario Reiniciado",
-    //   description: "El editor ha sido limpiado.",
-    // });
-  };
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -332,6 +368,7 @@ export function NewsEditor() {
       const now = new Date().toISOString();
 
       if (newFeaturedState) {
+        // Desmarcar cualquier otro artículo destacado
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -340,9 +377,10 @@ export function NewsEditor() {
 
         if (unfeatureError) {
           console.error("Error al desmarcar otros artículos:", unfeatureError);
-          throw unfeatureError;
+          // No lanzar error aquí necesariamente, intentar destacar el actual
         }
 
+        // Marcar el artículo actual como destacado
         const { error: featureError } = await supabase
           .from('articles')
           .update({ isFeatured: true, updatedAt: now })
@@ -353,6 +391,7 @@ export function NewsEditor() {
           throw featureError;
         }
       } else {
+        // Simplemente desmarcar el artículo actual
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -377,6 +416,70 @@ export function NewsEditor() {
     }
   };
 
+  const handleEdit = (article: NewsArticle) => {
+    if (!article.id) {
+      toast({ title: "Error", description: "No se puede editar un artículo sin ID.", variant: "destructive" });
+      return;
+    }
+    setEditingArticleId(article.id);
+    form.reset({
+      title: article.title,
+      text: article.text,
+      imageUrl: article.imageUrl || '',
+      isFeatured: article.isFeatured, // Aunque no esté en el form, reset lo acepta.
+    });
+    setSuggestedTitles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
+    toast({ title: "Modo Edición", description: `Editando artículo: ${article.title}` });
+  };
+
+  const cancelEdit = () => {
+    setEditingArticleId(null);
+    resetFormAndPreview();
+    toast({ title: "Edición Cancelada" });
+  };
+
+  const handleDelete = (article: NewsArticle) => {
+    if (!article.id) {
+      toast({ title: "Error", description: "No se puede eliminar un artículo sin ID.", variant: "destructive" });
+      return;
+    }
+    setArticleToDelete(article);
+    setShowDeleteConfirmDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!articleToDelete || !articleToDelete.id) return;
+    setIsSubmitting(true); // Reutilizar este estado para indicar carga
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('articles')
+        .delete()
+        .eq('id', articleToDelete.id);
+
+      if (deleteError) throw deleteError;
+
+      toast({ title: "Artículo Eliminado", description: `El artículo "${articleToDelete.title}" ha sido eliminado.` });
+      fetchArticles();
+       // Si el artículo eliminado era el que se estaba editando, cancelar modo edición
+      if (editingArticleId === articleToDelete.id) {
+        cancelEdit();
+      }
+    } catch (error: any) {
+      console.error("--- ERROR AL ELIMINAR ARTÍCULO ---", error);
+      let specificErrorMessage = "Error desconocido al eliminar.";
+      if (error?.message) specificErrorMessage = error.message;
+      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el artículo: ${specificErrorMessage}`, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+      setShowDeleteConfirmDialog(false);
+      setArticleToDelete(null);
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -385,9 +488,9 @@ export function NewsEditor() {
       </header>
 
       <div className="grid lg:grid-cols-2 gap-12 items-start">
-        <Card className="shadow-xl">
+        <Card className="shadow-xl" ref={editorFormCardRef}>
           <CardHeader>
-            <CardTitle>Editor de Artículos</CardTitle>
+            <CardTitle>{editingArticleId ? "Editar Artículo" : "Crear Nuevo Artículo"}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -493,13 +596,15 @@ export function NewsEditor() {
                 
                 <div className="flex flex-col sm:flex-row gap-2 pt-4">
                   <Button type="submit" disabled={isSubmitting || isTogglingFeature} className="flex-1">
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                       <Send className="mr-2 h-4 w-4" />
-                    )}
-                    Guardar Artículo
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    {editingArticleId ? 'Actualizar Artículo' : 'Guardar Artículo'}
                   </Button>
+                  {editingArticleId && (
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="flex-1 sm:flex-none">
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Cancelar Edición
+                    </Button>
+                  )}
                 </div>
               </form>
             </Form>
@@ -589,11 +694,21 @@ export function NewsEditor() {
                       </p>
                     </div>
                   </CardContent>
-                   <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-4 justify-end">
-                      <p>Publicado: {formatDate(article.createdAt)}</p>
-                      {article.updatedAt && article.updatedAt !== article.createdAt && (
-                        <p className="ml-2 text-xs text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
-                      )}
+                   <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center">
+                      <div>
+                        <p>Publicado: {formatDate(article.createdAt)}</p>
+                        {article.updatedAt && article.updatedAt !== article.createdAt && (
+                          <p className="text-xs text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => article.id && handleEdit(article)} disabled={isSubmitting || isTogglingFeature} className="h-7 px-2 py-1 text-xs">
+                          <Edit3 className="mr-1 h-3 w-3" /> Editar
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => article.id && handleDelete(article)} disabled={isSubmitting || isTogglingFeature} className="h-7 px-2 py-1 text-xs">
+                          <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                        </Button>
+                      </div>
                    </CardFooter>
                 </Card>
               ))
@@ -601,8 +716,27 @@ export function NewsEditor() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás absolutamente seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el artículo 
+              "{articleToDelete?.title || 'seleccionado'}" de la base de datos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setArticleToDelete(null); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
     
-
