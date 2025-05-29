@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 import type { Advertisement } from '@/types';
+import { addDays, parseISO } from 'date-fns';
 
 import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; 
 
@@ -16,7 +17,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag } from 'lucide-react';
+import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag, CalendarClock } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const BUCKET_NAME = 'imagenes-anuncios';
@@ -222,6 +223,26 @@ export function AdManager() {
     }
   };
 
+  const calculateAndFormatExpiryDate = (createdAt?: string | null) => {
+    if (!createdAt) return 'Fecha desconocida';
+    try {
+      const createdDate = parseISO(createdAt);
+      if (isNaN(createdDate.getTime())) {
+        console.warn(`calculateAndFormatExpiryDate recibió una cadena de fecha de creación inválida: "${createdAt}"`);
+        return 'Fecha de creación inválida';
+      }
+      const expiryDate = addDays(createdDate, 30);
+      return expiryDate.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+    } catch (e: any) {
+      console.error("Error en 'calculateAndFormatExpiryDate':", createdAt, e.message);
+      return 'Error al calcular vencimiento';
+    }
+  };
+
   const handleEdit = (adToEdit: Advertisement) => {
     if (!adToEdit.id) return;
     setEditingAdId(adToEdit.id);
@@ -407,6 +428,10 @@ export function AdManager() {
                  {ad.updatedAt && ad.createdAt !== ad.updatedAt && (
                     <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(ad.updatedAt)}</p>
                  )}
+                 <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center">
+                   <CalendarClock className="mr-1 h-3 w-3" />
+                   Vencimiento: {calculateAndFormatExpiryDate(ad.createdAt)}
+                 </p>
               </CardContent>
               <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(ad)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
