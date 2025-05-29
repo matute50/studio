@@ -140,8 +140,8 @@ export function NewsEditor() {
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      imageUrl: finalImageUrl, // Cambiado de image_url
-      isFeatured: data.isFeatured, // Cambiado de is_featured
+      imageUrl: finalImageUrl,
+      isFeatured: data.isFeatured,
     };
 
     try {
@@ -167,16 +167,23 @@ export function NewsEditor() {
       // when the error object from Supabase was problematic.
       // The primary debugging path for Supabase DB errors should be the Supabase Dashboard logs.
 
-      let displayMessage = 'Error desconocido al guardar el artículo.';
-      if (error && typeof error.message === 'string' && error.message.trim() !== '') {
-        displayMessage = error.message;
-      } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
-        displayMessage = `Error con código: ${error.code}.`;
+      let toastMessageForUser = "Error desconocido. Consulta los logs del servidor.";
+      try {
+        if (error && typeof error.message === 'string' && error.message.trim() !== '') {
+          toastMessageForUser = error.message;
+        } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
+          toastMessageForUser = `Código de error: ${error.code}.`;
+        }
+      } catch (e_extract) {
+        // If trying to access error properties itself causes an error, log that and use generic.
+        // This inner console.error might also be problematic if 'e_extract' is complex.
+        // console.error("Error al intentar extraer detalles del error para el toast:", e_extract);
+        // toastMessageForUser remains generic
       }
       
       toast({
         title: "Error al Guardar Artículo",
-        description: `No se pudo guardar el artículo. ${displayMessage} Por favor, revisa la consola del navegador para mensajes iniciales y, MUY IMPORTANTE, los logs de tu API y Base de Datos en el panel de Supabase para el detalle completo del error.`,
+        description: `No se pudo guardar el artículo. ${toastMessageForUser} Por favor, revisa la consola del navegador para el mensaje de error inicial (si está disponible) y, MUY IMPORTANTE, los logs de tu API y Base de Datos en el panel de Supabase para el detalle completo del error.`,
         variant: "destructive",
         duration: 10000, // Longer duration for this important message
       });
@@ -405,5 +412,3 @@ export function NewsEditor() {
     </div>
   );
 }
-
-    
