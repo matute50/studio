@@ -31,4 +31,6 @@ export interface Advertisement {
   imageUrl: string;
   createdAt?: string;
   updatedAt?: string;
+  isActive?: boolean; // Nuevo campo
 }
+

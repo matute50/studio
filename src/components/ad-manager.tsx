@@ -19,6 +19,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag, CalendarClock } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 const BUCKET_NAME = 'imagenes-anuncios';
 
@@ -28,7 +31,7 @@ const adSchema = z.object({
     .refine(
       (value) => {
         if (value === "") return false; // Image is required
-        if (value.startsWith("https://placehold.co/")) return true; // Allow placeholder during initial set if needed
+        if (value.startsWith("https://placehold.co/")) return true; 
         if (value.startsWith("data:image/")) {
           return /^data:image\/(?:gif|png|jpeg|bmp|webp|svg\+xml)(?:;charset=utf-8)?;base64,(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value);
         }
@@ -58,6 +61,8 @@ export function AdManager() {
   const [editingAdId, setEditingAdId] = React.useState<string | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [adToDelete, setAdToDelete] = React.useState<Advertisement | null>(null);
+  const [isTogglingActive, setIsTogglingActive] = React.useState(false);
+
 
   const form = useForm<AdFormValues>({
     resolver: zodResolver(adSchema),
@@ -136,14 +141,13 @@ export function AdManager() {
       }
     }
 
-    const adPayload = {
-      name: data.name,
-      imageUrl: finalImageUrl,
-      updatedAt: now,
-    };
-
     try {
       if (editingAdId) {
+        const adPayload = {
+          name: data.name,
+          imageUrl: finalImageUrl,
+          updatedAt: now,
+        };
         const { data: updatedData, error: updateError } = await supabase
           .from('anuncios')
           .update(adPayload)
@@ -153,7 +157,13 @@ export function AdManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Anuncio Actualizado!", description: `El anuncio "${updatedData?.name}" ha sido actualizado.` });
       } else {
-        const payloadToInsert = { ...adPayload, createdAt: now };
+        const payloadToInsert = { 
+          name: data.name,
+          imageUrl: finalImageUrl,
+          createdAt: now,
+          updatedAt: now,
+          isActive: false, // Nuevo anuncio por defecto no activo
+        };
         const { data: insertedData, error: insertError } = await supabase
           .from('anuncios')
           .insert([payloadToInsert])
@@ -291,6 +301,29 @@ export function AdManager() {
     }
   };
 
+  const handleActiveToggle = async (adId: string, newActiveState: boolean) => {
+    setIsTogglingActive(true);
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('anuncios')
+        .update({ isActive: newActiveState, updatedAt: now })
+        .eq('id', adId);
+
+      if (error) throw error;
+
+      toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
+      fetchAds(); // Recarga los anuncios para reflejar el cambio
+    } catch (error: any) {
+      let description = "No se pudo actualizar el estado del anuncio.";
+      if (error?.message) description = `Error: ${error.message}`;
+      toast({ title: "Error al Actualizar Estado", description, variant: "destructive" });
+    } finally {
+      setIsTogglingActive(false);
+    }
+  };
+
+
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-8 text-center">
@@ -359,12 +392,12 @@ export function AdManager() {
                 )}
                 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
+                    <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     {editingAdId ? "Actualizar Anuncio" : "Guardar Anuncio"}
                     </Button>
                     {editingAdId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto">
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingActive}>
                         <XCircle className="mr-2 h-4 w-4" />
                         Cancelar Edición
                     </Button>
@@ -399,8 +432,30 @@ export function AdManager() {
           )}
           {!isLoadingAds && !errorLoadingAds && ads.map((ad) => (
             <Card key={ad.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 pt-3 px-3">
-                <CardTitle className="text-md font-semibold break-words">{ad.name}</CardTitle>
+              <CardHeader className="pb-2 pt-3 px-3 flex flex-row justify-between items-start">
+                <CardTitle className="text-md font-semibold break-words flex-grow">{ad.name}</CardTitle>
+                <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
+                  {ad.isActive && (
+                    <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <Label htmlFor={`active-switch-${ad.id}`} className="text-xs text-muted-foreground">
+                      Activo
+                    </Label>
+                    <Switch
+                      id={`active-switch-${ad.id}`}
+                      checked={!!ad.isActive}
+                      onCheckedChange={(isChecked) => {
+                        if (ad.id) {
+                          handleActiveToggle(ad.id, isChecked);
+                        }
+                      }}
+                      disabled={isTogglingActive || isSubmitting}
+                      className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                      aria-label={`Marcar anuncio ${ad.name} como activo`}
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="pb-2 pt-0 px-3">
                 <div className="relative w-full aspect-[16/9] max-h-32 rounded-md overflow-hidden border bg-muted mb-1.5">
@@ -433,10 +488,10 @@ export function AdManager() {
                  </p>
               </CardContent>
               <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(ad)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                <Button variant="outline" size="sm" onClick={() => handleEdit(ad)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
                   <Edit3 className="mr-1 h-3 w-3" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(ad)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(ad)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
                   <Trash2 className="mr-1 h-3 w-3" /> Eliminar
                 </Button>
               </CardFooter>
@@ -455,7 +510,7 @@ export function AdManager() {
           </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setAdToDelete(null); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting || isTogglingActive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Eliminar Anuncio
             </AlertDialogAction>
@@ -465,5 +520,3 @@ export function AdManager() {
     </div>
   );
 }
-
-    
