@@ -160,7 +160,7 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '',
-      isFeatured: false, // El valor por defecto del schema Zod
+      isFeatured: false, 
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
@@ -202,7 +202,6 @@ export function NewsEditor() {
         text: data.text,
         imageUrl: finalImageUrl,
         updatedAt: now,
-        // isFeatured se maneja a través de handleFeatureToggle, no se actualiza desde el formulario principal.
       };
 
       try {
@@ -237,15 +236,11 @@ export function NewsEditor() {
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
-        isFeatured: false, // Nuevos artículos no son destacados por defecto desde el form
+        isFeatured: false, 
         updatedAt: now, 
       };
     
       try {
-        // La lógica de desmarcar otros artículos destacados al crear uno nuevo
-        // se maneja principalmente a través de `handleFeatureToggle` ahora.
-        // Si se necesitara hacer un artículo destacado al crearlo, y desmarcar otros,
-        // se debería reintroducir el switch 'isFeatured' en el formulario y adaptar la lógica aquí.
         const { data: insertedData, error: insertError } = await supabase
           .from('articles') 
           .insert([articleToInsert])
@@ -368,7 +363,6 @@ export function NewsEditor() {
       const now = new Date().toISOString();
 
       if (newFeaturedState) {
-        // Desmarcar cualquier otro artículo destacado
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -377,10 +371,8 @@ export function NewsEditor() {
 
         if (unfeatureError) {
           console.error("Error al desmarcar otros artículos:", unfeatureError);
-          // No lanzar error aquí necesariamente, intentar destacar el actual
         }
 
-        // Marcar el artículo actual como destacado
         const { error: featureError } = await supabase
           .from('articles')
           .update({ isFeatured: true, updatedAt: now })
@@ -391,7 +383,6 @@ export function NewsEditor() {
           throw featureError;
         }
       } else {
-        // Simplemente desmarcar el artículo actual
         const { error: unfeatureError } = await supabase
           .from('articles')
           .update({ isFeatured: false, updatedAt: now })
@@ -426,7 +417,7 @@ export function NewsEditor() {
       title: article.title,
       text: article.text,
       imageUrl: article.imageUrl || '',
-      isFeatured: article.isFeatured, // Aunque no esté en el form, reset lo acepta.
+      isFeatured: article.isFeatured, 
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
@@ -453,7 +444,7 @@ export function NewsEditor() {
 
   const confirmDelete = async () => {
     if (!articleToDelete || !articleToDelete.id) return;
-    setIsSubmitting(true); // Reutilizar este estado para indicar carga
+    setIsSubmitting(true); 
 
     try {
       const { error: deleteError } = await supabase
@@ -465,7 +456,6 @@ export function NewsEditor() {
 
       toast({ title: "Artículo Eliminado", description: `El artículo "${articleToDelete.title}" ha sido eliminado.` });
       fetchArticles();
-       // Si el artículo eliminado era el que se estaba editando, cancelar modo edición
       if (editingArticleId === articleToDelete.id) {
         cancelEdit();
       }
@@ -696,9 +686,9 @@ export function NewsEditor() {
                   </CardContent>
                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center">
                       <div>
-                        <p>Publicado: {formatDate(article.createdAt)}</p>
+                        <p className="text-[0.7rem] leading-tight">Publicado: {formatDate(article.createdAt)}</p>
                         {article.updatedAt && article.updatedAt !== article.createdAt && (
-                          <p className="text-xs text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
+                          <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -739,4 +729,6 @@ export function NewsEditor() {
     </div>
   );
 }
+    
+
     
