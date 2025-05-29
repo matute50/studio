@@ -181,7 +181,7 @@ export function NewsEditor() {
       // createdAt y updatedAt son gestionados por Supabase si las columnas existen con valores por defecto
     };
   
-    try {
+   try {
       const { data: insertedData, error: insertError } = await supabase
         .from('articles') 
         .insert([articleToInsert])
@@ -203,7 +203,7 @@ export function NewsEditor() {
       
       let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
       let errorCode = "Desconocido";
-      let errorStatus = "Desconocido"; // Initialize errorStatus
+      let errorStatus = "Desconocido"; 
 
       if (error && typeof error.message === 'string' && error.message.trim() !== '') {
         specificErrorMessage = error.message;
@@ -214,19 +214,18 @@ export function NewsEditor() {
       if (error && typeof error.code === 'string' && error.code.trim() !== '') {
          errorCode = error.code;
       }
-       // Try to get status from error object, specific to Supabase or HTTP errors
+      
        if (error && typeof (error as any).status === 'number') {
          errorStatus = (error as any).status.toString();
-       } else if (error && typeof (error as any).statusCode === 'number') { // Common alternative
+       } else if (error && typeof (error as any).statusCode === 'number') { 
          errorStatus = (error as any).statusCode.toString();
        }
-
 
       const isLikelyNotFoundError = 
         (errorStatus === '404') || 
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('relation') && specificErrorMessage.toLowerCase().includes('does not exist')) ||
         (typeof specificErrorMessage === 'string' && specificErrorMessage.toLowerCase().includes('not found')) ||
-        (errorCode === 'PGRST116'); // PGRST116: "The relation <name> does not exist"
+        (errorCode === 'PGRST116'); 
   
       let toastDescription = `Falló el intento de guardar en Supabase. Código: ${errorCode}, Estado: ${errorStatus}. Mensaje: "${specificErrorMessage}".`;
       
@@ -327,7 +326,7 @@ export function NewsEditor() {
         <Card className="shadow-xl">
           <CardHeader>
             <CardTitle>Editor de Artículos</CardTitle>
-            <CardDescription>Completa los detalles de tu artículo de noticias. Se guardará en Supabase.</CardDescription>
+            {/* CardDescription eliminada */}
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -476,7 +475,6 @@ export function NewsEditor() {
         </Card>
 
         <div className="space-y-3 max-h-[calc(100vh-10rem)] overflow-y-auto pr-2">
-          {/* CardHeader for "Saved Articles" and its description is removed as per request */}
           {isLoadingArticles && (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -498,7 +496,6 @@ export function NewsEditor() {
             </div>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
-            // Removed the wrapping CardHeader here
               articles.map((article) => (
                 <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-2 pt-3 px-4">
@@ -549,3 +546,4 @@ export function NewsEditor() {
   );
 }
     
+
