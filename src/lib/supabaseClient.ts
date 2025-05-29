@@ -63,38 +63,55 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error('Supabase Storage upload failed. Raw error object:', uploadError);
+      const errorDetails: Record<string, any> = {
+        logTimestamp: new Date().toISOString(),
+        context: 'Supabase Storage upload failed.',
+        errorType: typeof uploadError,
+        isErrorInstance: uploadError instanceof Error,
+      };
 
-      let detailedMessage = 'No se pudo determinar la causa específica del error de subida.';
-      if (typeof uploadError === 'object' && uploadError !== null) {
-        const errorAsAny = uploadError as any;
-        if (errorAsAny.message && typeof errorAsAny.message === 'string') {
-          detailedMessage = `Mensaje: ${errorAsAny.message}`;
-          if (errorAsAny.name && typeof errorAsAny.name === 'string') {
-            detailedMessage = `Error: ${errorAsAny.name}, ${detailedMessage}`;
+      if (uploadError && typeof uploadError === 'object') {
+        const err = uploadError as any; // Cast to any to access potential properties
+        errorDetails.constructorName = err.constructor?.name;
+        
+        // Explicitly try to access known properties of Supabase StorageError/ApiError
+        errorDetails.supaMessage = err.message;
+        errorDetails.supaName = err.name;
+        errorDetails.supaStatus = err.status; // HTTP status code
+        errorDetails.supaError = err.error; // Sometimes a short error code string
+        errorDetails.supaErrorDescription = err.error_description; // More descriptive error
+        errorDetails.supaStack = err.stack;
+        
+        errorDetails.enumerableProps = {};
+        for (const key in err) {
+          if (Object.prototype.hasOwnProperty.call(err, key)) {
+            (errorDetails.enumerableProps as Record<string, any>)[key] = err[key];
           }
-          if (errorAsAny.status && typeof errorAsAny.status === 'number') {
-            detailedMessage += `, Estado HTTP: ${errorAsAny.status}`;
-          }
-        } else if (Object.keys(uploadError).length > 0) {
-          try {
-            detailedMessage = `Detalles del error: ${JSON.stringify(uploadError)}`;
-          } catch (e) {
-            detailedMessage = 'El objeto de error no pudo ser serializado a JSON, pero no estaba vacío.';
-          }
-        } else {
-            detailedMessage = 'El objeto de error de subida estaba vacío o no contenía un mensaje legible.';
         }
-      } else if (typeof uploadError === 'string') {
-        detailedMessage = `Error de subida (string): ${uploadError}`;
-      }
-      
-      console.error('Información detallada del error de subida:', detailedMessage);
+        
+        try {
+          errorDetails.stringifiedRaw = JSON.stringify(uploadError);
+        } catch (e) {
+          errorDetails.stringifyRawError = (e as Error).message;
+        }
+        
+        try {
+          // Attempt to stringify with non-enumerable properties (if any)
+          errorDetails.stringifiedWithOwnProps = JSON.stringify(uploadError, Object.getOwnPropertyNames(uploadError));
+        } catch (e) {
+          errorDetails.stringifyWithOwnPropsError = (e as Error).message;
+        }
 
-      if ((uploadError as any)?.stack) {
-        console.error('Stack trace del error de subida:', (uploadError as any).stack);
+      } else {
+        // If uploadError is not an object (e.g., a string or primitive)
+        errorDetails.rawValue = uploadError;
       }
-      
+
+      console.error('--- Supabase Storage Upload Error Details ---', errorDetails);
+      // Log the original object as well, as console's own formatting might sometimes reveal more
+      console.error('Original uploadError object for direct console inspection:', uploadError);
+      console.error('--- End of Supabase Storage Upload Error Details ---');
+
       return null;
     }
 
