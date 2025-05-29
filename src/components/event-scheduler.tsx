@@ -13,10 +13,10 @@ import { supabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Importado CardHeader y CardTitle
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog"; // Renombrado para evitar colisión
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle } from 'lucide-react';
@@ -237,8 +237,7 @@ export function EventScheduler() {
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
-          {/* Se elimina el CardHeader para quitar el título "Programar Nuevo Evento" / "Editar Evento" */}
-          <CardContent className="pt-6"> {/* Añadido pt-6 para compensar la eliminación del CardHeader */}
+          <CardContent className="pt-6"> 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
@@ -294,7 +293,9 @@ export function EventScheduler() {
                             </Select>
                         </div>
                       </div>
-                      <FormMessage /> 
+                      {form.formState.errors.eventDateTime && (
+                        <FormMessage>{form.formState.errors.eventDateTime.message}</FormMessage>
+                      )}
                     </FormItem>
                   )}
                 />
@@ -365,12 +366,12 @@ export function EventScheduler() {
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro de eliminar este evento?</AlertDialogTitle>
+          <AlertDialogHeaderComponent>
+            <AlertDialogTitleComponent>¿Estás seguro de eliminar este evento?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. El evento "{eventToDelete?.name || 'seleccionado'}" será eliminado permanentemente.
             </AlertDialogDescription>
-          </AlertDialogHeader>
+          </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setEventToDelete(null); }}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
@@ -383,5 +384,6 @@ export function EventScheduler() {
     </div>
   );
 }
-
     
+
+      
