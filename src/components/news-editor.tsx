@@ -128,7 +128,7 @@ export function NewsEditor() {
       } else {
         toast({
           title: "Error al Subir Imagen",
-          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
+          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. Un error 400/403 usualmente indica un problema de RLS. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
           variant: "destructive",
           duration: 9000, 
         });
@@ -140,10 +140,11 @@ export function NewsEditor() {
     const articleToInsert = {
       title: data.title,
       text: data.text,
-      imageUrl: finalImageUrl,
-      isFeatured: data.isFeatured,
+      imageUrl: finalImageUrl, // Nombre de campo esperado por la BD (según tu especificación)
+      isFeatured: data.isFeatured, // Nombre de campo esperado por la BD (según tu especificación)
       // Supabase maneja createdAt y updatedAt automáticamente si las columnas existen con valores por defecto
       // y los nombres coinciden (o se mapean correctamente por el cliente JS).
+      // En este caso, asumimos que Supabase mapeará `createdAt` y `updatedAt` si las columnas se llaman así.
     };
 
     try {
@@ -164,21 +165,21 @@ export function NewsEditor() {
     } catch (error: any) {
       console.error("--- ERROR AL GUARDAR ARTÍCULO EN SUPABASE (Inicio del bloque catch) ---");
       
-      // The following detailed console logs for the 'error' object were removed 
-      // as they seemed to interfere with the console's ability to log subsequent messages
-      // when the error object from Supabase was problematic.
-      // The primary debugging path for Supabase DB errors should be the Supabase Dashboard logs.
-
-      let toastMessageForUser = "Error desconocido. Revisa los logs de Supabase.";
-      if (error && typeof error.message === 'string' && error.message.trim() !== '') {
-        toastMessageForUser = error.message;
-      }
+      // The primary debugging path for Supabase DB errors is the Supabase Dashboard logs.
+      // Client-side error objects from Supabase can be difficult to inspect directly.
       
+      let specificErrorMessage = "No se pudo obtener un mensaje de error específico del cliente.";
+      if (error && typeof error.message === 'string' && error.message.trim() !== '') {
+        specificErrorMessage = error.message;
+      } else if (error && typeof error.code === 'string' && error.code.trim() !== '') {
+         specificErrorMessage = `Código de error: ${error.code}`;
+      }
+
       toast({
-        title: "Error al Guardar Artículo",
-        description: `No se pudo guardar el artículo. Mensaje: ${toastMessageForUser}. Es MUY IMPORTANTE que revises los logs de tu API y Base de Datos en el panel de Supabase para el detalle completo. Un error 404 usualmente indica que la tabla 'articles' no existe o no es accesible.`,
+        title: "Error Crítico al Guardar Artículo",
+        description: `Falló el intento de guardar en Supabase. Mensaje del cliente (puede ser limitado): "${specificErrorMessage}". Un error 404 previo en los logs del servidor indica que la tabla 'articles' NO EXISTE o NO ES ACCESIBLE. Por favor, verifica URGENTEMENTE tu configuración de base de datos y RLS en el panel de Supabase.`,
         variant: "destructive",
-        duration: 10000, // Longer duration for this important message
+        duration: 12000, 
       });
     } finally {
       setIsSubmitting(false);
