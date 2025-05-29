@@ -7,7 +7,7 @@ const supabaseAnonKeyFromEnv = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const errors: string[] = [];
 
 // Check Supabase URL
-if (!supabaseUrlFromEnv || supabaseUrlFromEnv === 'YOUR_SUPABASE_URL_HERE' || supabaseUrlFromEnv.trim() === '' || supabaseUrlFromEnv.toLowerCase() === 'undefined') {
+if (!supabaseUrlFromEnv || supabaseUrlFromEnv === 'YOUR_SUPABASE_URL_HERE' || supabaseUrlFromEnv === 'TU_SUPABASE_URL' || supabaseUrlFromEnv.trim() === '' || supabaseUrlFromEnv.toLowerCase() === 'undefined') {
   errors.push(`NEXT_PUBLIC_SUPABASE_URL (valor actual: "${supabaseUrlFromEnv}") falta, es un marcador de posición, está vacía, o es la cadena "undefined".`);
 } else {
   try {
@@ -19,7 +19,7 @@ if (!supabaseUrlFromEnv || supabaseUrlFromEnv === 'YOUR_SUPABASE_URL_HERE' || su
 }
 
 // Check Supabase Anon Key
-if (!supabaseAnonKeyFromEnv || supabaseAnonKeyFromEnv === 'YOUR_SUPABASE_ANON_KEY_HERE' || supabaseAnonKeyFromEnv.trim() === '' || supabaseAnonKeyFromEnv.toLowerCase() === 'undefined') {
+if (!supabaseAnonKeyFromEnv || supabaseAnonKeyFromEnv === 'YOUR_SUPABASE_ANON_KEY_HERE' || supabaseAnonKeyFromEnv === 'TU_SUPABASE_ANON_KEY' || supabaseAnonKeyFromEnv.trim() === '' || supabaseAnonKeyFromEnv.toLowerCase() === 'undefined') {
   errors.push(`NEXT_PUBLIC_SUPABASE_ANON_KEY (valor actual: "${supabaseAnonKeyFromEnv}") falta, es un marcador de posición, está vacía, o es la cadena "undefined".`);
 }
 
@@ -63,7 +63,38 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error('Error al subir imagen a Supabase Storage:', uploadError);
+      console.error('Supabase Storage upload failed. Raw error object:', uploadError);
+
+      let detailedMessage = 'No se pudo determinar la causa específica del error de subida.';
+      if (typeof uploadError === 'object' && uploadError !== null) {
+        const errorAsAny = uploadError as any;
+        if (errorAsAny.message && typeof errorAsAny.message === 'string') {
+          detailedMessage = `Mensaje: ${errorAsAny.message}`;
+          if (errorAsAny.name && typeof errorAsAny.name === 'string') {
+            detailedMessage = `Error: ${errorAsAny.name}, ${detailedMessage}`;
+          }
+          if (errorAsAny.status && typeof errorAsAny.status === 'number') {
+            detailedMessage += `, Estado HTTP: ${errorAsAny.status}`;
+          }
+        } else if (Object.keys(uploadError).length > 0) {
+          try {
+            detailedMessage = `Detalles del error: ${JSON.stringify(uploadError)}`;
+          } catch (e) {
+            detailedMessage = 'El objeto de error no pudo ser serializado a JSON, pero no estaba vacío.';
+          }
+        } else {
+            detailedMessage = 'El objeto de error de subida estaba vacío o no contenía un mensaje legible.';
+        }
+      } else if (typeof uploadError === 'string') {
+        detailedMessage = `Error de subida (string): ${uploadError}`;
+      }
+      
+      console.error('Información detallada del error de subida:', detailedMessage);
+
+      if ((uploadError as any)?.stack) {
+        console.error('Stack trace del error de subida:', (uploadError as any).stack);
+      }
+      
       return null;
     }
 
@@ -80,7 +111,10 @@ export async function uploadImageToSupabase(
 
     return publicURLData.publicUrl;
   } catch (error) {
-    console.error('Error en la utilidad uploadImageToSupabase:', error);
+    console.error('Error en la utilidad uploadImageToSupabase (bloque catch general):', error);
+    if (error instanceof Error && error.message) {
+      console.error('Mensaje del error general:', error.message);
+    }
     return null;
   }
 }
