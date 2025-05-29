@@ -351,7 +351,13 @@ export function TextTickerEditor() {
                   )}
                 />
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button type="submit" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting || isTogglingActive} 
+                    className="w-full sm:flex-1"
+                    variant="destructive"
+                    size="sm"
+                  >
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {editingTextId ? "Actualizar Texto" : "Guardar Texto"}
                   </Button>
@@ -464,3 +470,4 @@ export function TextTickerEditor() {
     </div>
   );
 }
+
