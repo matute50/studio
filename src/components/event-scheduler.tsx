@@ -25,9 +25,9 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 
 const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
-  eventDateTime: z.date({ // Este campo se usará para validar la hora y como plantilla.
+  eventDateTime: z.date({ 
     invalid_type_error: "La hora configurada no es válida.",
-    required_error: "Por favor, selecciona al menos una fecha y configura la hora."
+    // No custom required_error, Zod will use its default
   }),
 });
 
@@ -63,8 +63,6 @@ export function EventScheduler() {
   });
 
   React.useEffect(() => {
-    // Usa la primera fecha seleccionada (si existe) para construir el eventDateTime del formulario.
-    // Esto es principalmente para la validación de la hora a través del esquema Zod.
     const representativeDate = calendarDates && calendarDates.length > 0 ? calendarDates[0] : undefined;
 
     if (representativeDate) {
@@ -86,8 +84,6 @@ export function EventScheduler() {
       newDateTime.setMilliseconds(0);
       form.setValue('eventDateTime', newDateTime, { shouldValidate: true, shouldDirty: true });
     } else {
-      // Si no hay fechas seleccionadas, el eventDateTime del formulario es undefined.
-      // Zod se quejará de que 'eventDateTime' es requerido si se intenta enviar.
       form.setValue('eventDateTime', undefined, { shouldValidate: true, shouldDirty: true });
     }
   }, [calendarDates, eventHour, eventMinute, form]);
@@ -97,9 +93,13 @@ export function EventScheduler() {
     setIsLoadingEvents(true);
     setErrorLoadingEvents(null);
     try {
+      const twelveHoursAgo = new Date();
+      twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+
       const { data, error } = await supabase
         .from('eventos_calendario')
         .select('*')
+        .gte('eventDateTime', twelveHoursAgo.toISOString()) // Keep events whose eventDateTime is not older than 12 hours ago
         .order('eventDateTime', { ascending: true });
 
       if (error) throw error;
@@ -135,10 +135,8 @@ export function EventScheduler() {
 
     try {
       if (editingEventId) {
-        // Lógica para ACTUALIZAR un evento existente (un solo evento)
         const eventPayload = {
           name: data.name,
-          // data.eventDateTime ya tiene la fecha y hora combinadas por el useEffect
           eventDateTime: data.eventDateTime.toISOString(), 
           updatedAt: now,
         };
@@ -152,7 +150,6 @@ export function EventScheduler() {
         if (updateError) throw updateError;
         toast({ title: "¡Evento Actualizado!", description: `El evento "${updatedData?.name}" ha sido actualizado.` });
       } else {
-        // Lógica para CREAR nuevos eventos (potencialmente múltiples)
         if (!calendarDates || calendarDates.length === 0) {
           toast({
             title: "Error de Validación",
@@ -215,9 +212,9 @@ export function EventScheduler() {
     const dt = parseISO(eventToEdit.eventDateTime);
     form.reset({
       name: eventToEdit.name,
-      eventDateTime: dt, // El form se resetea con la fecha/hora del evento a editar
+      eventDateTime: dt,
     });
-    setCalendarDates([dt]); // El calendario selecciona solo la fecha del evento a editar
+    setCalendarDates([dt]); 
     setEventHour(dt.getHours().toString().padStart(2, '0'));
     setEventMinute(dt.getMinutes().toString().padStart(2, '0'));
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -297,12 +294,12 @@ export function EventScheduler() {
 
                 <FormField
                   control={form.control}
-                  name="eventDateTime" // Este campo en el form maneja la validación de la hora
+                  name="eventDateTime"
                   render={() => ( 
                     <FormItem className="space-y-3">
                       <FormLabel>Fecha(s) y Hora del Evento</FormLabel>
                       <Calendar
-                        mode="multiple" // Cambiado a multiple
+                        mode="multiple"
                         selected={calendarDates}
                         onSelect={setCalendarDates}
                         className="rounded-md border self-center shadow-sm"
@@ -344,7 +341,6 @@ export function EventScheduler() {
                             </Select>
                         </div>
                       </div>
-                      {/* La FormMessage aquí se mostrará si form.eventDateTime (basado en la primera fecha) tiene un error */}
                       {form.formState.errors.eventDateTime && (
                         <FormMessage>{form.formState.errors.eventDateTime.message}</FormMessage>
                       )}
