@@ -55,7 +55,18 @@ export function TextTickerEditor() {
       if (error) throw error;
       setTexts(data || []);
     } catch (error: any) {
-      console.error("Error cargando textos del ticker:", error); // This will log the raw error object
+      let consoleErrorMessage = "Error cargando textos del ticker.";
+      if (error && typeof error === 'object') {
+        if (typeof error.message === 'string' && error.message) {
+          consoleErrorMessage += ` Mensaje: ${error.message}`;
+        }
+        if (typeof error.code === 'string' && error.code) {
+          consoleErrorMessage += ` Código: ${error.code}`;
+        }
+      }
+      console.error(consoleErrorMessage + " (Objeto de error original abajo, podría mostrarse como '{}' si no es serializable por la consola).");
+      console.error("Objeto de error original:", error); 
+
       let description = `No se pudieron cargar los textos del ticker. Revisa la consola y los logs del panel de Supabase para más detalles.`;
       
       const errorCode = (typeof error?.code === 'string') ? error.code : "";
@@ -72,7 +83,7 @@ export function TextTickerEditor() {
         title: "Error al Cargar Textos",
         description,
         variant: "destructive",
-        duration: 10000, // Longer duration for critical errors
+        duration: 10000, 
       });
     } finally {
       setIsLoadingTexts(false);
@@ -128,7 +139,7 @@ export function TextTickerEditor() {
         title: "Error al Crear Texto",
         description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
         variant: "destructive",
-        duration: 10000, // Longer duration for critical errors
+        duration: 10000,
       });
     } finally {
       setIsSubmitting(false);
