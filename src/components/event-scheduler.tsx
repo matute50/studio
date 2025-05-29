@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -26,7 +26,7 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
   eventDateTime: z.date({
-    required_error: "Por favor, selecciona una fecha y hora.",
+    // Se elimina: required_error: "Por favor, selecciona una fecha y hora.",
     invalid_type_error: "Fecha y hora no válidas.",
   }),
 });
@@ -82,8 +82,6 @@ export function EventScheduler() {
       newDateTime.setMilliseconds(0);
       form.setValue('eventDateTime', newDateTime, { shouldValidate: true, shouldDirty: true });
     } else {
-      // Si no hay fecha seleccionada en el calendario, el eventDateTime es inválido o no establecido.
-      // Forzamos un valor inválido (undefined) para que la validación Zod actúe si es un campo requerido.
       form.setValue('eventDateTime', undefined, { shouldValidate: true, shouldDirty: true });
     }
   }, [calendarDate, eventHour, eventMinute, form]);
@@ -128,10 +126,9 @@ export function EventScheduler() {
   const onSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
-    // data.eventDateTime ya es un objeto Date gracias al useEffect y Zod.
     const eventPayload = {
       name: data.name,
-      eventDateTime: data.eventDateTime.toISOString(), // Zod asegura que eventDateTime es Date
+      eventDateTime: data.eventDateTime.toISOString(),
       updatedAt: now,
     };
 
@@ -240,10 +237,8 @@ export function EventScheduler() {
 
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
-          <CardHeader>
-            <CardTitle>{editingEventId ? "Editar Evento" : "Programar Nuevo Evento"}</CardTitle>
-          </CardHeader>
-          <CardContent>
+          {/* Se elimina el CardHeader para quitar el título "Programar Nuevo Evento" / "Editar Evento" */}
+          <CardContent className="pt-6"> {/* Añadido pt-6 para compensar la eliminación del CardHeader */}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <FormField
