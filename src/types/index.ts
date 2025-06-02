@@ -31,6 +31,13 @@ export interface Advertisement {
   imageUrl: string;
   createdAt?: string;
   updatedAt?: string;
-  isActive?: boolean; // Nuevo campo
+  isActive?: boolean;
 }
 
+export interface VideoItem {
+  id?: string;
+  nombre: string;
+  url: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

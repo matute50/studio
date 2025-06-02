@@ -1,7 +1,7 @@
 
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Newspaper, TextQuote, CalendarDays, Megaphone } from 'lucide-react';
+import { Newspaper, TextQuote, CalendarDays, Megaphone, Video } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -34,6 +34,12 @@ const modules = [
     description: 'Crea y administra los anuncios publicitarios.',
     icon: <Megaphone className="h-8 w-8 text-primary" />,
   },
+  {
+    title: 'Gestor de Videos',
+    href: '/gestor-videos',
+    description: 'Añade y gestiona los videos de la plataforma.',
+    icon: <Video className="h-8 w-8 text-primary" />,
+  },
 ];
 
 export default function HomePage() {
@@ -44,7 +50,7 @@ export default function HomePage() {
           Panel de Control NewsFlash
         </h1>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
         {modules.map((module) => (
           <Link href={module.href} key={module.title} legacyBehavior passHref>
             <a className="block transform transition-all duration-300 ease-out hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg">
@@ -67,4 +73,3 @@ export default function HomePage() {
     </main>
   );
 }
-
