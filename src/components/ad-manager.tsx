@@ -288,7 +288,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Una causa común es un error de "new row violates row-level security policy". Revisa la consola de tu NAVEGADOR para el objeto 'uploadError' detallado y los logs de Storage en Supabase. Asegúrate de que las políticas RLS del bucket '${BANNER_BUCKET_NAME}' permitan la operación INSERT para el rol 'anon'.`,
+          description: `Error al subir al bucket '${BANNER_BUCKET_NAME}': "new row violates row-level security policy". Esto significa que necesitas crear/ajustar las Políticas RLS para el bucket 'banner' en Supabase Storage para permitir la operación INSERT al rol 'anon'.`,
           variant: "destructive",
           duration: 15000, 
         });
@@ -315,7 +315,6 @@ export function AdManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Banner Actualizado!", description: `El banner "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
-        // Solo proceder a insertar en la tabla si la URL final es válida (ya sea la original si era http, o la subida)
         if (!finalImageUrl || !finalImageUrl.startsWith('http')) {
             setIsSubmitting(false);
             toast({
@@ -553,7 +552,7 @@ export function AdManager() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
-        {/* Columna de Formularios */}
+        {/* Columna de Anuncios: Formulario y Lista */}
         <div className="space-y-8">
           <Card className="shadow-xl" ref={adEditorFormCardRef}>
             <CardHeader>
@@ -629,85 +628,8 @@ export function AdManager() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-xl" ref={bannerEditorFormCardRef}>
-            <CardHeader>
-              <CardTitle>{editingBannerId ? "Editar Banner" : "Crear Nuevo Banner"}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...bannerForm}>
-                <form onSubmit={bannerForm.handleSubmit(onBannerSubmit)} className="space-y-6">
-                  <FormField
-                    control={bannerForm.control}
-                    name="nombre"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nombre del Banner</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Ej: Banner Principal Promociones" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={bannerForm.control}
-                    name="imageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Imagen del Banner</FormLabel>
-                        <div className="flex flex-col sm:flex-row gap-2 items-start">
-                          <FormControl className="flex-grow">
-                            <Input 
-                              placeholder="https://ejemplo.com/banner.png o subir" 
-                              {...field}
-                            />
-                          </FormControl>
-                          <Button type="button" variant="outline" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto">
-                            <Upload className="mr-2 h-4 w-4" />
-                            Subir Imagen
-                          </Button>
-                          <input
-                            type="file"
-                            ref={bannerFileInputRef}
-                            className="hidden"
-                            accept="image/*"
-                            onChange={handleBannerFileChange}
-                          />
-                        </div>
-                         <FormDescription>
-                          Introduce una URL o sube una imagen (máx 5MB).
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {watchedBannerImageUrl && (watchedBannerImageUrl.startsWith('http') || watchedBannerImageUrl.startsWith('data:image')) && (
-                    <div className="relative w-full max-w-xs h-48 rounded-md overflow-hidden border">
-                       <Image src={watchedBannerImageUrl} alt="Vista previa de la imagen del banner" layout="fill" objectFit="contain" data-ai-hint="banner preview"/>
-                    </div>
-                  )}
-                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                      <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
-                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      {editingBannerId ? "Actualizar Banner" : "Guardar Banner"}
-                      </Button>
-                      {editingBannerId && (
-                      <Button type="button" variant="outline" onClick={cancelEditBanner} className="w-full sm:w-auto" disabled={isSubmitting}>
-                          <XCircle className="mr-2 h-4 w-4" />
-                          Cancelar Edición
-                      </Button>
-                      )}
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Columna de Listas */}
-        <div className="space-y-8">
           {/* Anuncios Existentes */}
-          <div className="space-y-4 max-h-[calc(50vh-10rem)] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Anuncios Existentes</h2>
             {isLoadingAds && (
               <div className="flex justify-center items-center py-10">
@@ -797,9 +719,86 @@ export function AdManager() {
               </Card>
             ))}
           </div>
+        </div>
 
+        {/* Columna de Banners: Formulario y Lista */}
+        <div className="space-y-8">
+          <Card className="shadow-xl" ref={bannerEditorFormCardRef}>
+            <CardHeader>
+              <CardTitle>{editingBannerId ? "Editar Banner" : "Crear Nuevo Banner"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...bannerForm}>
+                <form onSubmit={bannerForm.handleSubmit(onBannerSubmit)} className="space-y-6">
+                  <FormField
+                    control={bannerForm.control}
+                    name="nombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre del Banner</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ej: Banner Principal Promociones" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={bannerForm.control}
+                    name="imageUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Imagen del Banner</FormLabel>
+                        <div className="flex flex-col sm:flex-row gap-2 items-start">
+                          <FormControl className="flex-grow">
+                            <Input 
+                              placeholder="https://ejemplo.com/banner.png o subir" 
+                              {...field}
+                            />
+                          </FormControl>
+                          <Button type="button" variant="outline" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Subir Imagen
+                          </Button>
+                          <input
+                            type="file"
+                            ref={bannerFileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={handleBannerFileChange}
+                          />
+                        </div>
+                         <FormDescription>
+                          Introduce una URL o sube una imagen (máx 5MB).
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {watchedBannerImageUrl && (watchedBannerImageUrl.startsWith('http') || watchedBannerImageUrl.startsWith('data:image')) && (
+                    <div className="relative w-full max-w-xs h-48 rounded-md overflow-hidden border">
+                       <Image src={watchedBannerImageUrl} alt="Vista previa de la imagen del banner" layout="fill" objectFit="contain" data-ai-hint="banner preview"/>
+                    </div>
+                  )}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                      <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
+                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {editingBannerId ? "Actualizar Banner" : "Guardar Banner"}
+                      </Button>
+                      {editingBannerId && (
+                      <Button type="button" variant="outline" onClick={cancelEditBanner} className="w-full sm:w-auto" disabled={isSubmitting}>
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Cancelar Edición
+                      </Button>
+                      )}
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+          
           {/* Banners Existentes */}
-          <div className="space-y-4 max-h-[calc(50vh-10rem)] overflow-y-auto pr-2">
+          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Banners Existentes</h2>
             {isLoadingBanners && (
               <div className="flex justify-center items-center py-10">
@@ -904,4 +903,3 @@ export function AdManager() {
     </div>
   );
 }
-
