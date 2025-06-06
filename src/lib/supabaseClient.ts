@@ -29,23 +29,23 @@ export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv
 
 async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
   if (!dataURI.startsWith('data:image/')) {
-    console.error('Data URI no parece ser una imagen válida:', dataURI.substring(0, 30) + "...");
+    console.warn('Data URI no parece ser una imagen válida:', dataURI.substring(0, 30) + "...");
     return null;
   }
   try {
     const response = await fetch(dataURI);
     if (!response.ok) {
-      console.error(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}`);
+      console.warn(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}`);
       return null;
     }
     const blob = await response.blob();
     if (!blob || !blob.type || !blob.type.startsWith('image/')) { 
-      console.error('El Data URI no se convirtió en un Blob de imagen válido.');
+      console.warn('El Data URI no se convirtió en un Blob de imagen válido.');
       return null;
     }
     return blob;
   } catch (error: any) {
-    console.error('Error al convertir Data URI a Blob:', error.message);
+    console.warn('Error al convertir Data URI a Blob:', error.message);
     return null;
   }
 }
@@ -55,11 +55,11 @@ export async function uploadImageToSupabase(
   bucketName: string
 ): Promise<string | null> {
   if (!bucketName || typeof bucketName !== 'string' || bucketName.trim() === '') {
-    console.error('Error: Nombre del bucket inválido o no proporcionado:', bucketName);
+    console.warn('Error: Nombre del bucket inválido o no proporcionado:', bucketName);
     return null;
   }
   if (!dataURI || typeof dataURI !== 'string' ) { 
-    console.error('Error: Data URI inválido o no proporcionado.');
+    console.warn('Error: Data URI inválido o no proporcionado.');
     return null;
   }
 
@@ -67,13 +67,13 @@ export async function uploadImageToSupabase(
     const blob = await dataURIToBlob(dataURI);
 
     if (!blob) {
-      console.error('Falló la conversión de Data URI a Blob. No se puede proceder con la subida.');
+      console.warn('Falló la conversión de Data URI a Blob. No se puede proceder con la subida.');
       return null;
     }
 
     const fileExtMatch = blob.type.match(/^image\/(png|jpeg|gif|webp|svg\+xml)$/);
     if (!fileExtMatch || !fileExtMatch[1]) {
-        console.error('No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob:', blob.type);
+        console.warn('No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob:', blob.type);
         return null;
     }
     const fileExt = fileExtMatch[1] === 'svg+xml' ? 'svg' : fileExtMatch[1];
@@ -89,11 +89,11 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error("--- Supabase Storage Upload Error DETECTED ---");
+      console.warn("--- Supabase Storage Upload Error DETECTED ---");
       console.warn(
         "IMPORTANT: Client-side error details are often limited or misleading for storage issues. For the TRUE error reason (e.g., RLS, bucket policy), please check your Supabase Dashboard: Project > Logs > Storage Logs."
       );
-      console.error("Original uploadError object for direct console inspection (may appear as {} if problematic):", uploadError);
+      console.warn("Supabase Storage uploadError object:", uploadError);
       return null;
     }
 
@@ -102,21 +102,21 @@ export async function uploadImageToSupabase(
       .getPublicUrl(filePath);
     
     if (!publicURLData || !publicURLData.publicUrl) {
-        console.error('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible.');
+        console.warn('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible.');
         try {
           const { error: removeError } = await supabase.storage.from(bucketName).remove([filePath]);
           if (removeError) {
-            console.error('Error al intentar eliminar el archivo huérfano:', removeError.message);
+            console.warn('Error al intentar eliminar el archivo huérfano:', removeError.message);
           }
         } catch (removeCatchError: any) {
-          console.error('Excepción al intentar eliminar el archivo huérfano:', removeCatchError.message);
+          console.warn('Excepción al intentar eliminar el archivo huérfano:', removeCatchError.message);
         }
         return null;
     }
     return publicURLData.publicUrl;
 
   } catch (error: any) { 
-    console.error('Error general en la función uploadImageToSupabase (bucket: ', bucketName, '):', error.message);
+    console.warn('Error general en la función uploadImageToSupabase (bucket: ', bucketName, '):', error.message);
     console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs).");
     return null;
   }
