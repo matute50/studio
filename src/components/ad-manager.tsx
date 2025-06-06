@@ -258,9 +258,10 @@ export function AdManager() {
       fetchAds();
       resetAdFormAndPreview();
     } catch (error: any) {
+      console.warn(`Error al guardar anuncio: ${error.message || 'Error desconocido'}.`);
       toast({
         title: "Error al Guardar Anuncio",
-        description: `Error al guardar: ${error.message || 'Error desconocido'}.`,
+        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -288,11 +289,11 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Por favor, verifica que el bucket exista en Supabase Storage y que sus políticas RLS permitan la subida. Consulta los logs del navegador y de Supabase para más detalles.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Verifica que el bucket exista, esté marcado como "Público" en la UI de Supabase (especialmente si RLS está desactivada para él), y que las políticas permitan la subida/lectura. Consulta los logs de Supabase.`,
           variant: "destructive",
-          duration: 9000, 
+          duration: 12000, 
         });
-         if (!finalImageUrl.startsWith('http')) {
+         if (!finalImageUrl.startsWith('http')) { // Si no hay URL de respaldo y la subida falló.
             setIsSubmitting(false);
             return;
         }
@@ -335,9 +336,10 @@ export function AdManager() {
       fetchBanners();
       resetBannerFormAndPreview();
     } catch (error: any) {
+      console.warn(`Error al guardar banner: ${error.message || 'Error desconocido'}.`);
       toast({
         title: "Error al Guardar Banner",
-        description: `Error al guardar: ${error.message || 'Error desconocido'}.`,
+        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -453,7 +455,8 @@ export function AdManager() {
         cancelEditAd();
       }
     } catch (error: any) {
-      toast({ title: "Error al Eliminar Anuncio", description: `No se pudo eliminar el anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+      console.warn(`Error al eliminar anuncio: ${error.message || 'Error desconocido'}.`);
+      toast({ title: "Error al Eliminar Anuncio", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setShowDeleteAdConfirmDialog(false);
@@ -475,7 +478,8 @@ export function AdManager() {
       toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
       fetchAds(); 
     } catch (error: any) {
-      toast({ title: "Error al Actualizar Estado de Anuncio", description: `No se pudo actualizar el estado del anuncio: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+      console.warn(`Error al actualizar estado de anuncio: ${error.message || 'Error desconocido'}.`);
+      toast({ title: "Error al Actualizar Estado de Anuncio", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsTogglingActive(false);
     }
@@ -519,7 +523,8 @@ export function AdManager() {
         cancelEditBanner();
       }
     } catch (error: any) {
-      toast({ title: "Error al Eliminar Banner", description: `No se pudo eliminar el banner: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+      console.warn(`Error al eliminar banner: ${error.message || 'Error desconocido'}.`);
+      toast({ title: "Error al Eliminar Banner", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
       setShowDeleteBannerConfirmDialog(false);

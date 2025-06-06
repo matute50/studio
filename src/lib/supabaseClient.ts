@@ -91,7 +91,7 @@ export async function uploadImageToSupabase(
     if (uploadError) {
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
       console.warn(
-        "IMPORTANT: Client-side error details are often limited or misleading for storage issues. For the TRUE error reason (e.g., RLS, bucket policy), please check your Supabase Dashboard: Project > Logs > Storage Logs."
+        "IMPORTANT: Client-side error details are often limited. For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs."
       );
       console.warn("Supabase Storage uploadError object:", uploadError);
       return null;
@@ -102,7 +102,7 @@ export async function uploadImageToSupabase(
       .getPublicUrl(filePath);
     
     if (!publicURLData || !publicURLData.publicUrl) {
-        console.warn('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible.');
+        console.warn('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" en la UI de Supabase y que las políticas permitan la lectura.');
         try {
           const { error: removeError } = await supabase.storage.from(bucketName).remove([filePath]);
           if (removeError) {
