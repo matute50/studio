@@ -288,7 +288,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `Error al subir al bucket '${BANNER_BUCKET_NAME}': "new row violates row-level security policy". Esto significa que necesitas crear/ajustar las Políticas RLS para el bucket 'banner' en Supabase Storage para permitir la operación INSERT al rol 'anon'.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Una causa común es un error de "new row violates row-level security policy". Revisa la consola de tu NAVEGADOR para el objeto 'uploadError' detallado y los logs de Storage en Supabase. Asegúrate de que las políticas RLS del bucket '${BANNER_BUCKET_NAME}' permitan la operación INSERT para el rol 'anon'.`,
           variant: "destructive",
           duration: 15000, 
         });
@@ -850,6 +850,10 @@ export function AdManager() {
                    {banner.updatedAt && banner.createdAt !== banner.updatedAt && (
                       <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(banner.updatedAt)}</p>
                    )}
+                   <p className="text-xs text-orange-600 dark:text-orange-400 flex items-center">
+                     <CalendarClock className="mr-1 h-3 w-3" />
+                     Vencimiento: {calculateAndFormatExpiryDate(banner.createdAt)}
+                   </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
                   <Button variant="outline" size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
@@ -903,3 +907,4 @@ export function AdManager() {
     </div>
   );
 }
+
