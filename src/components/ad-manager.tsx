@@ -258,7 +258,6 @@ export function AdManager() {
       fetchAds();
       resetAdFormAndPreview();
     } catch (error: any) {
-      console.warn(`Error al guardar anuncio: ${error.message || 'Error desconocido'}.`);
       toast({
         title: "Error al Guardar Anuncio",
         description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs.`,
@@ -289,11 +288,11 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Verifica que el bucket exista, esté marcado como "Público" en la UI de Supabase (especialmente si RLS está desactivada para él), y que las políticas permitan la subida/lectura. Consulta los logs de Supabase.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Dado que RLS está desactivada para este bucket, asegúrate de que esté marcado como "Público" en la configuración del bucket en el panel de Supabase. Consulta también los logs de Storage en Supabase para el error exacto.`,
           variant: "destructive",
           duration: 12000, 
         });
-         if (!finalImageUrl.startsWith('http')) { // Si no hay URL de respaldo y la subida falló.
+         if (!finalImageUrl.startsWith('http')) { 
             setIsSubmitting(false);
             return;
         }
@@ -336,7 +335,6 @@ export function AdManager() {
       fetchBanners();
       resetBannerFormAndPreview();
     } catch (error: any) {
-      console.warn(`Error al guardar banner: ${error.message || 'Error desconocido'}.`);
       toast({
         title: "Error al Guardar Banner",
         description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs.`,
@@ -455,7 +453,6 @@ export function AdManager() {
         cancelEditAd();
       }
     } catch (error: any) {
-      console.warn(`Error al eliminar anuncio: ${error.message || 'Error desconocido'}.`);
       toast({ title: "Error al Eliminar Anuncio", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -478,7 +475,6 @@ export function AdManager() {
       toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
       fetchAds(); 
     } catch (error: any) {
-      console.warn(`Error al actualizar estado de anuncio: ${error.message || 'Error desconocido'}.`);
       toast({ title: "Error al Actualizar Estado de Anuncio", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsTogglingActive(false);
@@ -523,7 +519,6 @@ export function AdManager() {
         cancelEditBanner();
       }
     } catch (error: any) {
-      console.warn(`Error al eliminar banner: ${error.message || 'Error desconocido'}.`);
       toast({ title: "Error al Eliminar Banner", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -899,3 +894,4 @@ export function AdManager() {
     </div>
   );
 }
+
