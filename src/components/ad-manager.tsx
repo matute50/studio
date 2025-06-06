@@ -87,7 +87,7 @@ export function AdManager() {
   const [editingAdId, setEditingAdId] = React.useState<string | null>(null);
   const [showDeleteAdConfirmDialog, setShowDeleteAdConfirmDialog] = React.useState(false);
   const [adToDelete, setAdToDelete] = React.useState<Advertisement | null>(null);
-  const [isTogglingActive, setIsTogglingActive] = React.useState(false);
+  const [isTogglingAdActive, setIsTogglingAdActive] = React.useState(false);
 
   // Banner states
   const bannerFileInputRef = React.useRef<HTMLInputElement>(null);
@@ -98,6 +98,7 @@ export function AdManager() {
   const [editingBannerId, setEditingBannerId] = React.useState<string | null>(null);
   const [showDeleteBannerConfirmDialog, setShowDeleteBannerConfirmDialog] = React.useState(false);
   const [bannerToDelete, setBannerToDelete] = React.useState<BannerItem | null>(null);
+  const [isTogglingBannerActive, setIsTogglingBannerActive] = React.useState(false);
 
 
   const adForm = useForm<AdFormValues>({
@@ -329,6 +330,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
+          isActive: false, // Default isActive to false for new banners
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('banner')
@@ -470,8 +472,8 @@ export function AdManager() {
     }
   };
 
-  const handleActiveToggle = async (adId: string, newActiveState: boolean) => {
-    setIsTogglingActive(true);
+  const handleAdActiveToggle = async (adId: string, newActiveState: boolean) => {
+    setIsTogglingAdActive(true);
     try {
       const now = new Date().toISOString();
       const { error } = await supabase
@@ -486,7 +488,7 @@ export function AdManager() {
     } catch (error: any) {
       toast({ title: "Error al Actualizar Estado de Anuncio", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
-      setIsTogglingActive(false);
+      setIsTogglingAdActive(false);
     }
   };
 
@@ -533,6 +535,26 @@ export function AdManager() {
       setIsSubmitting(false);
       setShowDeleteBannerConfirmDialog(false);
       setBannerToDelete(null);
+    }
+  };
+
+  const handleBannerActiveToggle = async (bannerId: string, newActiveState: boolean) => {
+    setIsTogglingBannerActive(true);
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('banner')
+        .update({ isActive: newActiveState, updatedAt: now })
+        .eq('id', bannerId);
+
+      if (error) throw error;
+
+      toast({ title: "Estado de Banner Actualizado", description: `El banner ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
+      fetchBanners(); 
+    } catch (error: any) {
+      toast({ title: "Error al Actualizar Estado de Banner", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+    } finally {
+      setIsTogglingBannerActive(false);
     }
   };
 
@@ -612,12 +634,12 @@ export function AdManager() {
                     </div>
                   )}
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                      <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
+                      <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="w-full sm:flex-1">
                       {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       {editingAdId ? "Actualizar Anuncio" : "Guardar Anuncio"}
                       </Button>
                       {editingAdId && (
-                      <Button type="button" variant="outline" onClick={cancelEditAd} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingActive}>
+                      <Button type="button" variant="outline" onClick={cancelEditAd} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive}>
                           <XCircle className="mr-2 h-4 w-4" />
                           Cancelar Edición
                       </Button>
@@ -660,18 +682,18 @@ export function AdManager() {
                       <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
                     )}
                     <div className="flex items-center space-x-1">
-                      <Label htmlFor={`active-switch-${ad.id}`} className="text-xs text-muted-foreground">
+                      <Label htmlFor={`ad-active-switch-${ad.id}`} className="text-xs text-muted-foreground">
                         Activo
                       </Label>
                       <Switch
-                        id={`active-switch-${ad.id}`}
+                        id={`ad-active-switch-${ad.id}`}
                         checked={!!ad.isActive}
                         onCheckedChange={(isChecked) => {
                           if (ad.id) {
-                            handleActiveToggle(ad.id, isChecked);
+                            handleAdActiveToggle(ad.id, isChecked);
                           }
                         }}
-                        disabled={isTogglingActive || isSubmitting}
+                        disabled={isTogglingAdActive || isSubmitting || isTogglingBannerActive}
                         className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                         aria-label={`Marcar anuncio ${ad.name} como activo`}
                       />
@@ -709,10 +731,10 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
+                  <Button variant="outline" size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteAd(ad)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs">
                     <Trash2 className="mr-1 h-3 w-3" /> Eliminar
                   </Button>
                 </CardFooter>
@@ -781,12 +803,12 @@ export function AdManager() {
                     </div>
                   )}
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                      <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
+                      <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="w-full sm:flex-1">
                       {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                       {editingBannerId ? "Actualizar Banner" : "Guardar Banner"}
                       </Button>
                       {editingBannerId && (
-                      <Button type="button" variant="outline" onClick={cancelEditBanner} className="w-full sm:w-auto" disabled={isSubmitting}>
+                      <Button type="button" variant="outline" onClick={cancelEditBanner} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive}>
                           <XCircle className="mr-2 h-4 w-4" />
                           Cancelar Edición
                       </Button>
@@ -822,8 +844,30 @@ export function AdManager() {
             )}
             {!isLoadingBanners && !errorLoadingBanners && banners.map((banner) => (
               <Card key={banner.id} className="shadow-md hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-2 pt-3 px-3">
+                <CardHeader className="pb-2 pt-3 px-3 flex flex-row justify-between items-start">
                   <CardTitle className="text-md font-semibold break-words flex-grow">{banner.nombre}</CardTitle>
+                  <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
+                    {banner.isActive && (
+                      <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                    )}
+                    <div className="flex items-center space-x-1">
+                      <Label htmlFor={`banner-active-switch-${banner.id}`} className="text-xs text-muted-foreground">
+                        Activo
+                      </Label>
+                      <Switch
+                        id={`banner-active-switch-${banner.id}`}
+                        checked={!!banner.isActive}
+                        onCheckedChange={(isChecked) => {
+                          if (banner.id) {
+                            handleBannerActiveToggle(banner.id, isChecked);
+                          }
+                        }}
+                        disabled={isTogglingBannerActive || isSubmitting || isTogglingAdActive}
+                        className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                        aria-label={`Marcar banner ${banner.nombre} como activo`}
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="pb-2 pt-0 px-3">
                   <div className="relative w-full aspect-[16/9] max-h-32 rounded-md overflow-hidden border bg-muted mb-1.5">
@@ -856,10 +900,10 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Button variant="outline" size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDeleteBanner(banner)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs">
                     <Trash2 className="mr-1 h-3 w-3" /> Eliminar
                   </Button>
                 </CardFooter>
@@ -879,7 +923,7 @@ export function AdManager() {
           </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteAdConfirmDialog(false); setAdToDelete(null); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteAd} disabled={isSubmitting || isTogglingActive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmDeleteAd} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Eliminar Anuncio
             </AlertDialogAction>
@@ -897,7 +941,7 @@ export function AdManager() {
           </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteBannerConfirmDialog(false); setBannerToDelete(null); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteBanner} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction onClick={confirmDeleteBanner} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Eliminar Banner
             </AlertDialogAction>

@@ -48,4 +48,6 @@ export interface BannerItem {
   imageUrl: string;
   createdAt?: string;
   updatedAt?: string;
+  isActive?: boolean; // Added isActive
 }
+
