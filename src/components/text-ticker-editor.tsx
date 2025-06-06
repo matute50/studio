@@ -58,10 +58,16 @@ export function TextTickerEditor() {
     try {
       const { data, error } = await supabase
         .from('textos_ticker')
-        .select('*');
+        .select('*')
+        .order('createdAt', { ascending: false });
 
       if (error) {
          if (error.code === '42703' && error.message.includes('column') && error.message.toLowerCase().includes('createdat') && error.message.includes('does not exist')) {
+            toast({
+              title: "Advertencia de Carga",
+              description: "No se pudo ordenar por fecha de creación (columna 'createdAt' podría faltar). Mostrando textos sin ordenar.",
+              variant: "default",
+            });
             const { data: dataUnordered, error: errorUnordered } = await supabase
                 .from('textos_ticker')
                 .select('*');
@@ -157,7 +163,7 @@ export function TextTickerEditor() {
       const textToInsert: Omit<TextoTicker, 'id' | 'updatedAt'> = { 
         text: data.text,
         createdAt: now,
-        isActive: false, 
+        isActive: false, // Nuevos textos se crean como inactivos por defecto
       };
 
       try {
@@ -258,15 +264,8 @@ export function TextTickerEditor() {
     setIsTogglingActive(true);
     const now = new Date().toISOString();
     try {
-      if (newActiveState) {
-        const { error: deactivateError } = await supabase
-          .from('textos_ticker')
-          .update({ isActive: false, updatedAt: now })
-          .eq('isActive', true)
-          .neq('id', textId); 
-        if (deactivateError) throw deactivateError;
-      }
-
+      // Simplemente actualiza el estado activo del texto actual
+      // No se desactiva ningún otro texto
       const { error: toggleError } = await supabase
         .from('textos_ticker')
         .update({ isActive: newActiveState, updatedAt: now })
@@ -274,7 +273,7 @@ export function TextTickerEditor() {
       if (toggleError) throw toggleError;
 
       toast({ title: "Estado de Activo Actualizado", description: "El estado del texto del ticker ha sido actualizado." });
-      fetchTexts();
+      fetchTexts(); // Recarga los textos para reflejar el cambio
     } catch (error: any) {
       let description = "No se pudo actualizar el estado activo del texto.";
       if (error?.message) description = `Error: ${error.message}`;
@@ -459,6 +458,3 @@ export function TextTickerEditor() {
     </div>
   );
 }
-
-
-    
