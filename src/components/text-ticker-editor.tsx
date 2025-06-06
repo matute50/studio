@@ -384,9 +384,13 @@ export function TextTickerEditor() {
                         <div className="flex-grow">
                             <div className="flex items-center gap-2 mb-1">
                               {textItem.isActive && (
-                                <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                                <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
+                                  <span className="font-semibold mr-1">{index + 1}.</span>Activo
+                                </Badge>
                               )}
-                              <span className="text-sm font-semibold text-primary">{index + 1}.</span>
+                              {!textItem.isActive && (
+                                 <span className="text-sm font-semibold text-primary">{index + 1}.</span>
+                              )}
                             </div>
                             <p className="text-sm text-foreground break-words whitespace-pre-wrap">
                               {textItem.text}
@@ -408,7 +412,7 @@ export function TextTickerEditor() {
                                 }
                               }}
                               disabled={isTogglingActive || isSubmitting}
-                              className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                              className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                               aria-label={`Marcar texto como activo`}
                             />
                           </div>
@@ -460,3 +464,6 @@ export function TextTickerEditor() {
   );
 }
 
+
+
+    

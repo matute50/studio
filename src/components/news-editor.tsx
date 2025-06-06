@@ -610,16 +610,19 @@ export function NewsEditor() {
             </div>
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
-              articles.map((article) => (
+              articles.map((article, index) => (
                 <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-2 pt-3 px-4">
                     <div className="flex justify-between items-start gap-2">
                       <div className="flex-grow">
-                        <CardTitle className="text-base font-semibold break-words">{article.title}</CardTitle>
+                        <CardTitle className="text-base font-semibold break-words">
+                          <span className="text-primary mr-2">{index + 1}.</span>
+                          {article.title}
+                        </CardTitle>
                       </div>
                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
                         {article.isFeatured && (
-                          <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
+                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
                         )}
                         <div className="flex items-center space-x-1"> 
                           <Label htmlFor={`featured-switch-${article.id}`} className="text-xs text-muted-foreground">
@@ -636,7 +639,7 @@ export function NewsEditor() {
                               }
                             }}
                             disabled={isTogglingFeature || isSubmitting}
-                            className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" 
+                            className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" 
                             aria-label={`Marcar ${article.title} como destacado`}
                           />
                         </div>
@@ -715,6 +718,8 @@ export function NewsEditor() {
     </div>
   );
 }
+    
+
     
 
     

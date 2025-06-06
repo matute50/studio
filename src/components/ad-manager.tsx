@@ -129,12 +129,13 @@ export function AdManager() {
       const { data, error } = await supabase
         .from('anuncios')
         .select('*')
+        .eq('isActive', true) // Only fetch active ads
         .order('createdAt', { ascending: false });
 
       if (error) throw error;
       setAds(data || []);
     } catch (error: any) {
-      const description = `No se pudieron cargar los anuncios: ${error.message || 'Error desconocido'}.`;
+      const description = `No se pudieron cargar los anuncios activos: ${error.message || 'Error desconocido'}.`;
       setErrorLoadingAds(description);
       toast({
         title: "Error al Cargar Anuncios",
@@ -153,12 +154,13 @@ export function AdManager() {
       const { data, error } = await supabase
         .from('banner')
         .select('*')
+        .eq('isActive', true) // Only fetch active banners
         .order('createdAt', { ascending: false });
 
       if (error) throw error;
       setBanners(data || []);
     } catch (error: any) {
-      const description = `No se pudieron cargar los banners: ${error.message || 'Error desconocido'}.`;
+      const description = `No se pudieron cargar los banners activos: ${error.message || 'Error desconocido'}.`;
       setErrorLoadingBanners(description);
       toast({
         title: "Error al Cargar Banners",
@@ -243,7 +245,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
-          isActive: false, 
+          isActive: true, // New ads are active by default
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('anuncios')
@@ -253,7 +255,7 @@ export function AdManager() {
         if (insertError) throw insertError;
         toast({ 
           title: "¡Anuncio Guardado!", 
-          description: `El anuncio "${insertedData?.name}" ha sido guardado.` 
+          description: `El anuncio "${insertedData?.name}" ha sido guardado y está activo.` 
         });
       }
       fetchAds();
@@ -330,7 +332,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
-          isActive: false, // Default isActive to false for new banners
+          isActive: true, // New banners are active by default
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('banner')
@@ -340,7 +342,7 @@ export function AdManager() {
         if (insertError) throw insertError;
         toast({ 
           title: "¡Banner Guardado!", 
-          description: `El banner "${insertedData?.nombre}" ha sido guardado.` 
+          description: `El banner "${insertedData?.nombre}" ha sido guardado y está activo.` 
         });
       }
       fetchBanners();
@@ -364,7 +366,7 @@ export function AdManager() {
         toast({ title: "Tipo de archivo no válido", description: "Por favor, sube un archivo de imagen.", variant: "destructive" });
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 5 * 1024 * 1024) { 
          toast({ title: "Archivo demasiado grande", description: "Sube una imagen de menos de 5MB.", variant: "destructive" });
         return;
       }
@@ -483,7 +485,7 @@ export function AdManager() {
 
       if (error) throw error;
 
-      toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
+      toast({ title: "Estado de Anuncio Actualizado", description: `El anuncio ha sido ${newActiveState ? 'activado' : 'desactivado'}. Si fue desactivado, ya no se mostrará en la lista.` });
       fetchAds(); 
     } catch (error: any) {
       toast({ title: "Error al Actualizar Estado de Anuncio", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
@@ -549,7 +551,7 @@ export function AdManager() {
 
       if (error) throw error;
 
-      toast({ title: "Estado de Banner Actualizado", description: `El banner ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
+      toast({ title: "Estado de Banner Actualizado", description: `El banner ha sido ${newActiveState ? 'activado' : 'desactivado'}. Si fue desactivado, ya no se mostrará en la lista.` });
       fetchBanners(); 
     } catch (error: any) {
       toast({ title: "Error al Actualizar Estado de Banner", description: `No se pudo actualizar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
@@ -622,7 +624,7 @@ export function AdManager() {
                           />
                         </div>
                          <FormDescription>
-                          Introduce una URL o sube una imagen (máx 5MB).
+                          Introduce una URL o sube una imagen (máx 5MB). Los nuevos anuncios se activan por defecto.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -650,13 +652,13 @@ export function AdManager() {
             </CardContent>
           </Card>
 
-          {/* Anuncios Existentes */}
+          {/* Anuncios Activos */}
           <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Anuncios Existentes</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Anuncios Activos</h2>
             {isLoadingAds && (
               <div className="flex justify-center items-center py-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2 text-muted-foreground">Cargando anuncios...</p>
+                <p className="ml-2 text-muted-foreground">Cargando anuncios activos...</p>
               </div>
             )}
             {errorLoadingAds && (
@@ -669,17 +671,20 @@ export function AdManager() {
             {!isLoadingAds && !errorLoadingAds && ads.length === 0 && (
               <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
                 <Tag className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">No hay anuncios guardados.</p>
-                <p className="text-sm text-muted-foreground">Usa el formulario para añadir tu primer anuncio.</p>
+                <p className="text-muted-foreground">No hay anuncios activos.</p>
+                <p className="text-sm text-muted-foreground">Usa el formulario para añadir un anuncio. Los nuevos se activan por defecto.</p>
               </div>
             )}
-            {!isLoadingAds && !errorLoadingAds && ads.map((ad) => (
+            {!isLoadingAds && !errorLoadingAds && ads.map((ad, index) => (
               <Card key={ad.id} className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-2 pt-3 px-3 flex flex-row justify-between items-start">
-                  <CardTitle className="text-md font-semibold break-words flex-grow">{ad.name}</CardTitle>
+                  <CardTitle className="text-md font-semibold break-words flex-grow">
+                     <span className="text-primary mr-2">{index + 1}.</span>
+                    {ad.name}
+                  </CardTitle>
                   <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
                     {ad.isActive && (
-                      <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                      <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
                     )}
                     <div className="flex items-center space-x-1">
                       <Label htmlFor={`ad-active-switch-${ad.id}`} className="text-xs text-muted-foreground">
@@ -694,7 +699,7 @@ export function AdManager() {
                           }
                         }}
                         disabled={isTogglingAdActive || isSubmitting || isTogglingBannerActive}
-                        className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                        className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                         aria-label={`Marcar anuncio ${ad.name} como activo`}
                       />
                     </div>
@@ -791,7 +796,7 @@ export function AdManager() {
                           />
                         </div>
                          <FormDescription>
-                          Introduce una URL o sube una imagen (máx 5MB).
+                          Introduce una URL o sube una imagen (máx 5MB). Los nuevos banners se activan por defecto.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -819,13 +824,13 @@ export function AdManager() {
             </CardContent>
           </Card>
           
-          {/* Banners Existentes */}
+          {/* Banners Activos */}
           <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Banners Existentes</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Banners Activos</h2>
             {isLoadingBanners && (
               <div className="flex justify-center items-center py-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2 text-muted-foreground">Cargando banners...</p>
+                <p className="ml-2 text-muted-foreground">Cargando banners activos...</p>
               </div>
             )}
             {errorLoadingBanners && (
@@ -838,17 +843,20 @@ export function AdManager() {
             {!isLoadingBanners && !errorLoadingBanners && banners.length === 0 && (
               <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
                 <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">No hay banners guardados.</p>
-                <p className="text-sm text-muted-foreground">Usa el formulario para añadir tu primer banner.</p>
+                <p className="text-muted-foreground">No hay banners activos.</p>
+                <p className="text-sm text-muted-foreground">Usa el formulario para añadir un banner. Los nuevos se activan por defecto.</p>
               </div>
             )}
-            {!isLoadingBanners && !errorLoadingBanners && banners.map((banner) => (
+            {!isLoadingBanners && !errorLoadingBanners && banners.map((banner, index) => (
               <Card key={banner.id} className="shadow-md hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-2 pt-3 px-3 flex flex-row justify-between items-start">
-                  <CardTitle className="text-md font-semibold break-words flex-grow">{banner.nombre}</CardTitle>
+                  <CardTitle className="text-md font-semibold break-words flex-grow">
+                    <span className="text-primary mr-2">{index + 1}.</span>
+                    {banner.nombre}
+                  </CardTitle>
                   <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
                     {banner.isActive && (
-                      <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                      <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
                     )}
                     <div className="flex items-center space-x-1">
                       <Label htmlFor={`banner-active-switch-${banner.id}`} className="text-xs text-muted-foreground">
@@ -863,7 +871,7 @@ export function AdManager() {
                           }
                         }}
                         disabled={isTogglingBannerActive || isSubmitting || isTogglingAdActive}
-                        className="data-[state=checked]:bg-accent data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                        className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                         aria-label={`Marcar banner ${banner.nombre} como activo`}
                       />
                     </div>
@@ -952,3 +960,6 @@ export function AdManager() {
   );
 }
 
+
+
+    
