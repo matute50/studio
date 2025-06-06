@@ -24,7 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
-const AD_BUCKET_NAME = 'imagenes-anuncios';
+const AD_BUCKET_NAME = 'publicidad';
 const BANNER_BUCKET_NAME = 'banner';
 
 const adSchema = z.object({
@@ -129,7 +129,7 @@ export function AdManager() {
       const { data, error } = await supabase
         .from('anuncios')
         .select('*')
-        .eq('isActive', true) // Only fetch active ads
+        .eq('isActive', true) 
         .order('createdAt', { ascending: false });
 
       if (error) throw error;
@@ -154,7 +154,7 @@ export function AdManager() {
       const { data, error } = await supabase
         .from('banner')
         .select('*')
-        .eq('isActive', true) // Only fetch active banners
+        .eq('isActive', true) 
         .order('createdAt', { ascending: false });
 
       if (error) throw error;
@@ -245,7 +245,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
-          isActive: true, // New ads are active by default
+          isActive: true, 
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('anuncios')
@@ -332,7 +332,7 @@ export function AdManager() {
           imageUrl: finalImageUrl,
           createdAt: now,
           updatedAt: now,
-          isActive: true, // New banners are active by default
+          isActive: true, 
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('banner')
@@ -959,7 +959,3 @@ export function AdManager() {
     </div>
   );
 }
-
-
-
-    
