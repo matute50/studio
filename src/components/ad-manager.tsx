@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Tag, CalendarClock, Home, Image as ImageIcon } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
@@ -288,9 +288,12 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Dado que RLS está desactivada para este bucket, asegúrate de que esté marcado como "Público" en la configuración del bucket en el panel de Supabase. Consulta también los logs de Storage en Supabase para el error exacto.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Dado que RLS está desactivada y el bucket es público, el problema podría ser más específico. Por favor:
+1. Revisa la consola de desarrollador de tu NAVEGADOR para ver el objeto 'uploadError' detallado (si la subida inicial falló) o mensajes sobre 'getPublicUrl' (si la subida tuvo éxito pero la URL no se pudo obtener).
+2. Consulta los logs de Storage en tu panel de Supabase para el mensaje de error exacto del servidor.
+Esto nos ayudará a diagnosticar el problema.`,
           variant: "destructive",
-          duration: 12000, 
+          duration: 15000, 
         });
          if (!finalImageUrl.startsWith('http')) { 
             setIsSubmitting(false);
@@ -315,6 +318,16 @@ export function AdManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Banner Actualizado!", description: `El banner "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
+        // Solo proceder a insertar en la tabla si la URL final es válida (ya sea la original si era http, o la subida)
+        if (!finalImageUrl || !finalImageUrl.startsWith('http')) {
+            setIsSubmitting(false);
+            toast({
+                title: "Subida de Imagen Fallida",
+                description: "No se pudo obtener una URL válida para la imagen del banner. El banner no fue guardado.",
+                variant: "destructive",
+            });
+            return;
+        }
         const payloadToInsert = { 
           nombre: data.nombre,
           imageUrl: finalImageUrl,
@@ -860,9 +873,9 @@ export function AdManager() {
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
             <AlertDialogTitleComponent>¿Estás seguro de eliminar este anuncio?</AlertDialogTitleComponent>
-            <AlertDialogDescription>
+            <AlertDialogDescriptionComponent>
               Esta acción no se puede deshacer. El anuncio "{adToDelete?.name || 'seleccionado'}" será eliminado permanentemente.
-            </AlertDialogDescription>
+            </AlertDialogDescriptionComponent>
           </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteAdConfirmDialog(false); setAdToDelete(null); }}>Cancelar</AlertDialogCancel>
@@ -878,9 +891,9 @@ export function AdManager() {
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
             <AlertDialogTitleComponent>¿Estás seguro de eliminar este banner?</AlertDialogTitleComponent>
-            <AlertDialogDescription>
+            <AlertDialogDescriptionComponent>
               Esta acción no se puede deshacer. El banner "{bannerToDelete?.nombre || 'seleccionado'}" será eliminado permanentemente.
-            </AlertDialogDescription>
+            </AlertDialogDescriptionComponent>
           </AlertDialogHeaderComponent>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => { setShowDeleteBannerConfirmDialog(false); setBannerToDelete(null); }}>Cancelar</AlertDialogCancel>
