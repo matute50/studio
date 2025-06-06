@@ -41,3 +41,11 @@ export interface VideoItem {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface BannerItem {
+  id?: string;
+  nombre: string;
+  imageUrl: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
