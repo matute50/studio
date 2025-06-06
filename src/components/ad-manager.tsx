@@ -288,10 +288,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Dado que RLS está desactivada y el bucket es público, el problema podría ser más específico. Por favor:
-1. Revisa la consola de desarrollador de tu NAVEGADOR para ver el objeto 'uploadError' detallado (si la subida inicial falló) o mensajes sobre 'getPublicUrl' (si la subida tuvo éxito pero la URL no se pudo obtener).
-2. Consulta los logs de Storage en tu panel de Supabase para el mensaje de error exacto del servidor.
-Esto nos ayudará a diagnosticar el problema.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Una causa común es un error de "new row violates row-level security policy". Revisa la consola de tu NAVEGADOR para el objeto 'uploadError' detallado y los logs de Storage en Supabase. Asegúrate de que las políticas RLS del bucket '${BANNER_BUCKET_NAME}' permitan la operación INSERT para el rol 'anon'.`,
           variant: "destructive",
           duration: 15000, 
         });
