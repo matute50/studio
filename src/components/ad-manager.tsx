@@ -714,6 +714,7 @@ export function AdManager() {
                         layout="fill"
                         objectFit="contain"
                         onError={(e) => {
+                          console.warn(`Error cargando imagen para anuncio "${ad.name}" desde URL: ${ad.imageUrl}. Verifique la URL y la accesibilidad del bucket '${AD_BUCKET_NAME}'.`);
                           const target = e.target as HTMLImageElement;
                           target.src = 'https://placehold.co/300x150.png'; 
                           target.srcset = '';
@@ -886,6 +887,7 @@ export function AdManager() {
                         layout="fill"
                         objectFit="contain"
                         onError={(e) => {
+                          console.warn(`Error cargando imagen para banner "${banner.nombre}" desde URL: ${banner.imageUrl}. Verifique la URL y la accesibilidad del bucket '${BANNER_BUCKET_NAME}'.`);
                           const target = e.target as HTMLImageElement;
                           target.src = 'https://placehold.co/300x150.png'; 
                           target.srcset = '';
