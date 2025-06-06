@@ -382,11 +382,14 @@ export function TextTickerEditor() {
                     <CardHeader className="pb-2 pt-3 px-4">
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-grow">
-                            {textItem.isActive && (
-                              <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5 mb-1">Activo</Badge>
-                            )}
+                            <div className="flex items-center gap-2 mb-1">
+                              {textItem.isActive && (
+                                <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                              )}
+                              <span className="text-sm font-semibold text-primary">{index + 1}.</span>
+                            </div>
                             <p className="text-sm text-foreground break-words whitespace-pre-wrap">
-                              {index + 1}. {textItem.text}
+                              {textItem.text}
                             </p>
                         </div>
                         <div className="flex flex-col items-end space-y-1 flex-shrink-0">
@@ -456,3 +459,4 @@ export function TextTickerEditor() {
     </div>
   );
 }
+
