@@ -210,7 +210,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Anuncio",
-          description: `No se pudo subir la imagen al bucket '${AD_BUCKET_NAME}'.`,
+          description: `No se pudo subir la imagen al bucket '${AD_BUCKET_NAME}'. Por favor, verifica que el bucket exista en Supabase Storage y que sus políticas RLS permitan la subida. Consulta los logs del navegador y de Supabase para más detalles.`,
           variant: "destructive",
           duration: 9000, 
         });
@@ -288,7 +288,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'.`,
+          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Por favor, verifica que el bucket exista en Supabase Storage y que sus políticas RLS permitan la subida. Consulta los logs del navegador y de Supabase para más detalles.`,
           variant: "destructive",
           duration: 9000, 
         });
