@@ -163,7 +163,7 @@ export function TextTickerEditor() {
       const textToInsert: Omit<TextoTicker, 'id' | 'updatedAt'> = { 
         text: data.text,
         createdAt: now,
-        isActive: false, // Nuevos textos se crean como inactivos por defecto
+        isActive: false, 
       };
 
       try {
@@ -264,8 +264,6 @@ export function TextTickerEditor() {
     setIsTogglingActive(true);
     const now = new Date().toISOString();
     try {
-      // Simplemente actualiza el estado activo del texto actual
-      // No se desactiva ningún otro texto
       const { error: toggleError } = await supabase
         .from('textos_ticker')
         .update({ isActive: newActiveState, updatedAt: now })
@@ -273,7 +271,7 @@ export function TextTickerEditor() {
       if (toggleError) throw toggleError;
 
       toast({ title: "Estado de Activo Actualizado", description: "El estado del texto del ticker ha sido actualizado." });
-      fetchTexts(); // Recarga los textos para reflejar el cambio
+      fetchTexts(); 
     } catch (error: any) {
       let description = "No se pudo actualizar el estado activo del texto.";
       if (error?.message) description = `Error: ${error.message}`;
@@ -379,7 +377,7 @@ export function TextTickerEditor() {
               </div>
             )}
             {!isLoadingTexts && !errorLoadingTexts && texts.length > 0 && (
-                texts.map((textItem) => (
+                texts.map((textItem, index) => (
                   <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow mb-4">
                     <CardHeader className="pb-2 pt-3 px-4">
                       <div className="flex justify-between items-start gap-2">
@@ -388,7 +386,7 @@ export function TextTickerEditor() {
                               <Badge className="whitespace-nowrap bg-accent text-accent-foreground text-xs px-1.5 py-0.5 mb-1">Activo</Badge>
                             )}
                             <p className="text-sm text-foreground break-words whitespace-pre-wrap">
-                            {textItem.text}
+                              {index + 1}. {textItem.text}
                             </p>
                         </div>
                         <div className="flex flex-col items-end space-y-1 flex-shrink-0">
