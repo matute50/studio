@@ -61,7 +61,6 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-10 gap-3 sm:gap-4">
-        <Image src="/logo.png" alt="NewsFlash Logo" width={60} height={60} className="rounded-lg" data-ai-hint="app logo" />
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
           Panel de Control
         </h1>

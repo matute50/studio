@@ -305,7 +305,6 @@ export function TextTickerEditor() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <Image src="/logo.png" alt="NewsFlash Logo" width={50} height={50} className="rounded-lg" data-ai-hint="app logo"/>
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor de Textos Ticker</h1>
       </header>
       <div className="mb-6 text-left">
