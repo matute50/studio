@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale'; 
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
+import Image from 'next/image';
 import type { CalendarEvent } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -20,7 +21,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home } from 'lucide-react'; // Import Home
+import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -265,7 +266,8 @@ export function EventScheduler() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-4 text-center">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
+        <Image src="/logo.png" alt="NewsFlash Logo" width={50} height={50} className="rounded-lg" data-ai-hint="app logo"/>
         <h1 className="text-4xl font-bold tracking-tight text-primary">Agenda de Eventos</h1>
       </header>
       <div className="mb-6 text-left">
@@ -391,10 +393,13 @@ export function EventScheduler() {
               <p className="text-sm text-muted-foreground">Usa el formulario para añadir tu primer evento.</p>
             </div>
           )}
-          {!isLoadingEvents && !errorLoadingEvents && events.map((event) => (
+          {!isLoadingEvents && !errorLoadingEvents && events.map((event, index) => (
             <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3 pt-4 px-4">
-                <CardTitle className="text-lg font-semibold break-words">{event.name}</CardTitle>
+                <CardTitle className="text-lg font-semibold break-words">
+                   <span className="text-primary mr-2">{index + 1}.</span>
+                  {event.name}
+                </CardTitle>
               </CardHeader>
               <CardContent className="pb-3 pt-0 px-4">
                 <div className="flex items-center text-sm text-muted-foreground">
@@ -436,6 +441,4 @@ export function EventScheduler() {
     </div>
   );
 }
-
-
     

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
 import type { NewsArticle } from '@/types';
 
 import { suggestAlternativeTitles, SuggestAlternativeTitlesInput } from '@/ai/flows/suggest-alternative-titles';
@@ -21,7 +21,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home } from 'lucide-react'; // Import Home
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
@@ -239,7 +239,7 @@ export function NewsEditor() {
         title: data.title,
         text: data.text,
         imageUrl: finalImageUrl,
-        isFeatured: false, // Nuevos artículos no son destacados por defecto
+        isFeatured: false, 
         createdAt: now,
         updatedAt: now, 
       };
@@ -440,7 +440,8 @@ export function NewsEditor() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-4 text-center">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
+        <Image src="/logo.png" alt="NewsFlash Logo" width={50} height={50} className="rounded-lg" data-ai-hint="app logo"/>
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
       </header>
       <div className="mb-6 text-left">
@@ -718,8 +719,4 @@ export function NewsEditor() {
     </div>
   );
 }
-    
-
-    
-
     

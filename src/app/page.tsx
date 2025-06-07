@@ -1,5 +1,6 @@
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Newspaper, TextQuote, CalendarDays, Megaphone, Video, ExternalLink } from 'lucide-react';
@@ -59,11 +60,12 @@ const externalNewsSites = [
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary mb-3">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-10 gap-3 sm:gap-4">
+        <Image src="/logo.png" alt="NewsFlash Logo" width={60} height={60} className="rounded-lg" data-ai-hint="app logo" />
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
           Panel de Control
         </h1>
-      </div>
+      </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
         {modules.map((module) => (
           <Link href={module.href} key={module.title} legacyBehavior passHref>

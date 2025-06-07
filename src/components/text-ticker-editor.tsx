@@ -5,7 +5,8 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import Link from 'next/link'; // Import Link
+import Link from 'next/link';
+import Image from 'next/image';
 import type { TextoTicker } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -16,7 +17,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, Home } from 'lucide-react'; // Import Home
+import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, Home } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -303,7 +304,8 @@ export function TextTickerEditor() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-4 text-center">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
+        <Image src="/logo.png" alt="NewsFlash Logo" width={50} height={50} className="rounded-lg" data-ai-hint="app logo"/>
         <h1 className="text-4xl font-bold tracking-tight text-primary">Editor de Textos Ticker</h1>
       </header>
       <div className="mb-6 text-left">
@@ -383,12 +385,11 @@ export function TextTickerEditor() {
                       <div className="flex justify-between items-start gap-2">
                         <div className="flex-grow">
                             <div className="flex items-center gap-2 mb-1">
-                              {textItem.isActive && (
+                              {textItem.isActive ? (
                                 <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
                                   <span className="font-semibold mr-1">{index + 1}.</span>Activo
                                 </Badge>
-                              )}
-                              {!textItem.isActive && (
+                              ) : (
                                  <span className="text-sm font-semibold text-primary">{index + 1}.</span>
                               )}
                             </div>
@@ -463,7 +464,4 @@ export function TextTickerEditor() {
     </div>
   );
 }
-
-
-
     

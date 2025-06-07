@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
+import Image from 'next/image';
 import type { VideoItem, InterviewItem } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient'; 
@@ -262,7 +263,8 @@ export function VideoManager() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <header className="mb-4 text-center">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
+        <Image src="/logo.png" alt="NewsFlash Logo" width={50} height={50} className="rounded-lg" data-ai-hint="app logo"/>
         <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Contenido Multimedia</h1>
       </header>
       <div className="mb-6 text-left">
