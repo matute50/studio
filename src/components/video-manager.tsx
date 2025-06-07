@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import type { VideoItem } from '@/types';
+import type { VideoItem, InterviewItem } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient'; 
 
@@ -16,35 +16,49 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, VideoIcon, Link2 } from 'lucide-react';
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, VideoIcon, Link2, Mic2 } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
-const videoSchema = z.object({
+const commonSchema = z.object({
   nombre: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre no puede exceder los 150 caracteres." }),
-  url: z.string().url({ message: "Por favor, introduce una URL válida para el video." }),
+  url: z.string().url({ message: "Por favor, introduce una URL válida." }),
 });
 
-type VideoFormValues = z.infer<typeof videoSchema>;
+type VideoFormValues = z.infer<typeof commonSchema>;
+type InterviewFormValues = z.infer<typeof commonSchema>;
 
 export function VideoManager() {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const editorFormCardRef = React.useRef<HTMLDivElement>(null);
-
+  
+  // Video States
+  const [isSubmittingVideo, setIsSubmittingVideo] = React.useState(false);
+  const videoEditorFormCardRef = React.useRef<HTMLDivElement>(null);
   const [videos, setVideos] = React.useState<VideoItem[]>([]);
   const [isLoadingVideos, setIsLoadingVideos] = React.useState(true);
   const [errorLoadingVideos, setErrorLoadingVideos] = React.useState<string | null>(null);
-
   const [editingVideoId, setEditingVideoId] = React.useState<string | null>(null);
-  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
+  const [showDeleteVideoConfirmDialog, setShowDeleteVideoConfirmDialog] = React.useState(false);
   const [videoToDelete, setVideoToDelete] = React.useState<VideoItem | null>(null);
 
-  const form = useForm<VideoFormValues>({
-    resolver: zodResolver(videoSchema),
-    defaultValues: {
-      nombre: '',
-      url: '',
-    },
+  // Interview States
+  const [isSubmittingInterview, setIsSubmittingInterview] = React.useState(false);
+  const interviewEditorFormCardRef = React.useRef<HTMLDivElement>(null);
+  const [interviews, setInterviews] = React.useState<InterviewItem[]>([]);
+  const [isLoadingInterviews, setIsLoadingInterviews] = React.useState(true);
+  const [errorLoadingInterviews, setErrorLoadingInterviews] = React.useState<string | null>(null);
+  const [editingInterviewId, setEditingInterviewId] = React.useState<string | null>(null);
+  const [showDeleteInterviewConfirmDialog, setShowDeleteInterviewConfirmDialog] = React.useState(false);
+  const [interviewToDelete, setInterviewToDelete] = React.useState<InterviewItem | null>(null);
+
+  const videoForm = useForm<VideoFormValues>({
+    resolver: zodResolver(commonSchema),
+    defaultValues: { nombre: '', url: '' },
+    mode: "onChange",
+  });
+
+  const interviewForm = useForm<InterviewFormValues>({
+    resolver: zodResolver(commonSchema),
+    defaultValues: { nombre: '', url: '' },
     mode: "onChange",
   });
 
@@ -56,154 +70,200 @@ export function VideoManager() {
         .from('videos')
         .select('*')
         .order('createdAt', { ascending: false });
-
       if (error) throw error;
       setVideos(data || []);
     } catch (error: any) {
-      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}. Verifica la consola y los logs de Supabase. Asegúrate de que la tabla 'videos' exista y tenga RLS configuradas.`;
+      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}.`;
       setErrorLoadingVideos(description);
-      toast({
-        title: "Error al Cargar Videos",
-        description,
-        variant: "destructive",
-      });
+      toast({ title: "Error al Cargar Videos", description, variant: "destructive" });
     } finally {
       setIsLoadingVideos(false);
     }
   };
 
+  const fetchInterviews = async () => {
+    setIsLoadingInterviews(true);
+    setErrorLoadingInterviews(null);
+    try {
+      const { data, error } = await supabase
+        .from('entrevistas')
+        .select('*')
+        .order('createdAt', { ascending: false });
+      if (error) throw error;
+      setInterviews(data || []);
+    } catch (error: any) {
+      const description = `No se pudieron cargar las entrevistas: ${error.message || 'Error desconocido'}. Verifica que la tabla 'entrevistas' exista.`;
+      setErrorLoadingInterviews(description);
+      toast({ title: "Error al Cargar Entrevistas", description, variant: "destructive" });
+    } finally {
+      setIsLoadingInterviews(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchVideos();
+    fetchInterviews();
   }, []);
 
-  const resetForm = () => {
-    form.reset({ nombre: '', url: '' });
+  const resetVideoForm = () => {
+    videoForm.reset({ nombre: '', url: '' });
     setEditingVideoId(null);
   };
 
-  const onSubmit = async (data: VideoFormValues) => {
-    setIsSubmitting(true);
+  const resetInterviewForm = () => {
+    interviewForm.reset({ nombre: '', url: '' });
+    setEditingInterviewId(null);
+  };
+
+  const onVideoSubmit = async (data: VideoFormValues) => {
+    setIsSubmittingVideo(true);
     const now = new Date().toISOString();
-  
     try {
       if (editingVideoId) {
-        const videoPayload = {
-          nombre: data.nombre,
-          url: data.url,
-          updatedAt: now,
-        };
-        const { data: updatedData, error: updateError } = await supabase
-          .from('videos')
-          .update(videoPayload)
-          .eq('id', editingVideoId)
-          .select()
-          .single();
-        if (updateError) throw updateError;
+        const payload = { nombre: data.nombre, url: data.url, updatedAt: now };
+        const { data: updatedData, error } = await supabase.from('videos').update(payload).eq('id', editingVideoId).select().single();
+        if (error) throw error;
         toast({ title: "¡Video Actualizado!", description: `El video "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
-        const payloadToInsert = { 
-          nombre: data.nombre,
-          url: data.url,
-          createdAt: now,
-          updatedAt: now,
-        };
-        const { data: insertedData, error: insertError } = await supabase
-          .from('videos')
-          .insert([payloadToInsert])
-          .select()
-          .single();
-        if (insertError) throw insertError;
-        toast({ 
-          title: "¡Video Guardado!", 
-          description: `El video "${insertedData?.nombre}" ha sido guardado.` 
-        });
+        const payload = { nombre: data.nombre, url: data.url, createdAt: now, updatedAt: now };
+        const { data: insertedData, error } = await supabase.from('videos').insert([payload]).select().single();
+        if (error) throw error;
+        toast({ title: "¡Video Guardado!", description: `El video "${insertedData?.nombre}" ha sido guardado.` });
       }
       fetchVideos();
-      resetForm();
+      resetVideoForm();
     } catch (error: any) {
-      let description = "No se pudo guardar el video. Inténtalo de nuevo.";
-      const errorCode = (typeof error?.code === 'string') ? error.code : "";
-      const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
-
-      if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-        description = `Error CRÍTICO 404 (Not Found): La tabla 'videos' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'videos' y sus políticas RLS en el panel de Supabase. (Código de error original: ${errorCode})`;
-      } else if (error?.message) {
-        description = `Error al guardar: ${error.message}.`;
-         if (error?.code) description += ` (Código: ${error.code})`;
-      }
-      toast({
-        title: "Error al Guardar Video",
-        description: `${description} Revisa la consola y los logs de Supabase.`,
-        variant: "destructive",
-        duration: 10000,
-      });
+      handleSupabaseError(error, "Video");
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingVideo(false);
     }
+  };
+
+  const onInterviewSubmit = async (data: InterviewFormValues) => {
+    setIsSubmittingInterview(true);
+    const now = new Date().toISOString();
+    try {
+      if (editingInterviewId) {
+        const payload = { nombre: data.nombre, url: data.url, updatedAt: now };
+        const { data: updatedData, error } = await supabase.from('entrevistas').update(payload).eq('id', editingInterviewId).select().single();
+        if (error) throw error;
+        toast({ title: "¡Entrevista Actualizada!", description: `La entrevista "${updatedData?.nombre}" ha sido actualizada.` });
+      } else {
+        const payload = { nombre: data.nombre, url: data.url, createdAt: now, updatedAt: now };
+        const { data: insertedData, error } = await supabase.from('entrevistas').insert([payload]).select().single();
+        if (error) throw error;
+        toast({ title: "¡Entrevista Guardada!", description: `La entrevista "${insertedData?.nombre}" ha sido guardada.` });
+      }
+      fetchInterviews();
+      resetInterviewForm();
+    } catch (error: any) {
+      handleSupabaseError(error, "Entrevista");
+    } finally {
+      setIsSubmittingInterview(false);
+    }
+  };
+
+  const handleSupabaseError = (error: any, itemType: string) => {
+    let description = `No se pudo guardar ${itemType.toLowerCase()}. Inténtalo de nuevo.`;
+    const errorCode = (typeof error?.code === 'string') ? error.code : "";
+    const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+    if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+      description = `Error CRÍTICO 404 (Not Found): La tabla '${itemType === 'Video' ? 'videos' : 'entrevistas'}' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla y RLS en Supabase. (Código: ${errorCode})`;
+    } else if (error?.message) {
+      description = `Error al guardar: ${error.message}. (Código: ${errorCode})`;
+    }
+    toast({
+      title: `Error al Guardar ${itemType}`,
+      description: `${description} Revisa consola y logs de Supabase.`,
+      variant: "destructive",
+      duration: 10000,
+    });
   };
   
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Fecha desconocida';
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Fecha inválida';
-      }
+      if (isNaN(date.getTime())) return 'Fecha inválida';
       return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     } catch (e: any) {
       return 'Error al formatear fecha';
     }
   };
 
-  const handleEdit = (videoToEdit: VideoItem) => {
-    if (!videoToEdit.id) return;
-    setEditingVideoId(videoToEdit.id);
-    form.reset({
-      nombre: videoToEdit.nombre,
-      url: videoToEdit.url,
-    });
-    editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
-    toast({ title: "Modo Edición", description: `Editando video: ${videoToEdit.nombre}` });
+  const handleEditVideo = (video: VideoItem) => {
+    if (!video.id) return;
+    setEditingVideoId(video.id);
+    videoForm.reset({ nombre: video.nombre, url: video.url });
+    videoEditorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
+    toast({ title: "Modo Edición Video", description: `Editando video: ${video.nombre}` });
   };
 
-  const cancelEdit = () => {
-    resetForm();
-    toast({ title: "Edición Cancelada" });
-  };
+  const cancelEditVideo = () => resetVideoForm();
 
-  const handleDelete = (video: VideoItem) => {
+  const handleDeleteVideo = (video: VideoItem) => {
     if (!video.id) return;
     setVideoToDelete(video);
-    setShowDeleteConfirmDialog(true);
+    setShowDeleteVideoConfirmDialog(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDeleteVideo = async () => {
     if (!videoToDelete || !videoToDelete.id) return;
-    setIsSubmitting(true);
+    setIsSubmittingVideo(true);
     try {
-      const { error: deleteError } = await supabase
-        .from('videos')
-        .delete()
-        .eq('id', videoToDelete.id);
-      if (deleteError) throw deleteError;
+      const { error } = await supabase.from('videos').delete().eq('id', videoToDelete.id);
+      if (error) throw error;
       toast({ title: "Video Eliminado", description: `El video "${videoToDelete.nombre}" ha sido eliminado.` });
       fetchVideos();
-      if (editingVideoId === videoToDelete.id) {
-        cancelEdit();
-      }
+      if (editingVideoId === videoToDelete.id) cancelEditVideo();
     } catch (error: any) {
-      toast({ title: "Error al Eliminar", description: `No se pudo eliminar el video: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+      toast({ title: "Error al Eliminar Video", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
-      setShowDeleteConfirmDialog(false);
+      setIsSubmittingVideo(false);
+      setShowDeleteVideoConfirmDialog(false);
       setVideoToDelete(null);
+    }
+  };
+
+  const handleEditInterview = (interview: InterviewItem) => {
+    if (!interview.id) return;
+    setEditingInterviewId(interview.id);
+    interviewForm.reset({ nombre: interview.nombre, url: interview.url });
+    interviewEditorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
+    toast({ title: "Modo Edición Entrevista", description: `Editando entrevista: ${interview.nombre}` });
+  };
+
+  const cancelEditInterview = () => resetInterviewForm();
+
+  const handleDeleteInterview = (interview: InterviewItem) => {
+    if (!interview.id) return;
+    setInterviewToDelete(interview);
+    setShowDeleteInterviewConfirmDialog(true);
+  };
+
+  const confirmDeleteInterview = async () => {
+    if (!interviewToDelete || !interviewToDelete.id) return;
+    setIsSubmittingInterview(true);
+    try {
+      const { error } = await supabase.from('entrevistas').delete().eq('id', interviewToDelete.id);
+      if (error) throw error;
+      toast({ title: "Entrevista Eliminada", description: `La entrevista "${interviewToDelete.nombre}" ha sido eliminada.` });
+      fetchInterviews();
+      if (editingInterviewId === interviewToDelete.id) cancelEditInterview();
+    } catch (error: any) {
+      toast({ title: "Error al Eliminar Entrevista", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
+    } finally {
+      setIsSubmittingInterview(false);
+      setShowDeleteInterviewConfirmDialog(false);
+      setInterviewToDelete(null);
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="mb-4 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Videos</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Contenido Multimedia</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -215,140 +275,154 @@ export function VideoManager() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 items-start">
-        <Card className="lg:col-span-1 shadow-xl" ref={editorFormCardRef}>
-          <CardHeader>
-            <CardTitle>{editingVideoId ? "Editar Video" : "Añadir Nuevo Video"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="nombre"
-                  render={({ field }) => (
+        {/* Columna de Videos */}
+        <div className="space-y-8">
+          <Card className="shadow-xl" ref={videoEditorFormCardRef}>
+            <CardHeader>
+              <CardTitle>{editingVideoId ? "Editar Video" : "Añadir Nuevo Video"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...videoForm}>
+                <form onSubmit={videoForm.handleSubmit(onVideoSubmit)} className="space-y-6">
+                  <FormField control={videoForm.control} name="nombre" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nombre del Video</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: Resumen del Partido" {...field} />
-                      </FormControl>
+                      <FormControl><Input placeholder="Ej: Resumen del Partido" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="url"
-                  render={({ field }) => (
+                  )} />
+                  <FormField control={videoForm.control} name="url" render={({ field }) => (
                     <FormItem>
                       <FormLabel>URL del Video</FormLabel>
-                       <FormControl>
-                        <Input 
-                          placeholder="https://youtube.com/watch?v=..."
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Pega la URL completa del video (Ej: YouTube, Vimeo, MP4).
-                      </FormDescription>
+                      <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} /></FormControl>
+                      <FormDescription>Pega la URL completa del video (Ej: YouTube, Vimeo, MP4).</FormDescription>
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-                
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {editingVideoId ? "Actualizar Video" : "Guardar Video"}
+                  )} />
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                    <Button type="submit" variant="destructive" disabled={isSubmittingVideo} className="w-full sm:flex-1">
+                      {isSubmittingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {editingVideoId ? "Actualizar Video" : "Guardar Video"}
                     </Button>
                     {editingVideoId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" disabled={isSubmitting}>
-                        <XCircle className="mr-2 h-4 w-4" />
-                        Cancelar Edición
-                    </Button>
+                      <Button type="button" variant="outline" onClick={cancelEditVideo} className="w-full sm:w-auto" disabled={isSubmittingVideo}>
+                        <XCircle className="mr-2 h-4 w-4" /> Cancelar Edición
+                      </Button>
                     )}
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
 
-        <div className="lg:col-span-1 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Videos Existentes</h2>
-          {isLoadingVideos && (
-            <div className="flex justify-center items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="ml-2 text-muted-foreground">Cargando videos...</p>
-            </div>
-          )}
-          {errorLoadingVideos && (
-             <Alert variant="destructive">
-               <VideoIcon className="h-4 w-4" />
-               <ShadcnAlertTitle>Error al Cargar Videos</ShadcnAlertTitle>
-               <ShadcnAlertDescription>{errorLoadingVideos}</ShadcnAlertDescription>
-             </Alert>
-          )}
-          {!isLoadingVideos && !errorLoadingVideos && videos.length === 0 && (
-            <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
-              <VideoIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground">No hay videos guardados.</p>
-              <p className="text-sm text-muted-foreground">Usa el formulario para añadir tu primer video.</p>
-            </div>
-          )}
-          {!isLoadingVideos && !errorLoadingVideos && videos.map((video) => (
-            <Card key={video.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 pt-3 px-3">
-                <CardTitle className="text-md font-semibold break-words flex-grow">{video.nombre}</CardTitle>
-              </CardHeader>
-              <CardContent className="pb-2 pt-0 px-3 space-y-1">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Link2 className="mr-2 h-4 w-4 flex-shrink-0" />
-                  <a 
-                    href={video.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="truncate hover:underline hover:text-primary transition-colors"
-                  >
-                    {video.url}
-                  </a>
-                </div>
-                 <p className="text-xs text-muted-foreground/80">Añadido: {formatDate(video.createdAt)}</p>
-                 {video.updatedAt && video.createdAt !== video.updatedAt && (
-                    <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(video.updatedAt)}</p>
-                 )}
-              </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Edit3 className="mr-1 h-3 w-3" /> Editar
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Videos Existentes</h2>
+            {isLoadingVideos && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2 text-muted-foreground">Cargando videos...</p></div>}
+            {errorLoadingVideos && <Alert variant="destructive"><VideoIcon className="h-4 w-4" /><ShadcnAlertTitle>Error</ShadcnAlertTitle><ShadcnAlertDescription>{errorLoadingVideos}</ShadcnAlertDescription></Alert>}
+            {!isLoadingVideos && !errorLoadingVideos && videos.length === 0 && (
+              <div className="text-center py-10 border-2 border-dashed rounded-lg"><VideoIcon className="h-12 w-12 mx-auto mb-2" /><p>No hay videos.</p></div>
+            )}
+            {videos.map((video, index) => (
+              <Card key={video.id} className="shadow-md">
+                <CardHeader className="pb-2 pt-3 px-3"><CardTitle className="text-md font-semibold"><span className="text-primary mr-2">{index + 1}.</span>{video.nombre}</CardTitle></CardHeader>
+                <CardContent className="pb-2 pt-0 px-3 space-y-1">
+                  <div className="flex items-center text-sm"><Link2 className="mr-2 h-4 w-4 shrink-0" /><a href={video.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">{video.url}</a></div>
+                  <p className="text-xs">Añadido: {formatDate(video.createdAt)}</p>
+                  {video.updatedAt && video.createdAt !== video.updatedAt && <p className="text-xs">Actualizado: {formatDate(video.updatedAt)}</p>}
+                </CardContent>
+                <CardFooter className="pt-0 pb-2 px-3 flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => handleEditVideo(video)} disabled={isSubmittingVideo} className="h-7 px-2.5 text-xs"><Edit3 className="mr-1 h-3 w-3" /> Editar</Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteVideo(video)} disabled={isSubmittingVideo} className="h-7 px-2.5 text-xs"><Trash2 className="mr-1 h-3 w-3" /> Eliminar</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+
+        {/* Columna de Entrevistas */}
+        <div className="space-y-8">
+          <Card className="shadow-xl" ref={interviewEditorFormCardRef}>
+            <CardHeader>
+              <CardTitle>{editingInterviewId ? "Editar Entrevista" : "Añadir Nueva Entrevista"}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...interviewForm}>
+                <form onSubmit={interviewForm.handleSubmit(onInterviewSubmit)} className="space-y-6">
+                  <FormField control={interviewForm.control} name="nombre" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre de la Entrevista</FormLabel>
+                      <FormControl><Input placeholder="Ej: Entrevista con el Experto" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={interviewForm.control} name="url" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL de la Entrevista</FormLabel>
+                      <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} /></FormControl>
+                      <FormDescription>Pega la URL completa de la entrevista.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                    <Button type="submit" variant="destructive" disabled={isSubmittingInterview} className="w-full sm:flex-1">
+                      {isSubmittingInterview ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {editingInterviewId ? "Actualizar Entrevista" : "Guardar Entrevista"}
+                    </Button>
+                    {editingInterviewId && (
+                      <Button type="button" variant="outline" onClick={cancelEditInterview} className="w-full sm:w-auto" disabled={isSubmittingInterview}>
+                        <XCircle className="mr-2 h-4 w-4" /> Cancelar Edición
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Entrevistas Existentes</h2>
+            {isLoadingInterviews && <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2 text-muted-foreground">Cargando entrevistas...</p></div>}
+            {errorLoadingInterviews && <Alert variant="destructive"><Mic2 className="h-4 w-4" /><ShadcnAlertTitle>Error</ShadcnAlertTitle><ShadcnAlertDescription>{errorLoadingInterviews}</ShadcnAlertDescription></Alert>}
+            {!isLoadingInterviews && !errorLoadingInterviews && interviews.length === 0 && (
+              <div className="text-center py-10 border-2 border-dashed rounded-lg"><Mic2 className="h-12 w-12 mx-auto mb-2" /><p>No hay entrevistas.</p></div>
+            )}
+            {interviews.map((interview, index) => (
+              <Card key={interview.id} className="shadow-md">
+                <CardHeader className="pb-2 pt-3 px-3"><CardTitle className="text-md font-semibold"><span className="text-primary mr-2">{index + 1}.</span>{interview.nombre}</CardTitle></CardHeader>
+                <CardContent className="pb-2 pt-0 px-3 space-y-1">
+                  <div className="flex items-center text-sm"><Link2 className="mr-2 h-4 w-4 shrink-0" /><a href={interview.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline">{interview.url}</a></div>
+                  <p className="text-xs">Añadida: {formatDate(interview.createdAt)}</p>
+                  {interview.updatedAt && interview.createdAt !== interview.updatedAt && <p className="text-xs">Actualizada: {formatDate(interview.updatedAt)}</p>}
+                </CardContent>
+                <CardFooter className="pt-0 pb-2 px-3 flex justify-end gap-1.5">
+                  <Button variant="outline" size="sm" onClick={() => handleEditInterview(interview)} disabled={isSubmittingInterview} className="h-7 px-2.5 text-xs"><Edit3 className="mr-1 h-3 w-3" /> Editar</Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteInterview(interview)} disabled={isSubmittingInterview} className="h-7 px-2.5 text-xs"><Trash2 className="mr-1 h-3 w-3" /> Eliminar</Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
 
-      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+      {/* AlertDialogs */}
+      <AlertDialog open={showDeleteVideoConfirmDialog} onOpenChange={setShowDeleteVideoConfirmDialog}>
         <AlertDialogContent>
-          <AlertDialogHeaderComponent>
-            <AlertDialogTitleComponent>¿Estás seguro de eliminar este video?</AlertDialogTitleComponent>
-            <AlertDialogDescriptionComponent>
-              Esta acción no se puede deshacer. El video "{videoToDelete?.nombre || 'seleccionado'}" será eliminado permanentemente.
-            </AlertDialogDescriptionComponent>
-          </AlertDialogHeaderComponent>
+          <AlertDialogHeaderComponent><AlertDialogTitleComponent>¿Eliminar este video?</AlertDialogTitleComponent><AlertDialogDescriptionComponent>"{videoToDelete?.nombre || ''}" será eliminado.</AlertDialogDescriptionComponent></AlertDialogHeaderComponent>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setVideoToDelete(null); }}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Eliminar Video
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={() => { setShowDeleteVideoConfirmDialog(false); setVideoToDelete(null); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteVideo} disabled={isSubmittingVideo} className="bg-destructive hover:bg-destructive/90">{isSubmittingVideo && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Eliminar Video</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={showDeleteInterviewConfirmDialog} onOpenChange={setShowDeleteInterviewConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeaderComponent><AlertDialogTitleComponent>¿Eliminar esta entrevista?</AlertDialogTitleComponent><AlertDialogDescriptionComponent>"{interviewToDelete?.nombre || ''}" será eliminada.</AlertDialogDescriptionComponent></AlertDialogHeaderComponent>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowDeleteInterviewConfirmDialog(false); setInterviewToDelete(null); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteInterview} disabled={isSubmittingInterview} className="bg-destructive hover:bg-destructive/90">{isSubmittingInterview && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Eliminar Entrevista</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
 }
-
-    

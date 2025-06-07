@@ -42,6 +42,14 @@ export interface VideoItem {
   updatedAt?: string;
 }
 
+export interface InterviewItem {
+  id?: string;
+  nombre: string;
+  url: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface BannerItem {
   id?: string;
   nombre: string;
