@@ -154,7 +154,7 @@ export function StreamingManager() {
     toast({ title: "Modo Edición", description: `Editando stream: ${stream.nombre}` });
   };
 
-  const cancelEdit = () =Ą> {
+  const cancelEdit = () => {
     resetForm();
     toast({ title: "Edición Cancelada" });
   };
@@ -399,3 +399,5 @@ export function StreamingManager() {
     </div>
   );
 }
+
+    
