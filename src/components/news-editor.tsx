@@ -15,17 +15,16 @@ import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label'; 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home } from 'lucide-react';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home, Star, CheckCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
-
+const featureStatusEnum = z.enum(['destacada', 'noticia2', 'noticia3']);
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
   text: z.string().min(20, { message: "El texto del artículo debe tener al menos 20 caracteres." }),
@@ -48,10 +47,24 @@ const newsArticleSchema = z.object({
     )
     .transform(val => (val === "" ? "https://placehold.co/600x400.png" : val))
     .default(""),
-  isFeatured: z.boolean().default(false), 
+  featureStatus: featureStatusEnum.nullable().default(null),
 });
 
 type NewsArticleFormValues = z.infer<typeof newsArticleSchema>;
+
+const featureStatusOptions = [
+  { value: 'null', label: 'Ninguno/a' },
+  { value: 'destacada', label: 'Noticia Destacada' },
+  { value: 'noticia2', label: 'Noticia 2' },
+  { value: 'noticia3', label: 'Noticia 3' },
+];
+
+function translateFeatureStatus(status: 'destacada' | 'noticia2' | 'noticia3' | null): string {
+  if (!status) return '';
+  const found = featureStatusOptions.find(opt => opt.value === status);
+  return found ? found.label : status;
+}
+
 
 export function NewsEditor() {
   const { toast } = useToast();
@@ -61,16 +74,13 @@ export function NewsEditor() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
-
   const [articles, setArticles] = React.useState<NewsArticle[]>([]);
   const [isLoadingArticles, setIsLoadingArticles] = React.useState(true);
   const [errorLoadingArticles, setErrorLoadingArticles] = React.useState<string | null>(null);
-  const [isTogglingFeature, setIsTogglingFeature] = React.useState(false);
 
   const [editingArticleId, setEditingArticleId] = React.useState<string | null>(null);
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [articleToDelete, setArticleToDelete] = React.useState<NewsArticle | null>(null);
-
 
   const form = useForm<NewsArticleFormValues>({
     resolver: zodResolver(newsArticleSchema),
@@ -78,7 +88,7 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '',
-      isFeatured: false,
+      featureStatus: null,
     },
     mode: "onChange",
   });
@@ -103,7 +113,7 @@ export function NewsEditor() {
       setErrorLoadingArticles(description);
       toast({
         title: "Error al Cargar Artículos",
-        description: `${description} Revisa los logs del panel de Supabase para más detalles.`,
+        description: `${description} Revisa los logs del panel de Supabase para más detalles. Asegúrate que la tabla 'articles' existe y tiene una columna 'featureStatus' de tipo TEXT.`,
         variant: "destructive",
       });
     } finally {
@@ -159,12 +169,13 @@ export function NewsEditor() {
       title: '',
       text: '',
       imageUrl: '',
-      isFeatured: false,
+      featureStatus: null,
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; 
     }
+    setEditingArticleId(null);
   };
 
   const onSubmit = async (data: NewsArticleFormValues) => {
@@ -186,7 +197,7 @@ export function NewsEditor() {
       } else {
         toast({
           title: "Error al Subir Imagen",
-          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase para más detalles. Un error 400/403 usualmente indica un problema de RLS. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
+          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
           variant: "destructive",
           duration: 9000, 
         });
@@ -195,15 +206,38 @@ export function NewsEditor() {
       }
     }
 
-    if (editingArticleId) { 
-      const articleToUpdate = {
-        title: data.title,
-        text: data.text,
-        imageUrl: finalImageUrl,
-        updatedAt: now,
-      };
+    try {
+      const newFeatureStatus = data.featureStatus;
 
-      try {
+      if (newFeatureStatus) {
+        // Clear this featureStatus from any other article
+        const { error: clearOldFeatureError } = await supabase
+          .from('articles')
+          .update({ featureStatus: null, updatedAt: now })
+          .eq('featureStatus', newFeatureStatus)
+          .neq('id', editingArticleId || '00000000-0000-0000-0000-000000000000'); // Ensure we don't un-feature the current article if it's an update
+        
+        if (clearOldFeatureError) {
+            // Log the error but proceed, as the main operation is to set the new feature status
+            console.error("Error clearing old feature status:", clearOldFeatureError);
+            toast({
+              title: "Advertencia al limpiar estado",
+              description: `No se pudo limpiar '${translateFeatureStatus(newFeatureStatus)}' de otros artículos. Puede haber un problema de consistencia. Error: ${clearOldFeatureError.message}`,
+              variant: "default",
+              duration: 7000,
+            });
+        }
+      }
+
+      if (editingArticleId) { 
+        const articleToUpdate = {
+          title: data.title,
+          text: data.text,
+          imageUrl: finalImageUrl,
+          featureStatus: newFeatureStatus,
+          updatedAt: now,
+        };
+
         const { data: updatedData, error: updateError } = await supabase
           .from('articles')
           .update(articleToUpdate)
@@ -214,37 +248,16 @@ export function NewsEditor() {
         if (updateError) throw updateError;
 
         toast({ title: "Artículo Actualizado", description: `El artículo "${updatedData?.title || ''}" ha sido actualizado.` });
-        fetchArticles();
-        resetFormAndPreview();
-        setEditingArticleId(null);
-      } catch (error: any) {
-         let description = "No se pudo actualizar el artículo. Inténtalo de nuevo.";
-         const errorCode = (typeof error?.code === 'string') ? error.code : "";
-         const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
-
-         if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-            description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase.";
-         } else if (error?.message) {
-           description = `Error al actualizar: ${error.message}.`;
-         }
-         toast({
-            title: "Error al Actualizar Artículo",
-            description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
-            variant: "destructive",
-            duration: 10000,
-         });
-      }
-    } else { 
-      const articleToInsert = {
-        title: data.title,
-        text: data.text,
-        imageUrl: finalImageUrl,
-        isFeatured: false, 
-        createdAt: now,
-        updatedAt: now, 
-      };
-    
-      try {
+      } else { 
+        const articleToInsert = {
+          title: data.title,
+          text: data.text,
+          imageUrl: finalImageUrl,
+          featureStatus: newFeatureStatus,
+          createdAt: now,
+          updatedAt: now, 
+        };
+      
         const { data: insertedData, error: insertError } = await supabase
           .from('articles') 
           .insert([articleToInsert])
@@ -255,28 +268,29 @@ export function NewsEditor() {
     
         toast({
           title: "¡Artículo Guardado!",
-          description: `Tu artículo "${insertedData?.title || ''}" ha sido guardado en Supabase.`,
-        });
-        fetchArticles(); 
-        resetFormAndPreview(); 
-      } catch (error: any) {
-        let description = "No se pudo crear el artículo. Inténtalo de nuevo.";
-        const errorCode = (typeof error?.code === 'string') ? error.code : "";
-        const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
-
-        if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-          description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase.";
-        } else if (error?.message) {
-          description = `Error al crear: ${error.message}.`;
-        }
-    
-        toast({
-          title: "Error al Crear Artículo",
-          description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
-          variant: "destructive",
-          duration: 10000, 
+          description: `Tu artículo "${insertedData?.title || ''}" ha sido guardado.`,
         });
       }
+      fetchArticles(); 
+      resetFormAndPreview(); 
+    } catch (error: any) {
+       let description = "No se pudo guardar/actualizar el artículo. Inténtalo de nuevo.";
+       const errorCode = (typeof error?.code === 'string') ? error.code : "";
+       const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+          description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate que tenga la columna 'featureStatus' de tipo TEXT.";
+       } else if (error?.message && error.message.includes("violates check constraint") && error.message.includes("feature_status_types")) {
+          description = `Error de Base de Datos: El valor proporcionado para 'featureStatus' no es válido. Valores permitidos son 'destacada', 'noticia2', 'noticia3' o NULL. Error original: ${error.message}.`;
+       } else if (error?.message) {
+         description = `Error al guardar/actualizar: ${error.message}.`;
+       }
+       toast({
+          title: "Error al Guardar/Actualizar Artículo",
+          description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
+          variant: "destructive",
+          duration: 10000,
+       });
     }
     setIsSubmitting(false);
   };
@@ -330,49 +344,6 @@ export function NewsEditor() {
     }
   };
 
-  const handleFeatureToggle = async (articleId: string, newFeaturedState: boolean) => {
-    setIsTogglingFeature(true);
-    try {
-      const now = new Date().toISOString();
-
-      if (newFeaturedState) {
-        const { error: unfeatureError } = await supabase
-          .from('articles')
-          .update({ isFeatured: false, updatedAt: now })
-          .eq('isFeatured', true)
-          .neq('id', articleId); 
-
-        if (unfeatureError) {
-        }
-
-        const { error: featureError } = await supabase
-          .from('articles')
-          .update({ isFeatured: true, updatedAt: now })
-          .eq('id', articleId);
-
-        if (featureError) throw featureError;
-      } else {
-        const { error: unfeatureError } = await supabase
-          .from('articles')
-          .update({ isFeatured: false, updatedAt: now })
-          .eq('id', articleId);
-
-        if (unfeatureError) throw unfeatureError;
-      }
-
-      toast({ title: "Estado de Destacado Actualizado", description: "El artículo ha sido actualizado." });
-      fetchArticles();
-    } catch (error: any) {
-      toast({
-        title: "Error al Actualizar Destacado",
-        description: error.message || "No se pudo actualizar el estado de destacado del artículo.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsTogglingFeature(false);
-    }
-  };
-
   const handleEdit = (article: NewsArticle) => {
     if (!article.id) {
       toast({ title: "Error", description: "No se puede editar un artículo sin ID.", variant: "destructive" });
@@ -383,7 +354,7 @@ export function NewsEditor() {
       title: article.title,
       text: article.text,
       imageUrl: article.imageUrl || '',
-      isFeatured: article.isFeatured, 
+      featureStatus: article.featureStatus, 
     });
     setSuggestedTitles([]);
     if (fileInputRef.current) {
@@ -394,9 +365,7 @@ export function NewsEditor() {
   };
 
   const cancelEdit = () => {
-    setEditingArticleId(null);
     resetFormAndPreview();
-    toast({ title: "Edición Cancelada" });
   };
 
   const handleDelete = (article: NewsArticle) => {
@@ -528,6 +497,34 @@ export function NewsEditor() {
                   </div>
                 )}
 
+                <FormField
+                  control={form.control}
+                  name="featureStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estado de Noticia</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(value === 'null' ? null : value)} 
+                        value={field.value === null ? 'null' : field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un estado" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {featureStatusOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 {suggestedTitles.length > 0 && (
                   <div className="space-y-2 p-3 border rounded-md bg-secondary/50">
                     <h4 className="font-semibold text-sm text-secondary-foreground">Títulos Alternativos:</h4>
@@ -565,7 +562,7 @@ export function NewsEditor() {
                   <Button 
                     type="submit" 
                     variant="destructive"
-                    disabled={isSubmitting || isTogglingFeature} 
+                    disabled={isSubmitting} 
                     className="w-full sm:flex-1"
                   >
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
@@ -621,28 +618,12 @@ export function NewsEditor() {
                         </CardTitle>
                       </div>
                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                        {article.isFeatured && (
-                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Destacado</Badge>
+                        {article.featureStatus && (
+                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
+                            {article.featureStatus === 'destacada' ? <Star className="mr-1 h-3 w-3" /> : <CheckCircle className="mr-1 h-3 w-3" />}
+                            {translateFeatureStatus(article.featureStatus)}
+                          </Badge>
                         )}
-                        <div className="flex items-center space-x-1"> 
-                          <Label htmlFor={`featured-switch-${article.id}`} className="text-xs text-muted-foreground">
-                            Destacado
-                          </Label>
-                          <Switch
-                            id={`featured-switch-${article.id}`}
-                            checked={!!article.isFeatured}
-                            onCheckedChange={(isChecked) => {
-                              if (article.id) {
-                                handleFeatureToggle(article.id, isChecked);
-                              } else {
-                                toast({title: "Error", description: "Falta ID del artículo para cambiar estado.", variant: "destructive"});
-                              }
-                            }}
-                            disabled={isTogglingFeature || isSubmitting}
-                            className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" 
-                            aria-label={`Marcar ${article.title} como destacado`}
-                          />
-                        </div>
                       </div>
                     </div>
                   </CardHeader>
@@ -681,10 +662,10 @@ export function NewsEditor() {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => article.id && handleEdit(article)} disabled={isSubmitting || isTogglingFeature} className="h-7 px-2 py-1 text-xs">
+                        <Button variant="outline" size="sm" onClick={() => article.id && handleEdit(article)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
                           <Edit3 className="mr-1 h-3 w-3" /> Editar
                         </Button>
-                        <Button variant="destructive" size="sm" onClick={() => article.id && handleDelete(article)} disabled={isSubmitting || isTogglingFeature} className="h-7 px-2 py-1 text-xs">
+                        <Button variant="destructive" size="sm" onClick={() => article.id && handleDelete(article)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
                           <Trash2 className="mr-1 h-3 w-3" /> Eliminar
                         </Button>
                       </div>

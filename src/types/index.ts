@@ -3,8 +3,8 @@ export interface NewsArticle {
   id?: string;
   title: string;
   text: string;
-  imageUrl: string; 
-  isFeatured: boolean;
+  imageUrl: string;
+  featureStatus: 'destacada' | 'noticia2' | 'noticia3' | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -56,6 +56,6 @@ export interface BannerItem {
   imageUrl: string;
   createdAt?: string;
   updatedAt?: string;
-  isActive?: boolean; // Added isActive
+  isActive?: boolean;
 }
 
