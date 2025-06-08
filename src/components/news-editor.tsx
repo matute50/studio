@@ -618,7 +618,7 @@ export function NewsEditor() {
                         </CardTitle>
                       </div>
                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                        {article.featureStatus && (
+                        {['destacada', 'noticia2', 'noticia3'].includes(article.featureStatus as string) && (
                           <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
                             {article.featureStatus === 'destacada' ? <Star className="mr-1 h-3 w-3" /> : <CheckCircle className="mr-1 h-3 w-3" />}
                             {translateFeatureStatus(article.featureStatus)}
