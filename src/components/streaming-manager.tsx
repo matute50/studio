@@ -12,15 +12,18 @@ import { supabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Home, Radio } from 'lucide-react';
+import { Loader2, Save, Home, Radio, Trash2, Edit3, XCircle, Link2 } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
-
-const STREAMING_CONFIG_ROW_ID = 'main_stream_config'; // Fixed ID for the streaming config row
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 
 const streamingSchema = z.object({
+  nombre: z.string().min(1, { message: "El nombre no puede estar vacío." }).max(100, { message: "El nombre no puede exceder los 100 caracteres." }),
   url_de_streaming: z.string().url({ message: "Por favor, introduce una URL válida." })
     .min(1, { message: "La URL no puede estar vacía." }),
 });
@@ -31,175 +34,368 @@ export function StreamingManager() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [currentStreamingUrl, setCurrentStreamingUrl] = React.useState<string | null>(null);
+  const [streams, setStreams] = React.useState<StreamingConfig[]>([]);
   const [errorLoading, setErrorLoading] = React.useState<string | null>(null);
+  const [editingStreamId, setEditingStreamId] = React.useState<string | null>(null);
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
+  const [streamToDelete, setStreamToDelete] = React.useState<StreamingConfig | null>(null);
+  const [isTogglingActive, setIsTogglingActive] = React.useState(false);
+  const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
   const form = useForm<StreamingFormValues>({
     resolver: zodResolver(streamingSchema),
     defaultValues: {
+      nombre: '',
       url_de_streaming: '',
     },
     mode: "onChange",
   });
 
-  const fetchStreamingUrl = async () => {
+  const fetchStreamingConfigs = async () => {
     setIsLoading(true);
     setErrorLoading(null);
     try {
       const { data, error } = await supabase
         .from('streaming')
-        .select('url_de_streaming')
-        .eq('id', STREAMING_CONFIG_ROW_ID)
-        .maybeSingle(); // Use maybeSingle as the row might not exist yet
+        .select('*')
+        .order('createdAt', { ascending: false });
 
       if (error) throw error;
-
-      if (data && data.url_de_streaming) {
-        setCurrentStreamingUrl(data.url_de_streaming);
-        form.setValue('url_de_streaming', data.url_de_streaming);
-      } else {
-        setCurrentStreamingUrl(null);
-        form.reset({ url_de_streaming: '' }); // Reset form if no URL is found
-      }
+      setStreams(data || []);
     } catch (error: any) {
-      let description = `No se pudo cargar la URL de streaming: ${error.message || 'Error desconocido'}.`;
-      if (error?.code === 'PGRST116' || (error?.message?.toLowerCase().includes('relation') && error?.message?.toLowerCase().includes('does not exist'))) {
-        description = `Error CRÍTICO: La tabla 'streaming' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA la tabla y sus políticas RLS. Error: ${error.message}`;
-      }
-      setErrorLoading(description);
-      toast({
-        title: "Error al Cargar URL de Streaming",
-        description,
-        variant: "destructive",
-        duration: 10000,
-      });
+      handleSupabaseError(error, "cargar configuraciones de streaming", "list");
     } finally {
       setIsLoading(false);
     }
   };
 
   React.useEffect(() => {
-    fetchStreamingUrl();
+    fetchStreamingConfigs();
   }, []);
+
+  const resetForm = () => {
+    form.reset({ nombre: '', url_de_streaming: '' });
+    setEditingStreamId(null);
+  };
+
+  const handleSupabaseError = (error: any, actionDescription: string, context?: "save" | "delete" | "toggle" | "list") => {
+    let description = `No se pudo ${actionDescription}. Inténtalo de nuevo.`;
+    const errorCode = (typeof error?.code === 'string') ? error.code : "";
+    const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
+
+    if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
+        description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${error.message || 'Desconocido'}`;
+    } else if (errorCode === '23505' && errorMessageLowerCase.includes('unique constraint')) {
+        description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${error.message}`;
+    } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
+        description = `Error de Base de Datos: Una columna requerida (ej: 'nombre', 'isActive', 'createdAt', 'updatedAt') NO EXISTE en la tabla 'streaming'. Verifica la ESTRUCTURA de tu tabla. Error: ${error.message || 'Desconocido'}`;
+    } else if (error?.message) {
+      description = `Error al ${actionDescription}: ${error.message}.`;
+    }
+    toast({
+      title: `Error en Streaming`,
+      description: `${description} Revisa la consola y los logs de Supabase.`,
+      variant: "destructive",
+      duration: 10000,
+    });
+  };
 
   const onSubmit = async (data: StreamingFormValues) => {
     setIsSubmitting(true);
+    const now = new Date().toISOString();
+
     try {
-      const payload: StreamingConfig = {
-        id: STREAMING_CONFIG_ROW_ID,
-        url_de_streaming: data.url_de_streaming,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { error } = await supabase
-        .from('streaming')
-        .upsert(payload, { onConflict: 'id' }); // Upsert will create if not exists, or update if exists
-
-      if (error) throw error;
-
-      toast({
-        title: "¡URL de Streaming Guardada!",
-        description: "La URL para el streaming ha sido actualizada.",
-      });
-      setCurrentStreamingUrl(data.url_de_streaming); // Update displayed URL
+      if (editingStreamId) {
+        const payload = {
+          nombre: data.nombre,
+          url_de_streaming: data.url_de_streaming,
+          updatedAt: now,
+        };
+        const { data: updatedData, error: updateError } = await supabase
+          .from('streaming')
+          .update(payload)
+          .eq('id', editingStreamId)
+          .select()
+          .single();
+        if (updateError) throw updateError;
+        toast({ title: "¡Configuración Actualizada!", description: `La configuración de streaming "${updatedData?.nombre}" ha sido actualizada.` });
+      } else {
+        const payload: Omit<StreamingConfig, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> & { createdAt: string, updatedAt: string, isActive: boolean } = {
+          nombre: data.nombre,
+          url_de_streaming: data.url_de_streaming,
+          isActive: false, // New streams are inactive by default
+          createdAt: now,
+          updatedAt: now,
+        };
+        const { data: insertedData, error: insertError } = await supabase
+          .from('streaming')
+          .insert([payload])
+          .select()
+          .single();
+        if (insertError) throw insertError;
+        toast({ title: "¡Configuración Guardada!", description: `La configuración de streaming "${insertedData?.nombre}" ha sido guardada.` });
+      }
+      fetchStreamingConfigs();
+      resetForm();
     } catch (error: any) {
-      let description = `No se pudo guardar la URL: ${error.message || 'Error desconocido'}.`;
-        if (error?.code === 'PGRST116' || (error?.message?.toLowerCase().includes('relation') && error?.message?.toLowerCase().includes('does not exist'))) {
-            description = `Error CRÍTICO al guardar: La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA tu configuración de Supabase. Error: ${error.message}`;
-        }
-      toast({
-        title: "Error al Guardar URL",
-        description,
-        variant: "destructive",
-        duration: 10000,
-      });
+      handleSupabaseError(error, editingStreamId ? "actualizar configuración" : "guardar nueva configuración", "save");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="container mx-auto px-4 py-8 flex flex-col items-center">
-      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Configuración de Streaming</h1>
-      </header>
-      <div className="w-full max-w-2xl">
-        <div className="mb-6 text-left">
-          <Link href="/" passHref legacyBehavior>
-            <Button variant="outline" size="sm">
-              <Home className="mr-2 h-4 w-4" />
-              Volver al Inicio
-            </Button>
-          </Link>
-        </div>
+  const handleEdit = (stream: StreamingConfig) => {
+    setEditingStreamId(stream.id);
+    form.reset({
+      nombre: stream.nombre,
+      url_de_streaming: stream.url_de_streaming,
+    });
+    editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
+    toast({ title: "Modo Edición", description: `Editando stream: ${stream.nombre}` });
+  };
 
-        <Card className="shadow-xl">
+  const cancelEdit = () =Ą> {
+    resetForm();
+    toast({ title: "Edición Cancelada" });
+  };
+
+  const handleDelete = (stream: StreamingConfig) => {
+    setStreamToDelete(stream);
+    setShowDeleteConfirmDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!streamToDelete) return;
+    setIsSubmitting(true);
+    try {
+      const { error: deleteError } = await supabase
+        .from('streaming')
+        .delete()
+        .eq('id', streamToDelete.id);
+      if (deleteError) throw deleteError;
+      toast({ title: "Configuración Eliminada", description: `La configuración "${streamToDelete.nombre}" ha sido eliminada.` });
+      fetchStreamingConfigs();
+      if (editingStreamId === streamToDelete.id) {
+        cancelEdit();
+      }
+    } catch (error: any) {
+      handleSupabaseError(error, `eliminar configuración "${streamToDelete.nombre}"`, "delete");
+    } finally {
+      setIsSubmitting(false);
+      setShowDeleteConfirmDialog(false);
+      setStreamToDelete(null);
+    }
+  };
+
+  const handleActiveToggle = async (streamId: string, newActiveState: boolean) => {
+    setIsTogglingActive(true);
+    const now = new Date().toISOString();
+    try {
+      if (newActiveState) {
+        // Deactivate all other streams first
+        const { error: deactivateError } = await supabase
+          .from('streaming')
+          .update({ isActive: false, updatedAt: now })
+          .neq('id', streamId)
+          .eq('isActive', true); // Only update those that are currently active
+
+        if (deactivateError) {
+          // Log error but try to proceed with activating the selected one
+          console.error("Error deactivating other streams:", deactivateError);
+          handleSupabaseError(deactivateError, "desactivar otros streams", "toggle");
+        }
+      }
+
+      // Activate/Deactivate the selected stream
+      const { error: toggleError } = await supabase
+        .from('streaming')
+        .update({ isActive: newActiveState, updatedAt: now })
+        .eq('id', streamId);
+
+      if (toggleError) throw toggleError;
+
+      toast({ title: "Estado de Stream Actualizado", description: `El stream ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
+      fetchStreamingConfigs(); // Refresh the list
+    } catch (error: any) {
+      handleSupabaseError(error, "actualizar estado activo del stream", "toggle");
+    } finally {
+      setIsTogglingActive(false);
+    }
+  };
+  
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'Fecha desconocida';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'Fecha inválida';
+      return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } catch (e: any) {
+      return 'Error al formatear fecha';
+    }
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
+        <h1 className="text-4xl font-bold tracking-tight text-primary">Configuración de URLs de Streaming</h1>
+      </header>
+      <div className="mb-6 text-left">
+        <Link href="/" passHref legacyBehavior>
+          <Button variant="outline" size="sm">
+            <Home className="mr-2 h-4 w-4" />
+            Volver al Inicio
+          </Button>
+        </Link>
+      </div>
+
+      <div className="space-y-8 mt-8">
+        <Card className="shadow-xl lg:max-w-2xl mx-auto" ref={editorFormCardRef}>
           <CardHeader>
-            <CardTitle>URL de Streaming en Vivo</CardTitle>
+            <CardTitle>{editingStreamId ? "Editar Configuración de Stream" : "Añadir Nueva Configuración de Stream"}</CardTitle>
             <CardDescription>
-              Introduce la URL del servicio de streaming que se utilizará en el reproductor de la página.
+              Define un nombre y la URL para una fuente de streaming. Puedes activar una de estas configuraciones para usarla en el reproductor.
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="nombre"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nombre del Stream</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Ej: Canal Principal, Evento Especial" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="url_de_streaming"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL de Streaming</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://ejemplo.com/live/stream.m3u8" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                  <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    {editingStreamId ? "Actualizar Configuración" : "Guardar Configuración"}
+                  </Button>
+                  {editingStreamId && (
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingActive}>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Cancelar Edición
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left">Configuraciones de Streaming Guardadas</h2>
+          <div className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-2">
             {isLoading && (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="mr-2 h-6 w-6 animate-spin text-primary" />
-                <span>Cargando configuración actual...</span>
+              <div className="flex justify-center items-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 text-muted-foreground">Cargando configuraciones...</p>
               </div>
             )}
             {errorLoading && !isLoading && (
-              <Alert variant="destructive" className="mb-4">
+              <Alert variant="destructive">
                 <Radio className="h-4 w-4" />
-                <ShadcnAlertTitle>Error de Carga</ShadcnAlertTitle>
+                <ShadcnAlertTitle>Error al Cargar Configuraciones</ShadcnAlertTitle>
                 <ShadcnAlertDescription>{errorLoading}</ShadcnAlertDescription>
               </Alert>
             )}
-            {!isLoading && !errorLoading && (
-              <>
-                {currentStreamingUrl && (
-                  <div className="mb-6 p-4 border rounded-md bg-muted">
-                    <p className="text-sm font-medium text-foreground">URL Actual:</p>
-                    <a 
-                      href={currentStreamingUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline break-all"
-                    >
-                      {currentStreamingUrl}
+            {!isLoading && !errorLoading && streams.length === 0 && (
+              <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
+                <Radio className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">No hay configuraciones de streaming guardadas.</p>
+                <p className="text-sm text-muted-foreground">Usa el formulario para añadir la primera configuración.</p>
+              </div>
+            )}
+            {!isLoading && !errorLoading && streams.map((stream, index) => (
+              <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-green-500 border-2' : ''}`}>
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <CardTitle className="text-lg font-semibold break-words">
+                      <span className="text-primary mr-2">{index + 1}.</span>
+                      {stream.nombre}
+                    </CardTitle>
+                    <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                      {stream.isActive && (
+                        <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                      )}
+                       <div className="flex items-center space-x-1">
+                        <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
+                          Activar
+                        </Label>
+                        <Switch
+                          id={`active-switch-${stream.id}`}
+                          checked={stream.isActive}
+                          onCheckedChange={(isChecked) => handleActiveToggle(stream.id, isChecked)}
+                          disabled={isTogglingActive || isSubmitting}
+                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                          aria-label={`Activar stream ${stream.nombre}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-2 pt-0 px-4">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Link2 className="mr-2 h-4 w-4 shrink-0" />
+                    <a href={stream.url_de_streaming} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
+                      {stream.url_de_streaming}
                     </a>
                   </div>
-                )}
-                {!currentStreamingUrl && (
-                    <div className="mb-6 p-4 border border-dashed rounded-md bg-muted/50 text-center">
-                        <p className="text-sm text-muted-foreground">No hay URL de streaming configurada actualmente.</p>
-                    </div>
-                )}
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="url_de_streaming"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nueva URL de Streaming</FormLabel>
-                          <FormControl>
-                            <Input placeholder="https://ejemplo.com/live/stream.m3u8" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                      Guardar URL de Streaming
-                    </Button>
-                  </form>
-                </Form>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                  <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDate(stream.createdAt)}</p>
+                   {stream.updatedAt && stream.createdAt !== stream.updatedAt && (
+                      <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(stream.updatedAt)}</p>
+                   )}
+                </CardContent>
+                <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 bg-muted/30">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
+                    <Edit3 className="mr-1 h-3 w-3" /> Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">
+                    <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeaderComponent>
+            <AlertDialogTitleComponent>¿Estás seguro de eliminar esta configuración?</AlertDialogTitleComponent>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. La configuración de stream "{streamToDelete?.nombre || 'seleccionada'}" será eliminada permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeaderComponent>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setShowDeleteConfirmDialog(false); setStreamToDelete(null); }}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={isSubmitting || isTogglingActive} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Eliminar Configuración
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
