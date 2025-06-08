@@ -59,3 +59,8 @@ export interface BannerItem {
   isActive?: boolean;
 }
 
+export interface StreamingConfig {
+  id: string; // Should be a fixed value like 'main_stream_config'
+  url_de_streaming: string;
+  updated_at?: string;
+}
