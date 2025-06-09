@@ -27,7 +27,7 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 const featureStatusEnum = z.enum(['destacada', 'noticia2', 'noticia3']);
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
-  text: z.string().min(20, { message: "El texto del artículo debe tener al menos 20 caracteres." }),
+  text: z.string(), // Límite de caracteres eliminado
   imageUrl: z.string()
     .refine(
       (value) => {
