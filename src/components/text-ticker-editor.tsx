@@ -25,8 +25,7 @@ import { Badge } from '@/components/ui/badge';
 
 const textoTickerSchema = z.object({
   text: z.string()
-    .min(3, { message: "El texto debe tener al menos 3 caracteres." })
-    .max(300, { message: "El texto debe tener 300 caracteres o menos." }),
+    .min(3, { message: "El texto debe tener al menos 3 caracteres." }),
 });
 
 type TextoTickerFormValues = z.infer<typeof textoTickerSchema>;
@@ -463,4 +462,6 @@ export function TextTickerEditor() {
     </div>
   );
 }
+    
+
     
