@@ -29,23 +29,27 @@ export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv
 
 async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
   if (!dataURI.startsWith('data:image/')) {
-    console.warn('Data URI no parece ser una imagen válida:', dataURI.substring(0, 30) + "...");
+    console.warn('Data URI no parece ser una imagen válida. Inicio del Data URI:', dataURI.substring(0, 50) + "...");
     return null;
   }
   try {
     const response = await fetch(dataURI);
     if (!response.ok) {
-      console.warn(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}`);
+      console.warn(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}. URL (inicio): ${dataURI.substring(0,50)}...`);
       return null;
     }
     const blob = await response.blob();
-    if (!blob || !blob.type || !blob.type.startsWith('image/')) { 
-      console.warn('El Data URI no se convirtió en un Blob de imagen válido.');
+    if (!blob) {
+      console.warn('El Data URI se convirtió en un Blob nulo.');
+      return null;
+    }
+    if (!blob.type || !blob.type.startsWith('image/')) { 
+      console.warn(`El Data URI no se convirtió en un Blob de imagen válido. Tipo de Blob recibido: ${blob.type}`);
       return null;
     }
     return blob;
   } catch (error: any) {
-    console.warn('Error al convertir Data URI a Blob:', error.message);
+    console.warn('Excepción al convertir Data URI a Blob:', error.message);
     return null;
   }
 }
@@ -60,12 +64,12 @@ export async function uploadImageToSupabase(
   bucketName: string
 ): Promise<UploadImageResult> {
   if (!bucketName || typeof bucketName !== 'string' || bucketName.trim() === '') {
-    const msg = `Error: Nombre del bucket inválido o no proporcionado: ${bucketName}`;
+    const msg = `Error de Pre-Subida: Nombre del bucket inválido o no proporcionado: '${bucketName}'`;
     console.warn(msg);
     return { url: null, errorMessage: msg };
   }
   if (!dataURI || typeof dataURI !== 'string' ) { 
-    const msg = 'Error: Data URI inválido o no proporcionado.';
+    const msg = 'Error de Pre-Subida: Data URI inválido o no proporcionado.';
     console.warn(msg);
     return { url: null, errorMessage: msg };
   }
@@ -74,52 +78,63 @@ export async function uploadImageToSupabase(
     const blob = await dataURIToBlob(dataURI);
 
     if (!blob) {
-      const msg = 'Falló la conversión de Data URI a Blob. No se puede proceder con la subida.';
+      const msg = 'Error de Pre-Subida: Falló la conversión de Data URI a Blob. Verifique la consola para más detalles. No se puede proceder con la subida.';
       console.warn(msg);
       return { url: null, errorMessage: msg };
     }
 
-    const fileExtMatch = blob.type.match(/^image\/(png|jpeg|gif|webp|svg\+xml)$/);
+    const fileExtMatch = blob.type.match(/^image\/(png|jpeg|jpg|gif|webp|svg\+xml)$/i); // Added jpg, case-insensitive
     if (!fileExtMatch || !fileExtMatch[1]) {
-        const msg = `No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob: ${blob.type}`;
+        const msg = `Error de Pre-Subida: No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob: '${blob.type}'. Formatos aceptados: png, jpeg, jpg, gif, webp, svg.`;
         console.warn(msg);
         return { url: null, errorMessage: msg };
     }
-    const fileExt = fileExtMatch[1] === 'svg+xml' ? 'svg' : fileExtMatch[1];
-    const safeBucketNamePrefix = bucketName.replace(/[^a-zA-Z0-9-_]/g, '_'); // Sanitize bucket name for use in filename
+    const fileExt = fileExtMatch[1].toLowerCase() === 'svg+xml' ? 'svg' : fileExtMatch[1].toLowerCase();
+    const safeBucketNamePrefix = bucketName.replace(/[^a-zA-Z0-9-_]/g, '_');
     const fileName = `${safeBucketNamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
+
+    console.log(`Attempting to upload to Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
-        contentType: blob.type,
+        contentType: blob.type, // Make sure this is correct
         cacheControl: '3600',
         upsert: false, 
       });
 
     if (uploadError) {
-      const supabaseErrorMessage = uploadError.message || 'Error desconocido de Supabase Storage.';
-      console.warn("--- Supabase Storage Upload Error DETECTED ---");
-      console.warn("Error details:", uploadError);
-      console.warn(
-        "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs."
+      // Log the entire error object to the console for more details
+      console.error("--- Supabase Storage Upload Error DETECTED ---");
+      console.error("Full Supabase error object:", uploadError);
+      console.error("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
+      console.error(
+        "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
       );
-      return { url: null, errorMessage: `Error de Supabase: ${supabaseErrorMessage}` };
+      const supabaseErrorMessage = uploadError.message || 'Error desconocido de Supabase Storage.';
+      return { url: null, errorMessage: `Error de Supabase al subir: ${supabaseErrorMessage}. Consulte la consola del navegador para detalles completos del error.` };
     }
+    
+    if (!data || !data.path) {
+        const msg = `Error Post-Subida: Supabase no devolvió una ruta válida después de la subida al bucket '${bucketName}'. Respuesta de Supabase: ${JSON.stringify(data)}`;
+        console.warn(msg);
+        return { url: null, errorMessage: msg };
+    }
+
 
     const { data: publicURLData, error: getUrlError } = supabase.storage
       .from(bucketName)
-      .getPublicUrl(filePath);
+      .getPublicUrl(data.path); // Use data.path from successful upload
     
     if (getUrlError || !publicURLData || !publicURLData.publicUrl) {
-        const msg = `No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${filePath}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
+        const msg = `Error Post-Subida: No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${data.path}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
         console.warn(msg);
-        // Attempt to clean up the orphaned file if URL retrieval fails
         try {
-          await supabase.storage.from(bucketName).remove([filePath]);
+          await supabase.storage.from(bucketName).remove([data.path]);
+          console.log(`Archivo huérfano eliminado: ${data.path}`);
         } catch (removeCatchError: any) {
-          console.warn('Excepción al intentar eliminar el archivo huérfano:', removeCatchError.message);
+          console.warn(`Excepción al intentar eliminar el archivo huérfano '${data.path}':`, removeCatchError.message);
         }
         return { url: null, errorMessage: msg };
     }
@@ -127,8 +142,8 @@ export async function uploadImageToSupabase(
 
   } catch (error: any) { 
     const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}`;
-    console.warn(msg);
-    console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs).");
+    console.error(msg, error);
+    console.error("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs) and the browser console/network tab.");
     return { url: null, errorMessage: msg };
   }
 }
