@@ -99,21 +99,44 @@ export async function uploadImageToSupabase(
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
-        contentType: blob.type, // Make sure this is correct
+        contentType: blob.type, 
         cacheControl: '3600',
         upsert: false, 
       });
 
     if (uploadError) {
-      // Log the entire error object to the console for more details
       console.error("--- Supabase Storage Upload Error DETECTED ---");
       console.error("Full Supabase error object:", uploadError);
       console.error("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
       console.error(
         "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
       );
-      const supabaseErrorMessage = uploadError.message || 'Error desconocido de Supabase Storage.';
-      return { url: null, errorMessage: `Error de Supabase al subir: ${supabaseErrorMessage}. Consulte la consola del navegador para detalles completos del error.` };
+      
+      let detailedUserMessage = 'Error desconocido de Supabase Storage.';
+      if (uploadError && typeof uploadError === 'object') {
+        let msg = (uploadError as any).message || '';
+        const errCode = (uploadError as any).error; // e.g., "Duplicate", "InvalidInput"
+        const status = (uploadError as any).statusCode || (uploadError as any).status; // e.g., 400, 409
+
+        if (msg) {
+          detailedUserMessage = msg;
+        }
+        if (errCode && typeof errCode === 'string' && !detailedUserMessage.toLowerCase().includes(errCode.toLowerCase())) {
+          detailedUserMessage += ` (Code: ${errCode})`;
+        }
+        if (status && (typeof status === 'string' || typeof status === 'number') && !detailedUserMessage.toLowerCase().includes(status.toString().toLowerCase())) {
+          detailedUserMessage += ` (Status: ${status})`;
+        }
+        // If the message is still too generic (like just "Bad Request" or "Unknown error"), add a stronger hint.
+        const lowerMsg = detailedUserMessage.toLowerCase();
+        if ((lowerMsg.includes('unknown') || lowerMsg.includes('bad request') || lowerMsg.includes('failed to fetch')) && (!errCode && !status && !lowerMsg.includes('rls'))) {
+            detailedUserMessage += ' Verifique los logs de Supabase Storage y la consola del navegador para obtener la causa raíz (ej. política RLS, tipo de archivo no permitido por el bucket, etc.).';
+        }
+      } else if (typeof uploadError === 'string') {
+        detailedUserMessage = uploadError;
+      }
+      
+      return { url: null, errorMessage: `Error de Supabase al subir: ${detailedUserMessage}` };
     }
     
     if (!data || !data.path) {
@@ -122,10 +145,9 @@ export async function uploadImageToSupabase(
         return { url: null, errorMessage: msg };
     }
 
-
     const { data: publicURLData, error: getUrlError } = supabase.storage
       .from(bucketName)
-      .getPublicUrl(data.path); // Use data.path from successful upload
+      .getPublicUrl(data.path); 
     
     if (getUrlError || !publicURLData || !publicURLData.publicUrl) {
         const msg = `Error Post-Subida: No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${data.path}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
