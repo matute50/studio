@@ -106,7 +106,15 @@ export async function uploadImageToSupabase(
 
     if (uploadError) {
       console.error("--- Supabase Storage Upload Error DETECTED ---");
-      console.error("Full Supabase error object:", uploadError);
+      console.error("Full Supabase error object (as is):", uploadError);
+      // Attempt to log individual properties that might be present
+      console.error("uploadError.message:", (uploadError as any).message);
+      console.error("uploadError.name:", (uploadError as any).name);
+      console.error("uploadError.status (often HTTP status):", (uploadError as any).status);
+      console.error("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
+      console.error("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
+      console.error("uploadError.stack (if available):", (uploadError as any).stack);
+
       console.error("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
       console.error(
         "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
@@ -114,9 +122,10 @@ export async function uploadImageToSupabase(
       
       let detailedUserMessage = 'Error desconocido de Supabase Storage.';
       if (uploadError && typeof uploadError === 'object') {
-        let msg = (uploadError as any).message || '';
-        const errCode = (uploadError as any).error; // e.g., "Duplicate", "InvalidInput"
-        const status = (uploadError as any).statusCode || (uploadError as any).status; // e.g., 400, 409
+        // Safely access properties, as 'uploadError' can be of 'any' type here
+        const msg = (uploadError as any).message || '';
+        const errCode = (uploadError as any).error; 
+        const status = (uploadError as any).statusCode || (uploadError as any).status;
 
         if (msg) {
           detailedUserMessage = msg;
@@ -127,7 +136,6 @@ export async function uploadImageToSupabase(
         if (status && (typeof status === 'string' || typeof status === 'number') && !detailedUserMessage.toLowerCase().includes(status.toString().toLowerCase())) {
           detailedUserMessage += ` (Status: ${status})`;
         }
-        // If the message is still too generic (like just "Bad Request" or "Unknown error"), add a stronger hint.
         const lowerMsg = detailedUserMessage.toLowerCase();
         if ((lowerMsg.includes('unknown') || lowerMsg.includes('bad request') || lowerMsg.includes('failed to fetch')) && (!errCode && !status && !lowerMsg.includes('rls'))) {
             detailedUserMessage += ' Verifique los logs de Supabase Storage y la consola del navegador para obtener la causa raíz (ej. política RLS, tipo de archivo no permitido por el bucket, etc.).';
@@ -169,3 +177,4 @@ export async function uploadImageToSupabase(
     return { url: null, errorMessage: msg };
   }
 }
+
