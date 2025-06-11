@@ -60,10 +60,19 @@ export interface BannerItem {
 }
 
 export interface StreamingConfig {
-  id: string; 
+  id: string;
   nombre: string;
   url_de_streaming: string;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HeaderImageItem {
+  id: string;
+  nombre: string;
+  imageUrl: string;
+  mode: 'light' | 'dark';
   createdAt: string;
   updatedAt: string;
 }

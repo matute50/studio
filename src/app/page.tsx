@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Newspaper, TextQuote, CalendarDays, Megaphone, Video, ExternalLink, RadioTower } from 'lucide-react';
+import { Newspaper, TextQuote, CalendarDays, Megaphone, Video, ExternalLink, RadioTower, ImageUp } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -47,6 +47,12 @@ const modules = [
     href: '/streaming',
     description: 'Configura la URL del streaming en vivo.',
     icon: <RadioTower className="h-8 w-8 text-primary" />,
+  },
+  {
+    title: 'Gestor de Imágenes Header',
+    href: '/gestor-imagenes-header',
+    description: 'Sube y administra imágenes para el header.',
+    icon: <ImageUp className="h-8 w-8 text-primary" />,
   }
 ];
 
