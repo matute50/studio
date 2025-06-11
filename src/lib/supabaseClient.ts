@@ -50,34 +50,44 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
   }
 }
 
+interface UploadImageResult {
+  url: string | null;
+  errorMessage: string | null;
+}
+
 export async function uploadImageToSupabase(
   dataURI: string,
   bucketName: string
-): Promise<string | null> {
+): Promise<UploadImageResult> {
   if (!bucketName || typeof bucketName !== 'string' || bucketName.trim() === '') {
-    console.warn('Error: Nombre del bucket inválido o no proporcionado:', bucketName);
-    return null;
+    const msg = `Error: Nombre del bucket inválido o no proporcionado: ${bucketName}`;
+    console.warn(msg);
+    return { url: null, errorMessage: msg };
   }
   if (!dataURI || typeof dataURI !== 'string' ) { 
-    console.warn('Error: Data URI inválido o no proporcionado.');
-    return null;
+    const msg = 'Error: Data URI inválido o no proporcionado.';
+    console.warn(msg);
+    return { url: null, errorMessage: msg };
   }
 
   try {
     const blob = await dataURIToBlob(dataURI);
 
     if (!blob) {
-      console.warn('Falló la conversión de Data URI a Blob. No se puede proceder con la subida.');
-      return null;
+      const msg = 'Falló la conversión de Data URI a Blob. No se puede proceder con la subida.';
+      console.warn(msg);
+      return { url: null, errorMessage: msg };
     }
 
     const fileExtMatch = blob.type.match(/^image\/(png|jpeg|gif|webp|svg\+xml)$/);
     if (!fileExtMatch || !fileExtMatch[1]) {
-        console.warn('No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob:', blob.type);
-        return null;
+        const msg = `No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob: ${blob.type}`;
+        console.warn(msg);
+        return { url: null, errorMessage: msg };
     }
     const fileExt = fileExtMatch[1] === 'svg+xml' ? 'svg' : fileExtMatch[1];
-    const fileName = `article_img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+    const safeBucketNamePrefix = bucketName.replace(/[^a-zA-Z0-9-_]/g, '_'); // Sanitize bucket name for use in filename
+    const fileName = `${safeBucketNamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { data, error: uploadError } = await supabase.storage
@@ -89,35 +99,36 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
+      const supabaseErrorMessage = uploadError.message || 'Error desconocido de Supabase Storage.';
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
+      console.warn("Error details:", uploadError);
       console.warn(
-        "IMPORTANT: Client-side error details are often limited. For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs."
+        "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs."
       );
-      console.warn("Supabase Storage uploadError object:", uploadError);
-      return null;
+      return { url: null, errorMessage: `Error de Supabase: ${supabaseErrorMessage}` };
     }
 
-    const { data: publicURLData } = supabase.storage
+    const { data: publicURLData, error: getUrlError } = supabase.storage
       .from(bucketName)
       .getPublicUrl(filePath);
     
-    if (!publicURLData || !publicURLData.publicUrl) {
-        console.warn('No se pudo obtener la URL pública para la imagen subida (bucket: ', bucketName, ', path: ', filePath, '). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" en la UI de Supabase y que las políticas permitan la lectura.');
+    if (getUrlError || !publicURLData || !publicURLData.publicUrl) {
+        const msg = `No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${filePath}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
+        console.warn(msg);
+        // Attempt to clean up the orphaned file if URL retrieval fails
         try {
-          const { error: removeError } = await supabase.storage.from(bucketName).remove([filePath]);
-          if (removeError) {
-            console.warn('Error al intentar eliminar el archivo huérfano:', removeError.message);
-          }
+          await supabase.storage.from(bucketName).remove([filePath]);
         } catch (removeCatchError: any) {
           console.warn('Excepción al intentar eliminar el archivo huérfano:', removeCatchError.message);
         }
-        return null;
+        return { url: null, errorMessage: msg };
     }
-    return publicURLData.publicUrl;
+    return { url: publicURLData.publicUrl, errorMessage: null };
 
   } catch (error: any) { 
-    console.warn('Error general en la función uploadImageToSupabase (bucket: ', bucketName, '):', error.message);
+    const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}`;
+    console.warn(msg);
     console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs).");
-    return null;
+    return { url: null, errorMessage: msg };
   }
 }

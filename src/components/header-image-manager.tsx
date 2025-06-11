@@ -14,7 +14,7 @@ import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, Upload, ImageOff, Edit3, XCircle, Home, ImageUp, Sun, Moon } from 'lucide-react';
@@ -115,8 +115,7 @@ export function HeaderImageManager() {
   
   const onSubmit = async (data: ImageFormValues) => {
     setIsSubmitting(true);
-    let uploadedImageUrl: string | null = null;
-
+    
     if (data.imageFile) {
       const reader = new FileReader();
       reader.readAsDataURL(data.imageFile);
@@ -129,7 +128,7 @@ export function HeaderImageManager() {
         }
 
         toast({ title: "Subiendo imagen...", description: "Por favor espera." });
-        uploadedImageUrl = await uploadImageToSupabase(dataUri, HEADER_IMAGE_BUCKET_NAME);
+        const { url: uploadedImageUrl, errorMessage: uploadErrorMessage } = await uploadImageToSupabase(dataUri, HEADER_IMAGE_BUCKET_NAME);
 
         if (uploadedImageUrl) {
           toast({ title: "Imagen Subida", description: "La imagen se subió correctamente." });
@@ -137,7 +136,7 @@ export function HeaderImageManager() {
         } else {
           toast({
             title: "Error al Subir Imagen",
-            description: `No se pudo subir la imagen al bucket '${HEADER_IMAGE_BUCKET_NAME}'. Verifica los permisos RLS del bucket y los logs de Supabase.`,
+            description: uploadErrorMessage || `No se pudo subir la imagen al bucket '${HEADER_IMAGE_BUCKET_NAME}'. Verifica RLS y logs de Supabase.`,
             variant: "destructive",
             duration: 9000,
           });
@@ -181,7 +180,7 @@ export function HeaderImageManager() {
     } catch (error: any) {
       toast({
         title: "Error al Guardar Metadatos",
-        description: `No se pudo guardar la información de la imagen: ${error.message || 'Error desconocido'}. Revisa los logs de Supabase y la tabla 'imagenes_header'.`,
+        description: `No se pudo guardar la información de la imagen: ${error.message || 'Error desconocido'}. Revisa logs y tabla 'imagenes_header'.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -200,7 +199,6 @@ export function HeaderImageManager() {
     setIsSubmitting(true);
 
     try {
-      // 1. Delete from Supabase table
       const { error: dbError } = await supabase
         .from('imagenes_header')
         .delete()
@@ -208,24 +206,21 @@ export function HeaderImageManager() {
 
       if (dbError) throw dbError;
 
-      // 2. Delete from Supabase Storage
-      // Extract file path from URL. Example: https://<id>.supabase.co/storage/v1/object/public/imagenesheader/image.png
-      // File path would be "image.png"
       const urlParts = imageToDelete.imageUrl.split('/');
       const fileNameWithPotentialParams = urlParts.pop(); 
-      const fileName = fileNameWithPotentialParams?.split('?')[0]; // Remove query params if any
+      const fileName = fileNameWithPotentialParams?.split('?')[0];
 
       if (fileName) {
         const { error: storageError } = await supabase.storage
           .from(HEADER_IMAGE_BUCKET_NAME)
           .remove([fileName]);
         
-        if (storageError && storageError.message !== "The resource was not found") { // Ignore "not found" as it might have been manually deleted
+        if (storageError && storageError.message !== "The resource was not found") {
           console.warn("Error deleting from storage (but DB record deleted):", storageError);
-          toast({ title: "Advertencia", description: `La imagen fue eliminada de la base de datos, pero hubo un problema al eliminarla del almacenamiento: ${storageError.message}. Puede que necesites eliminarla manualmente del bucket '${HEADER_IMAGE_BUCKET_NAME}'.`, variant: "default", duration: 10000});
+          toast({ title: "Advertencia", description: `DB record deleted, but storage delete failed: ${storageError.message}. Manual cleanup in bucket '${HEADER_IMAGE_BUCKET_NAME}' may be needed.`, variant: "default", duration: 10000});
         }
       } else {
-         toast({ title: "Advertencia", description: `La imagen fue eliminada de la base de datos, pero no se pudo determinar el nombre del archivo para eliminarla del almacenamiento.`, variant: "default", duration: 8000});
+         toast({ title: "Advertencia", description: `DB record deleted, but couldn't determine filename to delete from storage.`, variant: "default", duration: 8000});
       }
 
       toast({ title: "Imagen Eliminada", description: `La imagen "${imageToDelete.nombre}" ha sido eliminada.` });
@@ -438,5 +433,3 @@ export function HeaderImageManager() {
     </div>
   );
 }
-
-    

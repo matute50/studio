@@ -27,7 +27,7 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 const featureStatusEnum = z.enum(['destacada', 'noticia2', 'noticia3']);
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
-  text: z.string(), // Límite de caracteres eliminado
+  text: z.string(), 
   imageUrl: z.string()
     .refine(
       (value) => {
@@ -185,7 +185,7 @@ export function NewsEditor() {
   
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
-      const uploadedUrl = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
+      const { url: uploadedUrl, errorMessage: uploadErrorMessage } = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
       
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
@@ -197,7 +197,7 @@ export function NewsEditor() {
       } else {
         toast({
           title: "Error al Subir Imagen",
-          description: "No se pudo subir la imagen. Verifica los permisos de tu bucket ('imagenes-noticias') en Supabase (RLS) y los logs del servidor de Supabase. El artículo se guardará con la imagen de marcador de posición o la URL original si la subida falla.",
+          description: uploadErrorMessage || "No se pudo subir la imagen. Verifica RLS y logs de Supabase. El artículo se guardará con la imagen de marcador de posición.",
           variant: "destructive",
           duration: 9000, 
         });
@@ -210,15 +210,13 @@ export function NewsEditor() {
       const newFeatureStatus = data.featureStatus;
 
       if (newFeatureStatus) {
-        // Clear this featureStatus from any other article
         const { error: clearOldFeatureError } = await supabase
           .from('articles')
           .update({ featureStatus: null, updatedAt: now })
           .eq('featureStatus', newFeatureStatus)
-          .neq('id', editingArticleId || '00000000-0000-0000-0000-000000000000'); // Ensure we don't un-feature the current article if it's an update
+          .neq('id', editingArticleId || '00000000-0000-0000-0000-000000000000'); 
         
         if (clearOldFeatureError) {
-            // Log the error but proceed, as the main operation is to set the new feature status
             console.error("Error clearing old feature status:", clearOldFeatureError);
             toast({
               title: "Advertencia al limpiar estado",

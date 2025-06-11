@@ -201,7 +201,7 @@ export function AdManager() {
   
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen de anuncio...", description: "Por favor espera un momento." });
-      const uploadedUrl = await uploadImageToSupabase(data.imageUrl, AD_BUCKET_NAME); 
+      const { url: uploadedUrl, errorMessage: uploadErrorMessage } = await uploadImageToSupabase(data.imageUrl, AD_BUCKET_NAME); 
       
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
@@ -213,7 +213,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Anuncio",
-          description: `No se pudo subir la imagen al bucket '${AD_BUCKET_NAME}'. Por favor, verifica que el bucket exista en Supabase Storage y que sus políticas RLS permitan la subida. Consulta los logs del navegador y de Supabase para más detalles.`,
+          description: uploadErrorMessage || `No se pudo subir la imagen. Verifica RLS del bucket '${AD_BUCKET_NAME}' y logs de Supabase.`,
           variant: "destructive",
           duration: 9000, 
         });
@@ -279,7 +279,7 @@ export function AdManager() {
   
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen de banner...", description: "Por favor espera un momento." });
-      const uploadedUrl = await uploadImageToSupabase(data.imageUrl, BANNER_BUCKET_NAME); 
+      const { url: uploadedUrl, errorMessage: uploadErrorMessage } = await uploadImageToSupabase(data.imageUrl, BANNER_BUCKET_NAME); 
       
       if (uploadedUrl) {
         finalImageUrl = uploadedUrl;
@@ -291,7 +291,7 @@ export function AdManager() {
       } else {
         toast({
           title: "Error al Subir Imagen de Banner",
-          description: `No se pudo subir la imagen al bucket '${BANNER_BUCKET_NAME}'. Una causa común es un error de "new row violates row-level security policy". Revisa la consola de tu NAVEGADOR para el objeto 'uploadError' detallado y los logs de Storage en Supabase. Asegúrate de que las políticas RLS del bucket '${BANNER_BUCKET_NAME}' permitan la operación INSERT para el rol 'anon'.`,
+          description: uploadErrorMessage || `No se pudo subir la imagen. Verifica RLS del bucket '${BANNER_BUCKET_NAME}' y logs de Supabase.`,
           variant: "destructive",
           duration: 15000, 
         });
