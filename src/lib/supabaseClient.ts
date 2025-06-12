@@ -94,7 +94,7 @@ export async function uploadImageToSupabase(
     const fileName = `${safeBucketNamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    console.log(`Intentando subir a Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
+    console.warn(`Intentando subir a Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
@@ -105,9 +105,13 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      // Log the entire error object to the console for more details
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
-      console.warn("Full Supabase error object:", uploadError);
+      console.warn("Full Supabase error object (raw):", uploadError);
+      console.warn("uploadError.message:", (uploadError as any).message);
+      console.warn("uploadError.name:", (uploadError as any).name);
+      console.warn("uploadError.status (often HTTP status):", (uploadError as any).status);
+      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
+      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
       console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
       console.warn(
         "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
@@ -115,28 +119,29 @@ export async function uploadImageToSupabase(
       
       let detailedUserMessage = 'Error desconocido de Supabase Storage.';
       if (uploadError && typeof uploadError === 'object') {
-        const msg = (uploadError as any).message || '';
-        const errCode = (uploadError as any).error; 
-        const status = (uploadError as any).statusCode || (uploadError as any).status;
+        const supMessage = (uploadError as any).message;
+        const supError = (uploadError as any).error; 
+        const supStatusCode = (uploadError as any).statusCode || (uploadError as any).status;
 
-        if (msg) {
-          detailedUserMessage = msg;
+        if (supMessage && typeof supMessage === 'string' && supMessage.trim().toLowerCase() !== 'unknown error' && supMessage.trim().toLowerCase() !== 'bad request' && supMessage.trim() !== '') {
+          detailedUserMessage = `Error de Supabase: ${supMessage}`;
+          if (supError && typeof supError === 'string' && !supMessage.includes(supError)) detailedUserMessage += ` (Detalle: ${supError})`;
+          if (supStatusCode && !supMessage.includes(String(supStatusCode))) detailedUserMessage += ` [Status: ${supStatusCode}]`;
+        } else if (supError && typeof supError === 'string' && supError.trim() !== '') {
+            detailedUserMessage = `Error de Supabase: ${supError}`;
+            if (supStatusCode) detailedUserMessage += ` [Status: ${supStatusCode}]`;
+        } else if (supStatusCode) {
+            detailedUserMessage = `Error de Supabase: Status ${supStatusCode} (Bad Request).`;
+        } else {
+            detailedUserMessage = 'Error de Supabase al subir. La respuesta del servidor no incluyó detalles específicos en el objeto de error del cliente.';
         }
-        if (errCode && typeof errCode === 'string' && !detailedUserMessage.toLowerCase().includes(errCode.toLowerCase())) {
-          detailedUserMessage += ` (Code: ${errCode})`;
-        }
-        if (status && (typeof status === 'string' || typeof status === 'number') && !detailedUserMessage.toLowerCase().includes(status.toString().toLowerCase())) {
-          detailedUserMessage += ` (Status: ${status})`;
-        }
-        const lowerMsg = detailedUserMessage.toLowerCase();
-        if ((lowerMsg.includes('unknown') || lowerMsg.includes('bad request') || lowerMsg.includes('failed to fetch')) && (!errCode && !status && !lowerMsg.includes('rls'))) {
-            detailedUserMessage += ' Verifique los logs de Supabase Storage y la consola del navegador para obtener la causa raíz (ej. política RLS, tipo de archivo no permitido por el bucket, etc.).';
-        }
-      } else if (typeof uploadError === 'string') {
+      } else if (typeof uploadError === 'string' && uploadError.trim() !== '') {
         detailedUserMessage = uploadError;
       }
       
-      return { url: null, errorMessage: `Error de Supabase al subir: ${detailedUserMessage}` };
+      detailedUserMessage += "\n\nACCIÓN RECOMENDADA: Revisa la pestaña 'Network' en las herramientas de desarrollador de tu navegador. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...' y examina la pestaña 'Response' para ver el JSON completo del error de Supabase. También, revisa los logs de Storage en tu panel de Supabase.";
+      
+      return { url: null, errorMessage: detailedUserMessage };
     }
     
     if (!data || !data.path) {
@@ -154,7 +159,7 @@ export async function uploadImageToSupabase(
         console.warn(msg);
         try {
           await supabase.storage.from(bucketName).remove([data.path]);
-          console.log(`Archivo huérfano eliminado: ${data.path}`);
+          console.warn(`Archivo huérfano eliminado: ${data.path}`);
         } catch (removeCatchError: any) {
           console.warn(`Excepción al intentar eliminar el archivo huérfano '${data.path}':`, removeCatchError.message);
         }
@@ -169,5 +174,6 @@ export async function uploadImageToSupabase(
     return { url: null, errorMessage: msg };
   }
 }
+    
 
     
