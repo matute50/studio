@@ -43,7 +43,7 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
       console.warn('El Data URI se convirtió en un Blob nulo.');
       return null;
     }
-    if (!blob.type || !blob.type.startsWith('image/')) { 
+    if (!blob.type || !blob.type.startsWith('image/')) {
       console.warn(`El Data URI no se convirtió en un Blob de imagen válido. Tipo de Blob recibido: ${blob.type}`);
       return null;
     }
@@ -68,7 +68,7 @@ export async function uploadImageToSupabase(
     console.warn(msg);
     return { url: null, errorMessage: msg };
   }
-  if (!dataURI || typeof dataURI !== 'string' ) { 
+  if (!dataURI || typeof dataURI !== 'string' ) {
     const msg = 'Error de Pre-Subida: Data URI inválido o no proporcionado.';
     console.warn(msg);
     return { url: null, errorMessage: msg };
@@ -95,35 +95,31 @@ export async function uploadImageToSupabase(
     const fileName = `${safeBucketNamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    console.warn(`Intentando subir a Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
+    const fileForUpload = new File([blob], fileName, { type: blob.type });
+
+    console.warn(`[PRE-UPLOAD CHECK] Bucket: '${bucketName}', Path: '${filePath}', File Name: '${fileForUpload.name}', File Type: '${fileForUpload.type}', File Size: ${fileForUpload.size}`);
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, blob, {
-        contentType: blob.type,
+      .upload(filePath, fileForUpload, { // Pass the File object, let Supabase JS infer Content-Type
         cacheControl: '3600',
-        upsert: false, 
+        upsert: false,
       });
 
     if (uploadError) {
       console.warn("--- Supabase Storage Upload Error DETECTED (POST request) ---");
-      console.warn("Full Supabase error object from JS client:", uploadError);
+      console.warn("Full Supabase error object (raw):", uploadError);
       try {
-        console.warn("Stringified Supabase error object:", JSON.stringify(uploadError, null, 2));
+        console.warn("Full Supabase error object (stringified):", JSON.stringify(uploadError, null, 2));
       } catch (e) {
-        // Ignore if stringify fails
+        console.warn("Could not stringify Supabase error object:", e);
       }
-      console.warn("uploadError.message:", (uploadError as any)?.message);
-      console.warn("uploadError.name:", (uploadError as any)?.name);
-      console.warn("uploadError.status (often HTTP status):", (uploadError as any)?.status);
-      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any)?.statusCode);
-      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any)?.error);
-      console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
-      
-      let detailedUserMessage = 'Error de Supabase Storage al subir. La respuesta del cliente JS no fue detallada.';
+      console.warn("Bucket:", bucketName, "FilePath:", filePath, "File Type Sent (intended):", fileForUpload.type);
+
+      let detailedUserMessage = 'Error de Supabase Storage al subir. La respuesta del cliente JS no fue detallada o fue genérica.';
       if (uploadError && typeof uploadError === 'object') {
         const supMessage = (uploadError as any).message;
-        const supError = (uploadError as any).error; 
+        const supError = (uploadError as any).error;
         const supStatusCode = (uploadError as any).statusCode || (uploadError as any).status;
 
         if (supMessage && typeof supMessage === 'string' && supMessage.trim().toLowerCase() !== 'unknown error' && supMessage.trim().toLowerCase() !== 'bad request' && supMessage.trim() !== '') {
@@ -135,27 +131,26 @@ export async function uploadImageToSupabase(
             if (supStatusCode) detailedUserMessage += ` [Status: ${supStatusCode}]`;
         } else if (supStatusCode) {
             detailedUserMessage = `Error de Supabase: Status ${supStatusCode}.`;
-             if (String(supStatusCode) === '400') detailedUserMessage += " (Bad Request)";
+            if (String(supStatusCode) === '400') detailedUserMessage += " (Bad Request)";
         }
       } else if (typeof uploadError === 'string' && uploadError.trim() !== '') {
         detailedUserMessage = uploadError;
       }
-      
-      detailedUserMessage += "\n\nACCIÓN URGENTE: El servidor de Supabase devolvió un error 400 (Bad Request) en la subida (POST). Para entender la CAUSA EXACTA:\n1. Abre las Herramientas de Desarrollador de tu navegador (F12).\n2. Ve a la pestaña 'Network'.\n3. Intenta subir la imagen de nuevo.\n4. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...'.\n5. Haz clic en ella y examina la pestaña 'Response' o 'Respuesta'. COPIA y PEGA el contenido JSON completo que veas ahí.\n6. También revisa los logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs).";
-      
+
+      detailedUserMessage += "\n\nACCIÓN CRÍTICA RECOMENDADA: El servidor de Supabase devolvió un error 400 (Bad Request) en la subida (solicitud POST).\n1. Abre las Herramientas de Desarrollador de tu navegador (F12).\n2. Ve a la pestaña 'Network'.\n3. Intenta subir la imagen de nuevo.\n4. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...'.\n5. Haz clic en ella y examina la pestaña 'Response' o 'Respuesta'. COPIA y PEGA el contenido JSON completo que veas ahí.\n6. También revisa los logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs).";
       return { url: null, errorMessage: detailedUserMessage };
     }
-    
+
     if (!data || !data.path) {
-        const msg = `Error Post-Subida: Supabase no devolvió una ruta (data.path) válida después de la subida al bucket '${bucketName}', aunque no hubo un error explícito del cliente. Esto es inesperado. Respuesta de Supabase (data object): ${JSON.stringify(data)}. Por favor, revise sus logs de Supabase Storage.`;
+        const msg = `Error Post-Subida: Supabase no devolvió una ruta (data.path) válida después de la subida al bucket '${bucketName}', aunque no hubo un error explícito del cliente. Esto es inesperado. Respuesta de Supabase (data object): ${JSON.stringify(data)}. Por favor, revise sus logs de Supabase Storage y la respuesta de la Network tab para el POST.`;
         console.warn(msg);
         return { url: null, errorMessage: msg };
     }
 
     const { data: publicURLData, error: getUrlError } = supabase.storage
       .from(bucketName)
-      .getPublicUrl(data.path); 
-    
+      .getPublicUrl(data.path);
+
     if (getUrlError || !publicURLData || !publicURLData.publicUrl) {
         const msg = `Error Post-Subida: No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${data.path}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
         console.warn(msg);
@@ -169,13 +164,10 @@ export async function uploadImageToSupabase(
     }
     return { url: publicURLData.publicUrl, errorMessage: null };
 
-  } catch (error: any) { 
+  } catch (error: any) {
     const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}. Tipo de Blob procesado: ${blob?.type || 'Blob no disponible'}.`;
     console.warn(msg, error);
-    console.warn("IMPORTANTE: Para los detalles más precisos del error, por favor revisa los Logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs) y la consola/pestaña de red del navegador para el request POST fallido.");
+    console.warn("IMPORTANTE: Para los detalles más precisos del error, por favor revisa los Logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs) y la consola/pestaña de red del navegador para el request POST fallido, específicamente su PESTAÑA DE RESPUESTA (Response Body).");
     return { url: null, errorMessage: msg };
   }
 }
-    
-
-    
