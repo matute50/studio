@@ -74,8 +74,9 @@ export async function uploadImageToSupabase(
     return { url: null, errorMessage: msg };
   }
 
+  let blob: Blob | null = null;
   try {
-    const blob = await dataURIToBlob(dataURI);
+    blob = await dataURIToBlob(dataURI);
 
     if (!blob) {
       const msg = 'Error de Pre-Subida: Falló la conversión de Data URI a Blob. Verifique la consola para más detalles. No se puede proceder con la subida.';
@@ -99,23 +100,25 @@ export async function uploadImageToSupabase(
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
       .upload(filePath, blob, {
-        contentType: blob.type, 
+        contentType: blob.type, // Explicitly set Content-Type
         cacheControl: '3600',
         upsert: false, 
       });
 
     if (uploadError) {
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
-      console.warn("Full Supabase error object (raw):", uploadError);
-      console.warn("uploadError.message:", (uploadError as any).message);
-      console.warn("uploadError.name:", (uploadError as any).name);
-      console.warn("uploadError.status (often HTTP status):", (uploadError as any).status);
-      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
-      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
-      console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
-      console.warn(
-        "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
-      );
+      try {
+        console.warn("Stringified Supabase error object:", JSON.stringify(uploadError, null, 2));
+      } catch (e) {
+        console.warn("Could not stringify uploadError, logging as is:", uploadError);
+      }
+      console.warn("Individual Supabase error properties (if they exist):");
+      console.warn("uploadError.message:", (uploadError as any)?.message);
+      console.warn("uploadError.name:", (uploadError as any)?.name);
+      console.warn("uploadError.status (often HTTP status):", (uploadError as any)?.status);
+      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any)?.statusCode);
+      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any)?.error);
+      console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob?.type || 'N/A');
       
       let detailedUserMessage = 'Error desconocido de Supabase Storage.';
       if (uploadError && typeof uploadError === 'object') {
@@ -131,7 +134,8 @@ export async function uploadImageToSupabase(
             detailedUserMessage = `Error de Supabase: ${supError}`;
             if (supStatusCode) detailedUserMessage += ` [Status: ${supStatusCode}]`;
         } else if (supStatusCode) {
-            detailedUserMessage = `Error de Supabase: Status ${supStatusCode} (Bad Request).`;
+            detailedUserMessage = `Error de Supabase: Status ${supStatusCode}.`;
+             if (String(supStatusCode) === '400') detailedUserMessage += " (Bad Request)";
         } else {
             detailedUserMessage = 'Error de Supabase al subir. La respuesta del servidor no incluyó detalles específicos en el objeto de error del cliente.';
         }
@@ -139,7 +143,7 @@ export async function uploadImageToSupabase(
         detailedUserMessage = uploadError;
       }
       
-      detailedUserMessage += "\n\nACCIÓN RECOMENDADA: Revisa la pestaña 'Network' en las herramientas de desarrollador de tu navegador. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...' y examina la pestaña 'Response' para ver el JSON completo del error de Supabase. También, revisa los logs de Storage en tu panel de Supabase.";
+      detailedUserMessage += "\n\nACCIÓN URGENTE: El servidor de Supabase devolvió un error. Para entender la CAUSA EXACTA:\n1. Abre las Herramientas de Desarrollador de tu navegador (F12).\n2. Ve a la pestaña 'Network'.\n3. Intenta subir la imagen de nuevo.\n4. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...'.\n5. Haz clic en ella y examina la pestaña 'Response' o 'Respuesta'. COPIA y PEGA el contenido JSON completo que veas ahí.\n6. También revisa los logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs).";
       
       return { url: null, errorMessage: detailedUserMessage };
     }
@@ -168,12 +172,10 @@ export async function uploadImageToSupabase(
     return { url: publicURLData.publicUrl, errorMessage: null };
 
   } catch (error: any) { 
-    const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}`;
+    const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}. Tipo de Blob procesado: ${blob?.type || 'Blob no disponible'}.`;
     console.warn(msg, error);
-    console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs) and the browser console/network tab.");
+    console.warn("IMPORTANTE: Para los detalles más precisos del error, por favor revisa los Logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs) y la consola/pestaña de red del navegador.");
     return { url: null, errorMessage: msg };
   }
 }
-    
-
     
