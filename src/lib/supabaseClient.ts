@@ -101,18 +101,19 @@ export async function uploadImageToSupabase(
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, fileForUpload, { // Pass the File object, let Supabase JS infer Content-Type
+      .upload(filePath, fileForUpload, {
         cacheControl: '3600',
         upsert: false,
+        contentType: fileForUpload.type, // Explicitly set contentType
       });
 
     if (uploadError) {
       console.warn("--- Supabase Storage Upload Error DETECTED (POST request) ---");
-      console.warn("Full Supabase error object (raw):", uploadError);
+      console.warn("Raw Supabase error object (uploadError):", uploadError);
       try {
-        console.warn("Full Supabase error object (stringified):", JSON.stringify(uploadError, null, 2));
+        console.warn("Stringified Supabase error object (uploadError):", JSON.stringify(uploadError, null, 2));
       } catch (e) {
-        console.warn("Could not stringify Supabase error object:", e);
+        console.warn("Could not stringify uploadError object:", e);
       }
       console.warn("Bucket:", bucketName, "FilePath:", filePath, "File Type Sent (intended):", fileForUpload.type);
 
@@ -122,7 +123,9 @@ export async function uploadImageToSupabase(
         const supError = (uploadError as any).error;
         const supStatusCode = (uploadError as any).statusCode || (uploadError as any).status;
 
-        if (supMessage && typeof supMessage === 'string' && supMessage.trim().toLowerCase() !== 'unknown error' && supMessage.trim().toLowerCase() !== 'bad request' && supMessage.trim() !== '') {
+        if (supMessage && typeof supMessage === 'string' && supMessage.toLowerCase() === 'new row violates row-level security policy') {
+            detailedUserMessage = `Error de Supabase: ¡FALLA DE ROW LEVEL SECURITY (RLS)! "${supMessage}". Esto significa que la base de datos de Supabase impidió que se guardara la información de la imagen.`;
+        } else if (supMessage && typeof supMessage === 'string' && supMessage.trim().toLowerCase() !== 'unknown error' && supMessage.trim().toLowerCase() !== 'bad request' && supMessage.trim() !== '') {
           detailedUserMessage = `Error de Supabase: ${supMessage}`;
           if (supError && typeof supError === 'string' && !supMessage.includes(supError)) detailedUserMessage += ` (Detalle: ${supError})`;
           if (supStatusCode && !supMessage.includes(String(supStatusCode))) detailedUserMessage += ` [Status: ${supStatusCode}]`;
@@ -136,13 +139,13 @@ export async function uploadImageToSupabase(
       } else if (typeof uploadError === 'string' && uploadError.trim() !== '') {
         detailedUserMessage = uploadError;
       }
-
-      detailedUserMessage += "\n\nACCIÓN CRÍTICA RECOMENDADA: El servidor de Supabase devolvió un error 400 (Bad Request) en la subida (solicitud POST).\n1. Abre las Herramientas de Desarrollador de tu navegador (F12).\n2. Ve a la pestaña 'Network'.\n3. Intenta subir la imagen de nuevo.\n4. Busca la solicitud POST fallida (en rojo) a '/storage/v1/object/...'.\n5. Haz clic en ella y examina la pestaña 'Response' o 'Respuesta'. COPIA y PEGA el contenido JSON completo que veas ahí.\n6. También revisa los logs de Storage en tu panel de Supabase (Proyecto > Logs > Storage Logs).";
+      
+      detailedUserMessage += "\n\nACCIÓN RECOMENDADA: Si el error es 'FALLA DE ROW LEVEL SECURITY (RLS)', debes ajustar tus políticas RLS en el Dashboard de Supabase (Autenticación > Políticas > tabla 'objects' del schema 'storage') para permitir inserciones (uploads) para el rol 'anon' (o el rol que uses) en el bucket '" + bucketName + "'.\nPara otros errores, examina la pestaña 'Response' de la solicitud POST fallida en la Network tab de tu navegador y los logs de Storage en tu panel de Supabase.";
       return { url: null, errorMessage: detailedUserMessage };
     }
 
     if (!data || !data.path) {
-        const msg = `Error Post-Subida: Supabase no devolvió una ruta (data.path) válida después de la subida al bucket '${bucketName}', aunque no hubo un error explícito del cliente. Esto es inesperado. Respuesta de Supabase (data object): ${JSON.stringify(data)}. Por favor, revise sus logs de Supabase Storage y la respuesta de la Network tab para el POST.`;
+        const msg = `Error Post-Subida: Supabase no devolvió una ruta (data.path) válida después de la subida al bucket '${bucketName}', aunque no hubo un error explícito del cliente. Esto es inesperado. Respuesta de Supabase (data object): ${JSON.stringify(data)}. Por favor, revise sus logs de Supabase Storage y la respuesta de la Network tab para el POST. Es posible que una política RLS esté impidiendo la inserción en la tabla 'objects'.`;
         console.warn(msg);
         return { url: null, errorMessage: msg };
     }
@@ -152,9 +155,10 @@ export async function uploadImageToSupabase(
       .getPublicUrl(data.path);
 
     if (getUrlError || !publicURLData || !publicURLData.publicUrl) {
-        const msg = `Error Post-Subida: No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${data.path}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura. Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
+        const msg = `Error Post-Subida: No se pudo obtener la URL pública para la imagen subida (bucket: ${bucketName}, path: ${data.path}). El archivo podría estar en el bucket pero inaccesible. Verifique si el bucket está configurado como "Público" y que las políticas permitan la lectura (SELECT en tabla 'objects' para RLS). Error de getPublicUrl: ${getUrlError?.message || 'No hay URL pública devuelta.'}`;
         console.warn(msg);
         try {
+          console.warn(`Intentando eliminar el archivo '${data.path}' del bucket '${bucketName}' debido a un error al obtener la URL pública.`);
           await supabase.storage.from(bucketName).remove([data.path]);
           console.warn(`Archivo huérfano eliminado: ${data.path}`);
         } catch (removeCatchError: any) {
@@ -171,3 +175,5 @@ export async function uploadImageToSupabase(
     return { url: null, errorMessage: msg };
   }
 }
+
+    
