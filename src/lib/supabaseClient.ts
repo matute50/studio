@@ -29,13 +29,13 @@ export const supabase = createClient(supabaseUrlFromEnv!, supabaseAnonKeyFromEnv
 
 async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
   if (!dataURI.startsWith('data:image/')) {
-    console.warn('Data URI no parece ser una imagen válida. Inicio del Data URI:', dataURI.substring(0, 50) + "...");
+    console.warn('Data URI no parece ser una imagen válida. Inicio del Data URI:', dataURI.substring(0, 100) + "...");
     return null;
   }
   try {
     const response = await fetch(dataURI);
     if (!response.ok) {
-      console.warn(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}. URL (inicio): ${dataURI.substring(0,50)}...`);
+      console.warn(`Error al obtener datos del Data URI: ${response.status} ${response.statusText}. URL (inicio): ${dataURI.substring(0,100)}...`);
       return null;
     }
     const blob = await response.blob();
@@ -49,7 +49,7 @@ async function dataURIToBlob(dataURI: string): Promise<Blob | null> {
     }
     return blob;
   } catch (error: any) {
-    console.warn('Excepción al convertir Data URI a Blob:', error.message);
+    console.warn('Excepción al convertir Data URI a Blob:', error.message, dataURI.substring(0,100));
     return null;
   }
 }
@@ -79,7 +79,7 @@ export async function uploadImageToSupabase(
 
     if (!blob) {
       const msg = 'Error de Pre-Subida: Falló la conversión de Data URI a Blob. Verifique la consola para más detalles. No se puede proceder con la subida.';
-      console.warn(msg);
+      console.warn(msg, dataURI.substring(0,100));
       return { url: null, errorMessage: msg };
     }
 
@@ -106,7 +106,7 @@ export async function uploadImageToSupabase(
 
     if (uploadError) {
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
-      console.warn("Full Supabase error object (as is):", uploadError);
+      console.warn("Full Supabase error object:", uploadError);
       console.warn("uploadError.message:", (uploadError as any).message);
       console.warn("uploadError.name:", (uploadError as any).name);
       console.warn("uploadError.status (often HTTP status):", (uploadError as any).status);
@@ -170,7 +170,7 @@ export async function uploadImageToSupabase(
 
   } catch (error: any) { 
     const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}`;
-    console.warn(msg, error); // Changed to console.warn
+    console.warn(msg, error);
     console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs) and the browser console/network tab.");
     return { url: null, errorMessage: msg };
   }
