@@ -105,15 +105,9 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
+      // Log the entire error object to the console for more details
       console.warn("--- Supabase Storage Upload Error DETECTED ---");
       console.warn("Full Supabase error object:", uploadError);
-      console.warn("uploadError.message:", (uploadError as any).message);
-      console.warn("uploadError.name:", (uploadError as any).name);
-      console.warn("uploadError.status (often HTTP status):", (uploadError as any).status);
-      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
-      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
-      console.warn("uploadError.stack (if available):", (uploadError as any).stack);
-      
       console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
       console.warn(
         "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
@@ -175,3 +169,5 @@ export async function uploadImageToSupabase(
     return { url: null, errorMessage: msg };
   }
 }
+
+    
