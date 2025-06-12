@@ -83,7 +83,7 @@ export async function uploadImageToSupabase(
       return { url: null, errorMessage: msg };
     }
 
-    const fileExtMatch = blob.type.match(/^image\/(png|jpeg|jpg|gif|webp|svg\+xml)$/i); // Added jpg, case-insensitive
+    const fileExtMatch = blob.type.match(/^image\/(png|jpeg|jpg|gif|webp|svg\+xml)$/i);
     if (!fileExtMatch || !fileExtMatch[1]) {
         const msg = `Error de Pre-Subida: No se pudo determinar una extensión de archivo válida desde el tipo MIME del Blob: '${blob.type}'. Formatos aceptados: png, jpeg, jpg, gif, webp, svg.`;
         console.warn(msg);
@@ -105,24 +105,22 @@ export async function uploadImageToSupabase(
       });
 
     if (uploadError) {
-      console.error("--- Supabase Storage Upload Error DETECTED ---");
-      console.error("Full Supabase error object (as is):", uploadError);
-      // Attempt to log individual properties that might be present
-      console.error("uploadError.message:", (uploadError as any).message);
-      console.error("uploadError.name:", (uploadError as any).name);
-      console.error("uploadError.status (often HTTP status):", (uploadError as any).status);
-      console.error("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
-      console.error("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
-      console.error("uploadError.stack (if available):", (uploadError as any).stack);
+      console.warn("--- Supabase Storage Upload Error DETECTED ---");
+      console.warn("Full Supabase error object (as is):", uploadError);
+      console.warn("uploadError.message:", (uploadError as any).message);
+      console.warn("uploadError.name:", (uploadError as any).name);
+      console.warn("uploadError.status (often HTTP status):", (uploadError as any).status);
+      console.warn("uploadError.statusCode (alternative for status):", (uploadError as any).statusCode);
+      console.warn("uploadError.error (sometimes a string or nested object):", (uploadError as any).error);
+      console.warn("uploadError.stack (if available):", (uploadError as any).stack);
 
-      console.error("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
-      console.error(
+      console.warn("Bucket:", bucketName, "FilePath:", filePath, "ContentType Sent:", blob.type);
+      console.warn(
         "IMPORTANT: For the TRUE error reason (e.g., RLS, bucket policy, or if the bucket is not explicitly public), please check your Supabase Dashboard: Project > Logs > Storage Logs, and also the browser's Network tab for the failing request."
       );
       
       let detailedUserMessage = 'Error desconocido de Supabase Storage.';
       if (uploadError && typeof uploadError === 'object') {
-        // Safely access properties, as 'uploadError' can be of 'any' type here
         const msg = (uploadError as any).message || '';
         const errCode = (uploadError as any).error; 
         const status = (uploadError as any).statusCode || (uploadError as any).status;
@@ -172,9 +170,8 @@ export async function uploadImageToSupabase(
 
   } catch (error: any) { 
     const msg = `Error general en la función uploadImageToSupabase (bucket: ${bucketName}): ${error.message}`;
-    console.error(msg, error);
-    console.error("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs) and the browser console/network tab.");
+    console.warn(msg, error); // Changed to console.warn
+    console.warn("IMPORTANT: For the most accurate error details, please check your Supabase Dashboard Logs (Project > Logs > Storage Logs) and the browser console/network tab.");
     return { url: null, errorMessage: msg };
   }
 }
-
