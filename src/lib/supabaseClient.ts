@@ -94,7 +94,7 @@ export async function uploadImageToSupabase(
     const fileName = `${safeBucketNamePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    console.log(`Attempting to upload to Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
+    console.log(`Intentando subir a Supabase Storage. Bucket: '${bucketName}', Path: '${filePath}', ContentType: '${blob.type}'`);
 
     const { data, error: uploadError } = await supabase.storage
       .from(bucketName)
