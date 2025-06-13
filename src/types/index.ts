@@ -5,6 +5,8 @@ export interface NewsArticle {
   text: string;
   imageUrl: string;
   featureStatus: 'destacada' | 'noticia2' | 'noticia3' | null;
+  slug?: string; // Nuevo campo
+  description?: string; // Nuevo campo
   createdAt?: string;
   updatedAt?: string;
 }

@@ -16,17 +16,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home, Star, CheckCircle } from 'lucide-react';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home, Star, CheckCircle, CaseLower, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const featureStatusEnum = z.enum(['destacada', 'noticia2', 'noticia3']);
 const newsArticleSchema = z.object({
   title: z.string().min(5, { message: "El título debe tener al menos 5 caracteres." }).max(150, { message: "El título debe tener 150 caracteres o menos." }),
+  slug: z.string().optional(),
+  description: z.string().max(160, { message: "La descripción debe tener 160 caracteres o menos." }).optional(),
   text: z.string(), 
   imageUrl: z.string()
     .refine(
@@ -65,6 +67,20 @@ function translateFeatureStatus(status: 'destacada' | 'noticia2' | 'noticia3' | 
   return found ? found.label : status;
 }
 
+const generateSlug = (title: string): string => {
+  if (!title) return '';
+  return title
+    .toString()
+    .toLowerCase()
+    .normalize('NFD') 
+    .replace(/[\u0300-\u036f]/g, '') 
+    .replace(/\s+/g, '-') 
+    .replace(/[^\w-]+/g, '') 
+    .replace(/--+/g, '-') 
+    .replace(/^-+/, '') 
+    .replace(/-+$/, ''); 
+};
+
 
 export function NewsEditor() {
   const { toast } = useToast();
@@ -86,6 +102,8 @@ export function NewsEditor() {
     resolver: zodResolver(newsArticleSchema),
     defaultValues: {
       title: '',
+      slug: '',
+      description: '',
       text: '',
       imageUrl: '',
       featureStatus: null,
@@ -93,7 +111,15 @@ export function NewsEditor() {
     mode: "onChange",
   });
 
+  const watchedTitle = form.watch('title');
   const watchedImageUrl = form.watch('imageUrl');
+
+  React.useEffect(() => {
+    if (watchedTitle !== undefined) {
+      const generated = generateSlug(watchedTitle);
+      form.setValue('slug', generated, { shouldValidate: true, shouldDirty: true });
+    }
+  }, [watchedTitle, form]);
 
   const fetchArticles = async () => {
     setIsLoadingArticles(true);
@@ -113,8 +139,9 @@ export function NewsEditor() {
       setErrorLoadingArticles(description);
       toast({
         title: "Error al Cargar Artículos",
-        description: `${description} Revisa los logs del panel de Supabase para más detalles. Asegúrate que la tabla 'articles' existe y tiene una columna 'featureStatus' de tipo TEXT.`,
+        description: `${description} Revisa los logs del panel de Supabase para más detalles. Asegúrate que la tabla 'articles' existe y tiene las columnas 'slug', 'description' y 'featureStatus' de tipo TEXT.`,
         variant: "destructive",
+        duration: 10000,
       });
     } finally {
       setIsLoadingArticles(false);
@@ -167,6 +194,8 @@ export function NewsEditor() {
   const resetFormAndPreview = () => {
     form.reset({
       title: '',
+      slug: '',
+      description: '',
       text: '',
       imageUrl: '',
       featureStatus: null,
@@ -183,6 +212,9 @@ export function NewsEditor() {
     let finalImageUrl = data.imageUrl;
     const now = new Date().toISOString();
   
+    // Ensure slug is generated if somehow empty
+    const currentSlug = data.slug || generateSlug(data.title);
+
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
       toast({ title: "Subiendo imagen...", description: "Por favor espera un momento." });
       const { url: uploadedUrl, errorMessage: uploadErrorMessage } = await uploadImageToSupabase(data.imageUrl, 'imagenes-noticias'); 
@@ -230,6 +262,8 @@ export function NewsEditor() {
       if (editingArticleId) { 
         const articleToUpdate = {
           title: data.title,
+          slug: currentSlug,
+          description: data.description,
           text: data.text,
           imageUrl: finalImageUrl,
           featureStatus: newFeatureStatus,
@@ -249,6 +283,8 @@ export function NewsEditor() {
       } else { 
         const articleToInsert = {
           title: data.title,
+          slug: currentSlug,
+          description: data.description,
           text: data.text,
           imageUrl: finalImageUrl,
           featureStatus: newFeatureStatus,
@@ -277,17 +313,20 @@ export function NewsEditor() {
        const errorMessageLowerCase = (typeof error?.message === 'string') ? error.message.toLowerCase() : "";
 
        if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-          description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate que tenga la columna 'featureStatus' de tipo TEXT.";
+          description = "Error CRÍTICO 404 (Not Found): La tabla 'articles' PARECE NO EXISTIR o no es accesible. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'articles' y sus políticas RLS en el panel de Supabase. Asegúrate que tenga las columnas 'slug', 'description' y 'featureStatus' de tipo TEXT.";
        } else if (error?.message && error.message.includes("violates check constraint") && error.message.includes("feature_status_types")) {
           description = `Error de Base de Datos: El valor proporcionado para 'featureStatus' no es válido. Valores permitidos son 'destacada', 'noticia2', 'noticia3' o NULL. Error original: ${error.message}.`;
-       } else if (error?.message) {
+       } else if (error?.message && (error.message.includes("column \"slug\" of relation \"articles\" does not exist") || error.message.includes("column \"description\" of relation \"articles\" does not exist") )) {
+          description = `Error de Base de Datos: Las columnas 'slug' y/o 'description' NO EXISTEN en la tabla 'articles'. Por favor, añádelas en tu panel de Supabase (como tipo TEXT). Error original: ${error.message}.`;
+       }
+       else if (error?.message) {
          description = `Error al guardar/actualizar: ${error.message}.`;
        }
        toast({
           title: "Error al Guardar/Actualizar Artículo",
           description: `${description} Revisa la consola y los logs de Supabase para más detalles.`,
           variant: "destructive",
-          duration: 10000,
+          duration: 15000,
        });
     }
     setIsSubmitting(false);
@@ -350,6 +389,8 @@ export function NewsEditor() {
     setEditingArticleId(article.id);
     form.reset({
       title: article.title,
+      slug: article.slug || generateSlug(article.title),
+      description: article.description || '',
       text: article.text,
       imageUrl: article.imageUrl || '',
       featureStatus: article.featureStatus, 
@@ -443,6 +484,42 @@ export function NewsEditor() {
 
                 <FormField
                   control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Slug (URL amigable)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Se generará automáticamente del título" {...field} readOnly className="bg-muted/50 cursor-not-allowed" />
+                      </FormControl>
+                      <FormDescription>Este es el fragmento de URL generado para SEO.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descripción (Meta Tag)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Breve resumen de la noticia para buscadores y redes sociales (máx. 160 caracteres)." 
+                          {...field} 
+                          rows={3} 
+                          maxLength={160}
+                          value={field.value || ''} 
+                        />
+                      </FormControl>
+                       <FormDescription>Ideal para SEO y cómo se muestra en redes sociales.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="text"
                   render={({ field }) => (
                     <FormItem>
@@ -502,7 +579,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Estado de Noticia</FormLabel>
                       <Select 
-                        onValueChange={(value) => field.onChange(value === 'null' ? null : value)} 
+                        onValueChange={(value) => field.onChange(value === 'null' ? null : value as NewsArticleFormValues['featureStatus'])} 
                         value={field.value === null ? 'null' : field.value}
                       >
                         <FormControl>
@@ -647,6 +724,18 @@ export function NewsEditor() {
                       )}
                     </div>
                     <div className="space-y-1">
+                      {article.slug && (
+                        <p className="text-xs text-muted-foreground flex items-center">
+                          <CaseLower className="mr-1.5 h-3.5 w-3.5 text-sky-600" />
+                          <span className="truncate">Slug: {article.slug}</span>
+                        </p>
+                      )}
+                       {article.description && (
+                        <p className="text-xs text-muted-foreground flex items-center">
+                          <FileText className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
+                          <span className="truncate">Desc: {article.description}</span>
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">
                         {article.text}
                       </p>
@@ -697,4 +786,3 @@ export function NewsEditor() {
     </div>
   );
 }
-    
