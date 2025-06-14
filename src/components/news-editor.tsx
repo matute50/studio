@@ -15,14 +15,15 @@ import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home, Star, CheckCircle, CaseLower, FileText } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Loader2, Sparkles, Send, Upload, Newspaper, ImageOff, Edit3, Trash2, XCircle, Home } from 'lucide-react';
+
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
+import { ArticleListItem } from '@/components/article-list-item'; // Import the new component
 
 const featureStatusEnum = z.enum(['destacada', 'noticia2', 'noticia3']);
 const newsArticleSchema = z.object({
@@ -62,7 +63,7 @@ const featureStatusOptions = [
 ];
 
 function translateFeatureStatus(status: 'destacada' | 'noticia2' | 'noticia3' | null): string {
-  if (!status) return '';
+  if (!status) return 'No Especificado'; // Return a default string if status is null
   const found = featureStatusOptions.find(opt => opt.value === status);
   return found ? found.label : status;
 }
@@ -79,6 +80,27 @@ const generateSlug = (title: string): string => {
     .replace(/--+/g, '-') 
     .replace(/^-+/, '') 
     .replace(/-+$/, ''); 
+};
+
+const formatDate = (dateString?: string | null) => {
+  if (!dateString) { 
+    return 'Fecha desconocida';
+  }
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Fecha inválida';
+    }
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (e: any) {
+    return 'Error al formatear fecha';
+  }
 };
 
 
@@ -121,7 +143,7 @@ export function NewsEditor() {
     }
   }, [watchedTitle, form]);
 
-  const fetchArticles = async () => {
+  const fetchArticles = React.useCallback(async () => {
     setIsLoadingArticles(true);
     setErrorLoadingArticles(null);
     try {
@@ -146,13 +168,13 @@ export function NewsEditor() {
     } finally {
       setIsLoadingArticles(false);
     }
-  };
+  }, [toast]);
 
   React.useEffect(() => {
     fetchArticles();
-  }, []);
+  }, [fetchArticles]);
 
-  const handleSuggestTitles = async () => {
+  const handleSuggestTitles = React.useCallback(async () => {
     const currentTitle = form.getValues('title');
     const currentText = form.getValues('text');
 
@@ -189,9 +211,9 @@ export function NewsEditor() {
     } finally {
       setIsSuggestingTitles(false);
     }
-  };
+  }, [form, toast]);
 
-  const resetFormAndPreview = () => {
+  const resetFormAndPreview = React.useCallback(() => {
     form.reset({
       title: '',
       slug: '',
@@ -205,14 +227,13 @@ export function NewsEditor() {
       fileInputRef.current.value = ""; 
     }
     setEditingArticleId(null);
-  };
+  }, [form]);
 
-  const onSubmit = async (data: NewsArticleFormValues) => {
+  const onSubmit = React.useCallback(async (data: NewsArticleFormValues) => {
     setIsSubmitting(true);
     let finalImageUrl = data.imageUrl;
     const now = new Date().toISOString();
   
-    // Ensure slug is generated if somehow empty
     const currentSlug = data.slug || generateSlug(data.title);
 
     if (data.imageUrl && data.imageUrl.startsWith('data:image/')) {
@@ -330,9 +351,9 @@ export function NewsEditor() {
        });
     }
     setIsSubmitting(false);
-  };
+  }, [form, editingArticleId, toast, fetchArticles, resetFormAndPreview]);
   
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith("image/")) {
@@ -358,30 +379,10 @@ export function NewsEditor() {
       };
       reader.readAsDataURL(file);
     }
-  };
+  }, [form, toast]);
   
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) { 
-      return 'Fecha desconocida';
-    }
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Fecha inválida';
-      }
-      return date.toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch (e: any) {
-      return 'Error al formatear fecha';
-    }
-  };
 
-  const handleEdit = (article: NewsArticle) => {
+  const handleEdit = React.useCallback((article: NewsArticle) => {
     if (!article.id) {
       toast({ title: "Error", description: "No se puede editar un artículo sin ID.", variant: "destructive" });
       return;
@@ -401,22 +402,23 @@ export function NewsEditor() {
     }
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
     toast({ title: "Modo Edición", description: `Editando artículo: ${article.title}` });
-  };
+  }, [form, toast]);
 
-  const cancelEdit = () => {
+  const cancelEdit = React.useCallback(() => {
     resetFormAndPreview();
-  };
+    toast({ title: "Edición Cancelada" });
+  }, [resetFormAndPreview, toast]);
 
-  const handleDelete = (article: NewsArticle) => {
+  const handleDelete = React.useCallback((article: NewsArticle) => {
     if (!article.id) {
       toast({ title: "Error", description: "No se puede eliminar un artículo sin ID.", variant: "destructive" });
       return;
     }
     setArticleToDelete(article);
     setShowDeleteConfirmDialog(true);
-  };
+  }, [toast]);
 
-  const confirmDelete = async () => {
+  const confirmDelete = React.useCallback(async () => {
     if (!articleToDelete || !articleToDelete.id) return;
     setIsSubmitting(true); 
 
@@ -444,7 +446,7 @@ export function NewsEditor() {
       setShowDeleteConfirmDialog(false);
       setArticleToDelete(null);
     }
-  };
+  }, [articleToDelete, editingArticleId, fetchArticles, cancelEdit, toast]);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -568,7 +570,7 @@ export function NewsEditor() {
                 
                 {watchedImageUrl && watchedImageUrl !== 'https://placehold.co/600x400.png' && (watchedImageUrl.startsWith('http') || watchedImageUrl.startsWith('data:image')) && (
                   <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border">
-                     <Image src={watchedImageUrl} alt="Vista previa de la imagen actual" layout="fill" objectFit="cover" onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="imagen previa"/>
+                     <Image src={watchedImageUrl} alt="Vista previa de la imagen actual" fill style={{objectFit: "cover"}} onError={(e) => e.currentTarget.src = 'https://placehold.co/600x400.png'} data-ai-hint="imagen previa"/>
                   </div>
                 )}
 
@@ -683,81 +685,16 @@ export function NewsEditor() {
           )}
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
               articles.map((article, index) => (
-                <Card key={article.id} className="shadow-md hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-2 pt-3 px-4">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-grow">
-                        <CardTitle className="text-base font-semibold break-words">
-                          <span className="text-primary mr-2">{index + 1}.</span>
-                          {article.title}
-                        </CardTitle>
-                      </div>
-                      <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                        {['destacada', 'noticia2', 'noticia3'].includes(article.featureStatus as string) && (
-                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
-                            {article.featureStatus === 'destacada' ? <Star className="mr-1 h-3 w-3" /> : <CheckCircle className="mr-1 h-3 w-3" />}
-                            {translateFeatureStatus(article.featureStatus)}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-1 md:grid-cols-[80px_1fr] gap-3 items-start pt-0 pb-3 px-4">
-                    <div className="relative w-full md:w-[80px] h-[60px] rounded-md overflow-hidden border bg-muted">
-                      {(article.imageUrl && (article.imageUrl.startsWith('http') || article.imageUrl.startsWith('data:image'))) ? (
-                        <Image
-                          src={article.imageUrl}
-                          alt={`Imagen para ${article.title}`}
-                          layout="fill"
-                          objectFit="cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://placehold.co/80x60.png'; 
-                            target.srcset = '';
-                          }}
-                          data-ai-hint="noticia miniatura"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-muted">
-                           <ImageOff className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      {article.slug && (
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          <CaseLower className="mr-1.5 h-3.5 w-3.5 text-sky-600" />
-                          <span className="truncate">Slug: {article.slug}</span>
-                        </p>
-                      )}
-                       {article.description && (
-                        <p className="text-xs text-muted-foreground flex items-center">
-                          <FileText className="mr-1.5 h-3.5 w-3.5 text-amber-600" />
-                          <span className="truncate">Desc: {article.description}</span>
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground line-clamp-2 break-words">
-                        {article.text}
-                      </p>
-                    </div>
-                  </CardContent>
-                   <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center">
-                      <div>
-                        <p className="text-[0.7rem] leading-tight">Publicado: {formatDate(article.createdAt)}</p>
-                        {article.updatedAt && article.updatedAt !== article.createdAt && (
-                          <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(article.updatedAt)})</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => article.id && handleEdit(article)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
-                          <Edit3 className="mr-1 h-3 w-3" /> Editar
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => article.id && handleDelete(article)} disabled={isSubmitting} className="h-7 px-2 py-1 text-xs">
-                          <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                        </Button>
-                      </div>
-                   </CardFooter>
-                </Card>
+                <ArticleListItem
+                  key={article.id || index} // Use index as fallback key if id is somehow undefined
+                  article={article}
+                  index={index}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  isSubmitting={isSubmitting}
+                  formatDate={formatDate}
+                  translateFeatureStatus={translateFeatureStatus}
+                />
               ))
             
           )}
