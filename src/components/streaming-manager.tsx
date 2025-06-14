@@ -91,10 +91,10 @@ export function StreamingManager() {
         const problematicFieldInTrigger = fieldMatch && fieldMatch[1] ? fieldMatch[1] : "desconocido";
         
         let suggestedFix = `como por ejemplo "${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si su columna es camelCase, o usando comillas dobles como NEW."${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si es sensible a mayúsculas/minúsculas`;
-        if (problematicFieldInTrigger === 'updatedat') {
-            suggestedFix = "la columna podría llamarse 'updatedAt' (camelCase). El trigger debería usar NEW.\"updatedAt\" (con comillas dobles)";
+        if (problematicFieldInTrigger === 'updatedat') { // Specific check for 'updatedat'
+            suggestedFix = "la columna podría llamarse 'updatedAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"updatedAt\" (con comillas dobles)";
         } else if (problematicFieldInTrigger === 'createdat') {
-             suggestedFix = "la columna podría llamarse 'createdAt' (camelCase). El trigger debería usar NEW.\"createdAt\" (con comillas dobles)";
+             suggestedFix = "la columna podría llamarse 'createdAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"createdAt\" (con comillas dobles)";
         }
 
 
@@ -129,7 +129,7 @@ export function StreamingManager() {
         const payload = {
           nombre: data.nombre,
           url_de_streaming: data.url_de_streaming,
-          updatedAt: now,
+          updatedAt: now, // Frontend sends "updatedAt"
         };
         const { data: updatedData, error: updateError } = await supabase
           .from('streaming')
@@ -140,12 +140,12 @@ export function StreamingManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Configuración Actualizada!", description: `La configuración de streaming "${updatedData?.nombre}" ha sido actualizada.` });
       } else {
-        const payload: Omit<StreamingConfig, 'id'> & { createdAt?: string, updatedAt?: string, isActive: boolean } = {
+        const payload: Omit<StreamingConfig, 'id'> = {
           nombre: data.nombre,
           url_de_streaming: data.url_de_streaming,
           isActive: false,
-          createdAt: now,
-          updatedAt: now,
+          createdAt: now, // Frontend sends "createdAt"
+          updatedAt: now, // Frontend sends "updatedAt"
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('streaming')
@@ -222,19 +222,23 @@ export function StreamingManager() {
       if (newActiveState) {
         const { error: deactivateError } = await supabase
           .from('streaming')
-          .update({ isActive: false, updatedAt: now }) 
+          .update({ isActive: false, updatedAt: now })  // Frontend sends "updatedAt"
           .neq('id', streamId)
           .eq('isActive', true);
 
         if (deactivateError) {
-          console.error("Error deactivating other streams:", (deactivateError as any)?.message || deactivateError);
+          // Log error but try to proceed with activating the selected one
+          console.error(
+            "Error deactivating other streams (Supabase trigger likely at fault, check SQL for 'updatedat' vs '\"updatedAt\"'):", 
+            (deactivateError as any)?.message || deactivateError
+          );
           handleSupabaseError(deactivateError, "desactivar otros streams", "toggle");
         }
       }
 
       const { error: toggleError } = await supabase
         .from('streaming')
-        .update({ isActive: newActiveState, updatedAt: now }) 
+        .update({ isActive: newActiveState, updatedAt: now }) // Frontend sends "updatedAt"
         .eq('id', streamId);
 
       if (toggleError) throw toggleError;
@@ -430,3 +434,6 @@ export function StreamingManager() {
     </div>
   );
 }
+
+
+    
