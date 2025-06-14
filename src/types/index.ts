@@ -62,12 +62,12 @@ export interface BannerItem {
 }
 
 export interface StreamingConfig {
-  id: string; // ID should not be optional if it's a primary key from DB
+  id?: string; // Made ID optional as client might not have it before creation
   nombre: string;
   url_de_streaming: string;
   isActive: boolean;
-  createdAt?: string; // Database can set this on creation (e.g., with DEFAULT now())
-  updatedAt?: string; // Database trigger will manage this on updates
+  createdAt?: string; 
+  updatedAt?: string; 
 }
 
 export interface HeaderImageItem {
@@ -75,7 +75,14 @@ export interface HeaderImageItem {
   nombre: string;
   imageUrl: string;
   mode: 'light' | 'dark';
-  createdAt: string; // Assuming this is set by DB or required on creation
-  updatedAt: string; // Assuming this is set by DB or required on creation/update
+  createdAt: string; 
+  updatedAt: string; 
 }
 
+export interface HcdItem {
+  id?: string;
+  nombre: string;
+  url: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
