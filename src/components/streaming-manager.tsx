@@ -201,7 +201,7 @@ export function StreamingManager() {
 
         if (deactivateError) {
           // Log error but try to proceed with activating the selected one
-          console.error("Error deactivating other streams:", deactivateError);
+          console.error("Error deactivating other streams:", (deactivateError as any)?.message || deactivateError);
           handleSupabaseError(deactivateError, "desactivar otros streams", "toggle");
         }
       }
