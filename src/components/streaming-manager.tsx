@@ -86,21 +86,29 @@ export function StreamingManager() {
 
     if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${errorMessageOriginal || 'Desconocido'}`;
-    } else if (errorMessageLowerCase.includes("could not find the") && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("in the schema cache")) {
-        const match = errorMessageLowerCase.match(/could not find the '([^']*)' column/);
-        const columnName = match && match[1] ? match[1] : "desconocida";
-        description = `Error de Base de Datos: La columna '${columnName}' (probablemente 'updatedAt' o 'createdAt') NO SE ENCUENTRA en la tabla 'streaming' según el caché de Supabase. Verifica que la columna exista con el nombre y casing correctos (ej: 'updatedAt', 'createdAt') en tu tabla 'streaming' en el Dashboard de Supabase. Error: ${errorMessageOriginal || 'Desconocido'}`;
     } else if (errorMessageLowerCase.includes("record") && errorMessageLowerCase.includes("has no field")) {
         const fieldMatch = errorMessageLowerCase.match(/field "([^"]+)"/);
         const problematicFieldInTrigger = fieldMatch && fieldMatch[1] ? fieldMatch[1] : "desconocido";
+        
+        let suggestedFix = `como por ejemplo "${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si su columna es camelCase, o usando comillas dobles como NEW."${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si es sensible a mayúsculas/minúsculas`;
+        if (problematicFieldInTrigger === 'updatedat') {
+            suggestedFix = "la columna podría llamarse 'updatedAt' (camelCase). El trigger debería usar NEW.\"updatedAt\" (con comillas dobles)";
+        } else if (problematicFieldInTrigger === 'createdat') {
+             suggestedFix = "la columna podría llamarse 'createdAt' (camelCase). El trigger debería usar NEW.\"createdAt\" (con comillas dobles)";
+        }
+
+
         description = `Error de Base de Datos (TRIGGER SQL): Un trigger en la tabla 'streaming' está intentando acceder al campo '${problematicFieldInTrigger}' en el registro (NEW o OLD), pero este campo no existe como se esperaba en el trigger.
-        - CAUSA MÁS PROBABLE: El trigger SQL está usando un nombre de campo incorrecto o con un casing incorrecto (ej: 'updatedat' en lugar de la columna 'updatedAt' que es sensible a mayúsculas/minúsculas).
-        - SOLUCIÓN: Revise el código SQL de TODOS los triggers en la tabla 'streaming'. Si su columna se llama, por ejemplo, 'updatedAt', el trigger DEBE referenciarla como NEW."updatedAt" o OLD."updatedAt" (con comillas dobles).
+        - CAUSA MÁS PROBABLE: El trigger SQL está usando un nombre de campo incorrecto o con un casing incorrecto (ej: '${problematicFieldInTrigger}'). ${suggestedFix}.
+        - SOLUCIÓN: Revise el código SQL de TODOS los triggers en la tabla 'streaming'. Si su columna tiene un nombre sensible a mayúsculas/minúsculas (ej: 'updatedAt'), el trigger DEBE referenciarla como NEW."updatedAt" o OLD."updatedAt" (con comillas dobles).
         Error original completo: "${errorMessageOriginal || 'Desconocido'}"`;
+    } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
+        const colMatch = errorMessageOriginal.match(/'([^']*)' column of '([^']*)'/i) || errorMessageOriginal.match(/column "([^"]*)" of relation "([^"]*)" does not exist/i);
+        const missingColumn = colMatch && colMatch[1] ? colMatch[1] : "desconocida";
+        const tableName = colMatch && colMatch[2] ? colMatch[2] : "streaming";
+        description = `Error de Base de Datos: La columna '${missingColumn}' NO EXISTE en la tabla '${tableName}' según el caché de Supabase o la base de datos. Por favor, verifica la estructura de tu tabla '${tableName}' en el Dashboard de Supabase y asegúrate de que la columna '${missingColumn}' (con el casing correcto, ej: 'updatedAt') exista. Error: ${errorMessageOriginal || 'Desconocido'}`;
     } else if (errorCode === '23505' && errorMessageLowerCase.includes('unique constraint')) {
         description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${errorMessageOriginal}`;
-    } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
-        description = `Error de Base de Datos: Una columna requerida (ej: 'nombre', 'isActive', 'createdAt', 'updatedAt') NO EXISTE en la tabla 'streaming'. Verifica la ESTRUCTURA de tu tabla. Error: ${errorMessageOriginal || 'Desconocido'}`;
     } else if (errorMessageOriginal) {
       description = `Error al ${actionDescription}: ${errorMessageOriginal}.`;
     }
@@ -108,7 +116,7 @@ export function StreamingManager() {
       title: `Error en Streaming`,
       description: `${description} Revisa la consola y los logs de Supabase.`,
       variant: "destructive",
-      duration: 15000,
+      duration: 20000, // Increased duration for complex error messages
     });
   };
 
@@ -121,7 +129,7 @@ export function StreamingManager() {
         const payload = {
           nombre: data.nombre,
           url_de_streaming: data.url_de_streaming,
-          updatedAt: now, // Correctly sends camelCased updatedAt
+          updatedAt: now,
         };
         const { data: updatedData, error: updateError } = await supabase
           .from('streaming')
@@ -136,8 +144,8 @@ export function StreamingManager() {
           nombre: data.nombre,
           url_de_streaming: data.url_de_streaming,
           isActive: false,
-          createdAt: now, // Correctly sends camelCased createdAt
-          updatedAt: now, // Correctly sends camelCased updatedAt
+          createdAt: now,
+          updatedAt: now,
         };
         const { data: insertedData, error: insertError } = await supabase
           .from('streaming')
@@ -212,30 +220,27 @@ export function StreamingManager() {
     const now = new Date().toISOString();
     try {
       if (newActiveState) {
-        // Deactivate all other streams if this one is being activated
         const { error: deactivateError } = await supabase
           .from('streaming')
-          .update({ isActive: false, updatedAt: now }) // Correctly sends camelCased updatedAt
+          .update({ isActive: false, updatedAt: now }) 
           .neq('id', streamId)
           .eq('isActive', true);
 
         if (deactivateError) {
-          // Log error but try to proceed with activating the selected one
           console.error("Error deactivating other streams:", (deactivateError as any)?.message || deactivateError);
           handleSupabaseError(deactivateError, "desactivar otros streams", "toggle");
         }
       }
 
-      // Activate/Deactivate the selected stream
       const { error: toggleError } = await supabase
         .from('streaming')
-        .update({ isActive: newActiveState, updatedAt: now }) // Correctly sends camelCased updatedAt
+        .update({ isActive: newActiveState, updatedAt: now }) 
         .eq('id', streamId);
 
       if (toggleError) throw toggleError;
 
       toast({ title: "Estado de Stream Actualizado", description: `El stream ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
-      fetchStreamingConfigs(); // Refresh list to show updated active state
+      fetchStreamingConfigs(); 
     } catch (error: any) {
       handleSupabaseError(error, "actualizar estado activo del stream", "toggle");
     } finally {
@@ -363,7 +368,7 @@ export function StreamingManager() {
                         </Label>
                         <Switch
                           id={`active-switch-${stream.id}`}
-                          checked={!!stream.isActive} // Ensure boolean
+                          checked={!!stream.isActive} 
                           onCheckedChange={(isChecked) => {
                             if (stream.id) {
                                 handleActiveToggle(stream.id, isChecked);
@@ -425,4 +430,3 @@ export function StreamingManager() {
     </div>
   );
 }
-
