@@ -86,7 +86,9 @@ export function StreamingManager() {
     if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${error.message || 'Desconocido'}`;
     } else if (errorMessageLowerCase.includes("could not find the") && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("in the schema cache")) {
-        description = `Error de Base de Datos: La columna referenciada (probablemente 'updatedAt' o 'createdAt') NO SE ENCUENTRA en la tabla 'streaming' según el caché de Supabase. Verifica que la columna exista con el nombre y casing correctos en tu tabla 'streaming' en el Dashboard de Supabase. Error: ${error.message || 'Desconocido'}`;
+        const match = errorMessageLowerCase.match(/could not find the '([^']*)' column/);
+        const columnName = match && match[1] ? match[1] : "desconocida";
+        description = `Error de Base de Datos: La columna '${columnName}' (probablemente 'updatedAt' o 'createdAt') NO SE ENCUENTRA en la tabla 'streaming' según el caché de Supabase. Verifica que la columna exista con el nombre y casing correctos ('updatedAt', 'createdAt') en tu tabla 'streaming' en el Dashboard de Supabase. Error: ${error.message || 'Desconocido'}`;
     } else if (errorCode === '23505' && errorMessageLowerCase.includes('unique constraint')) {
         description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${error.message}`;
     } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
@@ -125,7 +127,7 @@ export function StreamingManager() {
         const payload: Omit<StreamingConfig, 'id' | 'createdAt' | 'updatedAt' | 'isActive'> & { createdAt: string, updatedAt: string, isActive: boolean } = {
           nombre: data.nombre,
           url_de_streaming: data.url_de_streaming,
-          isActive: false, // New streams are inactive by default
+          isActive: false, 
           createdAt: now,
           updatedAt: now,
         };
@@ -194,21 +196,21 @@ export function StreamingManager() {
     const now = new Date().toISOString();
     try {
       if (newActiveState) {
-        // Deactivate all other streams first
+        
         const { error: deactivateError } = await supabase
           .from('streaming')
           .update({ isActive: false, updatedAt: now })
           .neq('id', streamId)
-          .eq('isActive', true); // Only update those that are currently active
+          .eq('isActive', true); 
 
         if (deactivateError) {
-          // Log error but try to proceed with activating the selected one
+          
           console.error("Error deactivating other streams:", (deactivateError as any)?.message || deactivateError);
           handleSupabaseError(deactivateError, "desactivar otros streams", "toggle");
         }
       }
 
-      // Activate/Deactivate the selected stream
+      
       const { error: toggleError } = await supabase
         .from('streaming')
         .update({ isActive: newActiveState, updatedAt: now })
@@ -217,7 +219,7 @@ export function StreamingManager() {
       if (toggleError) throw toggleError;
 
       toast({ title: "Estado de Stream Actualizado", description: `El stream ha sido ${newActiveState ? 'activado' : 'desactivado'}.` });
-      fetchStreamingConfigs(); // Refresh the list
+      fetchStreamingConfigs(); 
     } catch (error: any) {
       handleSupabaseError(error, "actualizar estado activo del stream", "toggle");
     } finally {
@@ -401,5 +403,3 @@ export function StreamingManager() {
     </div>
   );
 }
-
-    
