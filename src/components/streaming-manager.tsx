@@ -85,6 +85,8 @@ export function StreamingManager() {
 
     if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${error.message || 'Desconocido'}`;
+    } else if (errorMessageLowerCase.includes("could not find the") && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("in the schema cache")) {
+        description = `Error de Base de Datos: La columna referenciada (probablemente 'updatedAt' o 'createdAt') NO SE ENCUENTRA en la tabla 'streaming' según el caché de Supabase. Verifica que la columna exista con el nombre y casing correctos en tu tabla 'streaming' en el Dashboard de Supabase. Error: ${error.message || 'Desconocido'}`;
     } else if (errorCode === '23505' && errorMessageLowerCase.includes('unique constraint')) {
         description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${error.message}`;
     } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
