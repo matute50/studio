@@ -40,8 +40,8 @@ export interface VideoItem {
   id?: string;
   nombre: string;
   url: string;
-  fecha?: string; // Stored as ISO string
-  categoria?: string;
+  categoria?: string; // Category is optional
+  fecha?: string | null; // Date remains optional in the type
   createdAt?: string;
   updatedAt?: string;
 }
@@ -72,3 +72,4 @@ export interface HeaderImageItem {
   createdAt: string; 
   updatedAt: string; 
 }
+
