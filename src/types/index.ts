@@ -40,6 +40,8 @@ export interface VideoItem {
   id?: string;
   nombre: string;
   url: string;
+  fecha?: string; // Stored as ISO string
+  categoria?: string;
   createdAt?: string;
   updatedAt?: string;
 }
