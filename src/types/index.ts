@@ -40,8 +40,9 @@ export interface VideoItem {
   id?: string;
   nombre: string;
   url: string;
-  categoria?: string | null; // Category is optional
-  fecha?: string | null; // Date remains optional in the type, not in current form
+  categoria?: string | null;
+  imagen?: string | null; // Added for video thumbnail/image
+  // fecha field removed as per previous instructions, but can be re-added if needed
   createdAt?: string;
   updatedAt?: string;
 }

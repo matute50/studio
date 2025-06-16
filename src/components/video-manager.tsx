@@ -6,9 +6,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
+import Image from 'next/image'; // Added for Image component
 import type { VideoItem } from '@/types';
 
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; // Ensured uploadImageToSupabase is imported
 import { cn } from "@/lib/utils";
 
 import { Button } from '@/components/ui/button';
@@ -19,15 +20,27 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, Upload, ImageOff } from 'lucide-react'; // Added Upload, ImageOff
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const SUPABASE_TABLE_NAME = 'videos';
+const IMAGE_VIDEOS_BUCKET_NAME = 'imagenvideos'; // Bucket for video images
 
 const videoSchema = z.object({
   nombre: z.string().min(3, { message: "El nombre del video debe tener al menos 3 caracteres." }).max(150, { message: "El nombre del video debe tener 150 caracteres o menos." }),
   url: z.string().url({ message: "Por favor, introduce una URL válida para el video." }),
   categoria: z.string().optional(),
+  imagen: z.any().optional() // Can be File, string (URL), or null/undefined
+    .refine(value => {
+      if (!value) return true; // Optional, so null/undefined is fine
+      if (typeof value === 'string') return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/');
+      if (value instanceof File) return value.type.startsWith('image/');
+      return false;
+    }, { message: "Debe ser una URL de imagen válida o un archivo de imagen." })
+    .refine(value => {
+      if (value instanceof File) return value.size <= 5 * 1024 * 1024; // Max 5MB for new files
+      return true;
+    }, { message: "La imagen no debe exceder los 5MB." }),
 });
 
 type VideoFormValues = z.infer<typeof videoSchema>;
@@ -43,6 +56,8 @@ export function VideoManager() {
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [videoToDelete, setVideoToDelete] = React.useState<VideoItem | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+  const imageFileRef = React.useRef<HTMLInputElement>(null); // Ref for image file input
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null); // For image preview
 
   const [categories, setCategories] = React.useState<string[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
@@ -54,9 +69,11 @@ export function VideoManager() {
       nombre: '',
       url: '',
       categoria: '',
+      imagen: undefined,
     },
     mode: "onChange",
   });
+  const watchedImagen = form.watch('imagen');
 
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
@@ -109,23 +126,86 @@ export function VideoManager() {
   }, []);
 
   const resetForm = () => {
-    form.reset({ nombre: '', url: '', categoria: '' });
+    form.reset({ nombre: '', url: '', categoria: '', imagen: undefined });
     setEditingVideoId(null);
+    setPreviewImage(null);
+    if (imageFileRef.current) {
+      imageFileRef.current.value = "";
+    }
+  };
+
+  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast({ title: "Archivo no válido", description: "Por favor, sube una imagen.", variant: "destructive" });
+        form.setValue('imagen', null, { shouldValidate: true }); // Clear if invalid
+        setPreviewImage(null);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Archivo muy grande", description: "La imagen debe ser menor a 5MB.", variant: "destructive" });
+        form.setValue('imagen', null, { shouldValidate: true });
+        setPreviewImage(null);
+        return;
+      }
+      form.setValue('imagen', file, { shouldValidate: true });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      form.setValue('imagen', null, { shouldValidate: true });
+      setPreviewImage(null);
+    }
   };
 
   const onSubmit = async (data: VideoFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
     const categoriaToSave = data.categoria && data.categoria.trim() !== "" ? data.categoria.trim() : null;
+    let finalImageUrlForSupabase: string | null = null;
+
+    if (data.imagen instanceof File) {
+      toast({ title: "Subiendo imagen del video...", description: "Por favor espera." });
+      let dataUri: string;
+      try {
+        dataUri = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+          reader.readAsDataURL(data.imagen as File);
+        });
+      } catch (errorReadingFile) {
+        toast({ title: "Error al leer archivo", description: "No se pudo procesar el archivo de imagen.", variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { url: supUrl, errorMessage } = await uploadImageToSupabase(dataUri, IMAGE_VIDEOS_BUCKET_NAME);
+      if (errorMessage) {
+        toast({ title: "Error al subir imagen", description: errorMessage, variant: "destructive", duration: 9000 });
+        setIsSubmitting(false);
+        return;
+      }
+      finalImageUrlForSupabase = supUrl;
+    } else if (typeof data.imagen === 'string' && data.imagen.startsWith('http')) {
+      finalImageUrlForSupabase = data.imagen; // Existing URL, not changed
+    } else {
+      finalImageUrlForSupabase = null; // No image or cleared
+    }
 
     try {
+      const videoPayload: Omit<VideoItem, 'id' | 'createdAt' | 'updatedAt'> & { id?: string; createdAt?: string; updatedAt?: string } = {
+        nombre: data.nombre,
+        url: data.url,
+        categoria: categoriaToSave,
+        imagen: finalImageUrlForSupabase,
+        updatedAt: now,
+      };
+
       if (editingVideoId) {
-        const videoPayload: Partial<VideoItem> = {
-          nombre: data.nombre,
-          url: data.url,
-          categoria: categoriaToSave,
-          updatedAt: now,
-        };
         const { data: updatedData, error: updateError } = await supabase
           .from(SUPABASE_TABLE_NAME)
           .update(videoPayload)
@@ -135,23 +215,17 @@ export function VideoManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Video Actualizado!", description: `El video "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
-        const payloadToInsert = {
-          nombre: data.nombre,
-          url: data.url,
-          categoria: categoriaToSave,
-          createdAt: now,
-          updatedAt: now,
-        };
+        videoPayload.createdAt = now;
         const { data: insertedData, error: insertError } = await supabase
           .from(SUPABASE_TABLE_NAME)
-          .insert([payloadToInsert])
+          .insert([videoPayload as VideoItem]) // Cast as VideoItem for insert
           .select()
           .single();
         if (insertError) throw insertError;
         toast({ title: "¡Video Guardado!", description: `El video "${insertedData?.nombre}" ha sido guardado.` });
       }
       fetchVideos();
-      fetchCategories(); // Re-fetch categories in case a new one was added
+      fetchCategories();
       resetForm();
     } catch (error: any) {
       toast({
@@ -172,7 +246,10 @@ export function VideoManager() {
       nombre: videoToEdit.nombre,
       url: videoToEdit.url,
       categoria: videoToEdit.categoria || '',
+      imagen: videoToEdit.imagen || undefined, // Set to string URL if exists
     });
+    setPreviewImage(videoToEdit.imagen || null); // Set preview for existing image
+    if (imageFileRef.current) imageFileRef.current.value = "";
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
     toast({ title: "Modo Edición Video", description: `Editando video: ${videoToEdit.nombre}` });
   };
@@ -192,6 +269,8 @@ export function VideoManager() {
     if (!videoToDelete || !videoToDelete.id) return;
     setIsSubmitting(true);
     try {
+      // Note: Deleting from Supabase storage if image exists would be an enhancement here.
+      // For now, just deleting the DB record.
       const { error: deleteError } = await supabase
         .from(SUPABASE_TABLE_NAME)
         .delete()
@@ -199,7 +278,7 @@ export function VideoManager() {
       if (deleteError) throw deleteError;
       toast({ title: "Video Eliminado", description: `El video "${videoToDelete.nombre}" ha sido eliminado.` });
       fetchVideos();
-      fetchCategories(); // Re-fetch categories in case one becomes unused
+      fetchCategories();
       if (editingVideoId === videoToDelete.id) {
         cancelEdit();
       }
@@ -275,6 +354,38 @@ export function VideoManager() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="imagen"
+                  render={() => ( // field not directly used here, using ref and state
+                    <FormItem>
+                      <FormLabel>Imagen del Video (Opcional)</FormLabel>
+                      <div className="flex flex-col gap-2">
+                        <Input
+                          id="imagen"
+                          type="file"
+                          ref={imageFileRef}
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                         {(previewImage || (typeof watchedImagen === 'string' && watchedImagen.startsWith('http'))) && (
+                          <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border bg-muted mt-2">
+                            <Image 
+                              src={previewImage || (typeof watchedImagen === 'string' ? watchedImagen : 'https://placehold.co/300x200.png')} 
+                              alt="Vista previa de la imagen" 
+                              layout="fill" 
+                              objectFit="contain"
+                              data-ai-hint="video thumbnail preview" 
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <FormDescription>Sube una imagen para el video (máx 5MB).</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="categoria"
@@ -307,13 +418,15 @@ export function VideoManager() {
                             <CommandInput
                               placeholder="Busca o escribe una nueva categoría..."
                               value={field.value || ''}
-                              onValueChange={field.onChange} // Update RHF as user types
+                              onValueChange={(currentValue) => {
+                                field.onChange(currentValue); // Update RHF as user types
+                              }}
                             />
                             <CommandList>
                               <CommandEmpty>
                                 {isLoadingCategories
                                   ? "Cargando categorías..."
-                                  : (field.value && field.value.trim() !== "") 
+                                  : (form.getValues("categoria") && form.getValues("categoria").trim() !== "") 
                                     ? "No se encontró la categoría. Puedes crearla."
                                     : "No se encontraron categorías."
                                 }
@@ -342,18 +455,19 @@ export function VideoManager() {
                                   ))}
                                 </CommandGroup>
                               )}
-                              {field.value && field.value.trim() !== "" && !categories.some(c => c.toLowerCase() === field.value?.toLowerCase()) && (
+                              {form.getValues("categoria") && form.getValues("categoria").trim() !== "" && !categories.some(c => c.toLowerCase() === form.getValues("categoria").toLowerCase()) && (
                                 <CommandGroup heading="Acción">
                                  <CommandItem
-                                    key={`create-${field.value}`}
-                                    value={`create-${field.value}`}
+                                    key={`create-${form.getValues("categoria")}`}
+                                    value={`create-${form.getValues("categoria")}`} // Ensure this value is unique if needed
                                     onSelect={() => {
-                                      // Value is already in field.value from CommandInput
+                                      // Value is already in field.value from CommandInput onChange
+                                      // Just close the popover
                                       setIsComboboxOpen(false);
                                     }}
                                   >
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Crear nueva categoría: "{field.value}"
+                                    Crear nueva categoría: "{form.getValues("categoria")}"
                                   </CommandItem>
                                 </CommandGroup>
                               )}
@@ -409,25 +523,43 @@ export function VideoManager() {
           )}
           {!isLoadingVideos && !errorLoadingVideos && videos.map((video, index) => (
             <Card key={video.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 pt-3 px-4">
-                <CardTitle className="text-md font-semibold break-words">
-                   <span className="text-primary mr-2">{index + 1}.</span>
-                  {video.nombre}
-                </CardTitle>
+              <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-start gap-3">
+                {video.imagen ? (
+                   <div className="relative w-20 h-14 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                    <Image 
+                      src={video.imagen} 
+                      alt={`Imagen de ${video.nombre}`} 
+                      layout="fill" 
+                      objectFit="cover" 
+                      data-ai-hint="video thumbnail"
+                      onError={(e) => { const target = e.target as HTMLImageElement; target.src = 'https://placehold.co/80x56.png?text=Error'; target.srcset=''; }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                    <ImageOff className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-grow">
+                  <CardTitle className="text-md font-semibold break-words">
+                    <span className="text-primary mr-1">{index + 1}.</span>
+                    {video.nombre}
+                  </CardTitle>
+                  {video.categoria && (
+                    <div className="flex items-center text-xs text-muted-foreground mt-0.5">
+                      <Tag className="mr-1 h-3 w-3 text-sky-600" />
+                      <span>{video.categoria}</span>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
-              <CardContent className="pb-2 pt-0 px-4 space-y-1.5">
+              <CardContent className="pb-2 pt-1 px-4 space-y-1">
                 <div className="flex items-center text-sm text-muted-foreground">
                   <Link2 className="mr-1.5 h-3.5 w-3.5 shrink-0" />
                   <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate" title={video.url}>
                     {video.url}
                   </a>
                 </div>
-                {video.categoria && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Tag className="mr-1.5 h-3.5 w-3.5 shrink-0 text-sky-600" />
-                    <span>{video.categoria}</span>
-                  </div>
-                )}
                  <p className="text-xs text-muted-foreground/80">Subido: {formatDate(video.createdAt)}</p>
                  {video.updatedAt && video.updatedAt !== video.createdAt && (
                     <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(video.updatedAt)}</p>
@@ -466,4 +598,3 @@ export function VideoManager() {
     </div>
   );
 }
-
