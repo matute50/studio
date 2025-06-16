@@ -19,9 +19,15 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'otwvfihzaznyjvjtkvvd.supabase.co', // Added Supabase hostname
+        hostname: 'otwvfihzaznyjvjtkvvd.supabase.co', 
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        port: '',
+        pathname: '/vi/**',
       },
     ],
   },

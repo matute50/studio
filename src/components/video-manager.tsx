@@ -6,10 +6,10 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import Image from 'next/image'; // Added for Image component
+import Image from 'next/image';
 import type { VideoItem } from '@/types';
 
-import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient'; // Ensured uploadImageToSupabase is imported
+import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient';
 import { cn } from "@/lib/utils";
 
 import { Button } from '@/components/ui/button';
@@ -20,30 +20,60 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, Upload, ImageOff } from 'lucide-react'; // Added Upload, ImageOff
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const SUPABASE_TABLE_NAME = 'videos';
-const IMAGE_VIDEOS_BUCKET_NAME = 'imagenvideos'; // Bucket for video images
+const IMAGE_VIDEOS_BUCKET_NAME = 'imagenvideos';
 
 const videoSchema = z.object({
   nombre: z.string().min(3, { message: "El nombre del video debe tener al menos 3 caracteres." }).max(150, { message: "El nombre del video debe tener 150 caracteres o menos." }),
   url: z.string().url({ message: "Por favor, introduce una URL válida para el video." }),
   categoria: z.string().optional(),
-  imagen: z.any().optional() // Can be File, string (URL), or null/undefined
+  imagen: z.any().optional()
     .refine(value => {
-      if (!value) return true; // Optional, so null/undefined is fine
+      if (!value) return true;
       if (typeof value === 'string') return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/');
       if (value instanceof File) return value.type.startsWith('image/');
       return false;
     }, { message: "Debe ser una URL de imagen válida o un archivo de imagen." })
     .refine(value => {
-      if (value instanceof File) return value.size <= 5 * 1024 * 1024; // Max 5MB for new files
+      if (value instanceof File) return value.size <= 5 * 1024 * 1024;
       return true;
     }, { message: "La imagen no debe exceder los 5MB." }),
 });
 
 type VideoFormValues = z.infer<typeof videoSchema>;
+
+const getYoutubeThumbnailUrl = (youtubeUrl: string): string | null => {
+  if (!youtubeUrl) return null;
+  let videoId = null;
+  try {
+    const url = new URL(youtubeUrl);
+    if (url.hostname === 'www.youtube.com' || url.hostname === 'youtube.com') {
+      if (url.pathname.startsWith('/embed/')) {
+        const pathParts = url.pathname.split('/embed/');
+        if (pathParts[1]) {
+          videoId = pathParts[1].split('?')[0];
+        }
+      } else {
+        videoId = url.searchParams.get('v');
+      }
+    } else if (url.hostname === 'youtu.be') {
+      const pathParts = url.pathname.substring(1);
+      videoId = pathParts.split('?')[0];
+    }
+  } catch (e) {
+    // Invalid URL or not a YouTube URL
+    return null;
+  }
+
+  if (videoId) {
+    return `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`; // Medium quality
+  }
+  return null;
+};
+
 
 export function VideoManager() {
   const { toast } = useToast();
@@ -56,8 +86,8 @@ export function VideoManager() {
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [videoToDelete, setVideoToDelete] = React.useState<VideoItem | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
-  const imageFileRef = React.useRef<HTMLInputElement>(null); // Ref for image file input
-  const [previewImage, setPreviewImage] = React.useState<string | null>(null); // For image preview
+  const imageFileRef = React.useRef<HTMLInputElement>(null);
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
 
   const [categories, setCategories] = React.useState<string[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
@@ -139,7 +169,7 @@ export function VideoManager() {
     if (file) {
       if (!file.type.startsWith("image/")) {
         toast({ title: "Archivo no válido", description: "Por favor, sube una imagen.", variant: "destructive" });
-        form.setValue('imagen', null, { shouldValidate: true }); // Clear if invalid
+        form.setValue('imagen', null, { shouldValidate: true });
         setPreviewImage(null);
         return;
       }
@@ -191,9 +221,9 @@ export function VideoManager() {
       }
       finalImageUrlForSupabase = supUrl;
     } else if (typeof data.imagen === 'string' && data.imagen.startsWith('http')) {
-      finalImageUrlForSupabase = data.imagen; // Existing URL, not changed
+      finalImageUrlForSupabase = data.imagen;
     } else {
-      finalImageUrlForSupabase = null; // No image or cleared
+      finalImageUrlForSupabase = null;
     }
 
     try {
@@ -218,7 +248,7 @@ export function VideoManager() {
         videoPayload.createdAt = now;
         const { data: insertedData, error: insertError } = await supabase
           .from(SUPABASE_TABLE_NAME)
-          .insert([videoPayload as VideoItem]) // Cast as VideoItem for insert
+          .insert([videoPayload as VideoItem])
           .select()
           .single();
         if (insertError) throw insertError;
@@ -246,9 +276,9 @@ export function VideoManager() {
       nombre: videoToEdit.nombre,
       url: videoToEdit.url,
       categoria: videoToEdit.categoria || '',
-      imagen: videoToEdit.imagen || undefined, // Set to string URL if exists
+      imagen: videoToEdit.imagen || undefined,
     });
-    setPreviewImage(videoToEdit.imagen || null); // Set preview for existing image
+    setPreviewImage(videoToEdit.imagen || null);
     if (imageFileRef.current) imageFileRef.current.value = "";
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
     toast({ title: "Modo Edición Video", description: `Editando video: ${videoToEdit.nombre}` });
@@ -269,8 +299,6 @@ export function VideoManager() {
     if (!videoToDelete || !videoToDelete.id) return;
     setIsSubmitting(true);
     try {
-      // Note: Deleting from Supabase storage if image exists would be an enhancement here.
-      // For now, just deleting the DB record.
       const { error: deleteError } = await supabase
         .from(SUPABASE_TABLE_NAME)
         .delete()
@@ -357,7 +385,7 @@ export function VideoManager() {
                  <FormField
                   control={form.control}
                   name="imagen"
-                  render={() => ( // field not directly used here, using ref and state
+                  render={() => (
                     <FormItem>
                       <FormLabel>Imagen del Video (Opcional)</FormLabel>
                       <div className="flex flex-col gap-2">
@@ -372,16 +400,17 @@ export function VideoManager() {
                          {(previewImage || (typeof watchedImagen === 'string' && watchedImagen.startsWith('http'))) && (
                           <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border bg-muted mt-2">
                             <Image 
-                              src={previewImage || (typeof watchedImagen === 'string' ? watchedImagen : 'https://placehold.co/300x200.png')} 
+                              src={previewImage || (typeof watchedImagen === 'string' ? watchedImagen : 'https://placehold.co/300x200.png?text=Error')} 
                               alt="Vista previa de la imagen" 
                               layout="fill" 
                               objectFit="contain"
-                              data-ai-hint="video thumbnail preview" 
+                              data-ai-hint="video thumbnail preview"
+                              onError={(e) => { const target = e.target as HTMLImageElement; target.src = 'https://placehold.co/300x200.png?text=Error'; target.srcset=''; }}
                             />
                           </div>
                         )}
                       </div>
-                      <FormDescription>Sube una imagen para el video (máx 5MB).</FormDescription>
+                      <FormDescription>Sube una imagen para el video (máx 5MB). Si es un video de YouTube y no subes imagen, se intentará usar la miniatura de YouTube.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -419,7 +448,7 @@ export function VideoManager() {
                               placeholder="Busca o escribe una nueva categoría..."
                               value={field.value || ''}
                               onValueChange={(currentValue) => {
-                                field.onChange(currentValue); // Update RHF as user types
+                                field.onChange(currentValue);
                               }}
                             />
                             <CommandList>
@@ -459,10 +488,8 @@ export function VideoManager() {
                                 <CommandGroup heading="Acción">
                                  <CommandItem
                                     key={`create-${form.getValues("categoria")}`}
-                                    value={`create-${form.getValues("categoria")}`} // Ensure this value is unique if needed
+                                    value={`create-${form.getValues("categoria")}`}
                                     onSelect={() => {
-                                      // Value is already in field.value from CommandInput onChange
-                                      // Just close the popover
                                       setIsComboboxOpen(false);
                                     }}
                                   >
@@ -521,60 +548,77 @@ export function VideoManager() {
               <p className="text-sm text-muted-foreground">Usa el formulario para añadir tu primer video.</p>
             </div>
           )}
-          {!isLoadingVideos && !errorLoadingVideos && videos.map((video, index) => (
-            <Card key={video.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-start gap-3">
-                {video.imagen ? (
-                   <div className="relative w-20 h-14 rounded-md overflow-hidden border bg-muted flex-shrink-0">
-                    <Image 
-                      src={video.imagen} 
-                      alt={`Imagen de ${video.nombre}`} 
-                      layout="fill" 
-                      objectFit="cover" 
-                      data-ai-hint="video thumbnail"
-                      onError={(e) => { const target = e.target as HTMLImageElement; target.src = 'https://placehold.co/80x56.png?text=Error'; target.srcset=''; }}
-                    />
-                  </div>
-                ) : (
-                  <div className="w-20 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                    <ImageOff className="w-6 h-6 text-muted-foreground" />
-                  </div>
-                )}
-                <div className="flex-grow">
-                  <CardTitle className="text-md font-semibold break-words">
-                    <span className="text-primary mr-1">{index + 1}.</span>
-                    {video.nombre}
-                  </CardTitle>
-                  {video.categoria && (
-                    <div className="flex items-center text-xs text-muted-foreground mt-0.5">
-                      <Tag className="mr-1 h-3 w-3 text-sky-600" />
-                      <span>{video.categoria}</span>
+          {!isLoadingVideos && !errorLoadingVideos && videos.map((video, index) => {
+            let displayImageUrl: string | null = null;
+            let imageAlt = `Imagen de ${video.nombre}`;
+            let imageAiHint = 'video placeholder';
+            const userUploadedImage = video.imagen;
+            const youtubeThumbnail = getYoutubeThumbnailUrl(video.url);
+
+            if (userUploadedImage) {
+              displayImageUrl = userUploadedImage;
+              imageAiHint = 'video thumbnail';
+            } else if (youtubeThumbnail) {
+              displayImageUrl = youtubeThumbnail;
+              imageAlt = `Miniatura de YouTube para ${video.nombre}`;
+              imageAiHint = 'youtube thumbnail';
+            }
+
+            return (
+              <Card key={video.id} className="shadow-md hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-start gap-3">
+                  {displayImageUrl ? (
+                    <div className="relative w-20 h-14 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                      <Image 
+                        src={displayImageUrl}
+                        alt={imageAlt} 
+                        layout="fill" 
+                        objectFit="cover" 
+                        data-ai-hint={imageAiHint}
+                        onError={(e) => { const target = e.target as HTMLImageElement; target.src = 'https://placehold.co/80x56.png?text=Error'; target.srcset=''; }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                      <ImageOff className="w-6 h-6 text-muted-foreground" data-ai-hint={imageAiHint} />
                     </div>
                   )}
-                </div>
-              </CardHeader>
-              <CardContent className="pb-2 pt-1 px-4 space-y-1">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Link2 className="mr-1.5 h-3.5 w-3.5 shrink-0" />
-                  <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate" title={video.url}>
-                    {video.url}
-                  </a>
-                </div>
-                 <p className="text-xs text-muted-foreground/80">Subido: {formatDate(video.createdAt)}</p>
-                 {video.updatedAt && video.updatedAt !== video.createdAt && (
-                    <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(video.updatedAt)}</p>
-                 )}
-              </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Edit3 className="mr-1 h-3 w-3" /> Editar
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+                  <div className="flex-grow">
+                    <CardTitle className="text-md font-semibold break-words">
+                      <span className="text-primary mr-1">{index + 1}.</span>
+                      {video.nombre}
+                    </CardTitle>
+                    {video.categoria && (
+                      <div className="flex items-center text-xs text-muted-foreground mt-0.5">
+                        <Tag className="mr-1 h-3 w-3 text-sky-600" />
+                        <span>{video.categoria}</span>
+                      </div>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pb-2 pt-1 px-4 space-y-1">
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Link2 className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                    <a href={video.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate" title={video.url}>
+                      {video.url}
+                    </a>
+                  </div>
+                   <p className="text-xs text-muted-foreground/80">Subido: {formatDate(video.createdAt)}</p>
+                   {video.updatedAt && video.updatedAt !== video.createdAt && (
+                      <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(video.updatedAt)}</p>
+                   )}
+                </CardContent>
+                <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                    <Edit3 className="mr-1 h-3 w-3" /> Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                    <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                  </Button>
+                </CardFooter>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
