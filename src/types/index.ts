@@ -44,14 +44,6 @@ export interface VideoItem {
   updatedAt?: string;
 }
 
-export interface InterviewItem {
-  id?: string;
-  nombre: string;
-  url: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
 export interface BannerItem {
   id?: string;
   nombre: string;
@@ -62,7 +54,7 @@ export interface BannerItem {
 }
 
 export interface StreamingConfig {
-  id?: string; // Made ID optional as client might not have it before creation
+  id?: string; 
   nombre: string;
   url_de_streaming: string;
   isActive: boolean;
@@ -77,12 +69,4 @@ export interface HeaderImageItem {
   mode: 'light' | 'dark';
   createdAt: string; 
   updatedAt: string; 
-}
-
-export interface HcdItem {
-  id?: string;
-  nombre: string;
-  url: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
