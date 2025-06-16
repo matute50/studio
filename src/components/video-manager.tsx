@@ -9,14 +9,17 @@ import Link from 'next/link';
 import type { VideoItem } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
+import { cn } from "@/lib/utils";
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo } from 'lucide-react';
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const SUPABASE_TABLE_NAME = 'videos';
@@ -41,6 +44,10 @@ export function VideoManager() {
   const [videoToDelete, setVideoToDelete] = React.useState<VideoItem | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
+  const [categories, setCategories] = React.useState<string[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = React.useState(false);
+
   const form = useForm<VideoFormValues>({
     resolver: zodResolver(videoSchema),
     defaultValues: {
@@ -50,6 +57,27 @@ export function VideoManager() {
     },
     mode: "onChange",
   });
+
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLE_NAME)
+        .select('categoria');
+
+      if (error) throw error;
+
+      const uniqueCategories = Array.from(
+        new Set(data.map(item => item.categoria).filter(cat => cat && cat.trim() !== '') as string[])
+      ).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      setCategories(uniqueCategories);
+    } catch (catError: any) {
+      toast({ title: "Error al Cargar Categorías", description: catError.message, variant: "destructive" });
+      setCategories([]);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
 
   const fetchVideos = async () => {
     setIsLoadingVideos(true);
@@ -63,7 +91,7 @@ export function VideoManager() {
       if (error) throw error;
       setVideos(data || []);
     } catch (error: any) {
-      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}. Verifica que la tabla '${SUPABASE_TABLE_NAME}' exista y tenga RLS configuradas. Columnas esperadas: nombre, url, categoria, createdAt, updatedAt.`;
+      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}. Verifica que la tabla '${SUPABASE_TABLE_NAME}' exista y tenga RLS configuradas.`;
       setErrorLoadingVideos(description);
       toast({
         title: "Error al Cargar Videos",
@@ -77,6 +105,7 @@ export function VideoManager() {
 
   React.useEffect(() => {
     fetchVideos();
+    fetchCategories();
   }, []);
 
   const resetForm = () => {
@@ -87,13 +116,14 @@ export function VideoManager() {
   const onSubmit = async (data: VideoFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
+    const categoriaToSave = data.categoria && data.categoria.trim() !== "" ? data.categoria.trim() : null;
 
     try {
       if (editingVideoId) {
         const videoPayload: Partial<VideoItem> = {
           nombre: data.nombre,
           url: data.url,
-          categoria: data.categoria || null,
+          categoria: categoriaToSave,
           updatedAt: now,
         };
         const { data: updatedData, error: updateError } = await supabase
@@ -105,10 +135,10 @@ export function VideoManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Video Actualizado!", description: `El video "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
-        const payloadToInsert: Omit<VideoItem, 'id' | 'fecha'> = { // 'fecha' is not in the form
+        const payloadToInsert = {
           nombre: data.nombre,
           url: data.url,
-          categoria: data.categoria || undefined,
+          categoria: categoriaToSave,
           createdAt: now,
           updatedAt: now,
         };
@@ -121,11 +151,12 @@ export function VideoManager() {
         toast({ title: "¡Video Guardado!", description: `El video "${insertedData?.nombre}" ha sido guardado.` });
       }
       fetchVideos();
+      fetchCategories(); // Re-fetch categories in case a new one was added
       resetForm();
     } catch (error: any) {
       toast({
         title: "Error al Guardar Video",
-        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs y la tabla '${SUPABASE_TABLE_NAME}'. Columnas esperadas: nombre, url, categoria.`,
+        description: `No se pudo guardar: ${error.message || 'Error desconocido'}.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -168,6 +199,7 @@ export function VideoManager() {
       if (deleteError) throw deleteError;
       toast({ title: "Video Eliminado", description: `El video "${videoToDelete.nombre}" ha sido eliminado.` });
       fetchVideos();
+      fetchCategories(); // Re-fetch categories in case one becomes unused
       if (editingVideoId === videoToDelete.id) {
         cancelEdit();
       }
@@ -247,11 +279,91 @@ export function VideoManager() {
                   control={form.control}
                   name="categoria"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categoría (Opcional)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ej: Deportes, Noticias Locales, Eventos" {...field} value={field.value ?? ''} />
-                      </FormControl>
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Categoría</FormLabel>
+                      <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={isComboboxOpen}
+                              className={cn(
+                                "w-full justify-between font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? categories.find(
+                                    (cat) => cat.toLowerCase() === field.value?.toLowerCase()
+                                  ) || field.value 
+                                : "Selecciona o crea una categoría"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                          <Command>
+                            <CommandInput
+                              placeholder="Busca o escribe una nueva categoría..."
+                              value={field.value || ''}
+                              onValueChange={field.onChange} // Update RHF as user types
+                            />
+                            <CommandList>
+                              <CommandEmpty>
+                                {isLoadingCategories
+                                  ? "Cargando categorías..."
+                                  : (field.value && field.value.trim() !== "") 
+                                    ? "No se encontró la categoría. Puedes crearla."
+                                    : "No se encontraron categorías."
+                                }
+                              </CommandEmpty>
+                              {!isLoadingCategories && categories.length > 0 && (
+                                <CommandGroup heading="Categorías existentes">
+                                  {categories.map((category) => (
+                                    <CommandItem
+                                      value={category}
+                                      key={category}
+                                      onSelect={() => {
+                                        form.setValue("categoria", category);
+                                        setIsComboboxOpen(false);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          field.value?.toLowerCase() === category.toLowerCase()
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {category}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              )}
+                              {field.value && field.value.trim() !== "" && !categories.some(c => c.toLowerCase() === field.value?.toLowerCase()) && (
+                                <CommandGroup heading="Acción">
+                                 <CommandItem
+                                    key={`create-${field.value}`}
+                                    value={`create-${field.value}`}
+                                    onSelect={() => {
+                                      // Value is already in field.value from CommandInput
+                                      setIsComboboxOpen(false);
+                                    }}
+                                  >
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Crear nueva categoría: "{field.value}"
+                                  </CommandItem>
+                                </CommandGroup>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        Selecciona una categoría existente o escribe una nueva.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -354,3 +466,4 @@ export function VideoManager() {
     </div>
   );
 }
+
