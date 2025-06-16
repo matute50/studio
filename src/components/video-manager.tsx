@@ -22,8 +22,8 @@ import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as Shadcn
 const SUPABASE_TABLE_NAME = 'videos';
 
 const videoSchema = z.object({
-  nombre: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
-  url: z.string().url({ message: "Por favor, introduce una URL válida." }),
+  nombre: z.string().min(3, { message: "El nombre del video debe tener al menos 3 caracteres." }).max(150, { message: "El nombre del video debe tener 150 caracteres o menos." }),
+  url: z.string().url({ message: "Por favor, introduce una URL válida para el video." }),
   categoria: z.string().optional(),
 });
 
@@ -63,7 +63,7 @@ export function VideoManager() {
       if (error) throw error;
       setVideos(data || []);
     } catch (error: any) {
-      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}. Verifica que la tabla '${SUPABASE_TABLE_NAME}' exista y tenga RLS configuradas.`;
+      const description = `No se pudieron cargar los videos: ${error.message || 'Error desconocido'}. Verifica que la tabla '${SUPABASE_TABLE_NAME}' exista y tenga RLS configuradas. Columnas esperadas: nombre, url, categoria, createdAt, updatedAt.`;
       setErrorLoadingVideos(description);
       toast({
         title: "Error al Cargar Videos",
@@ -93,7 +93,7 @@ export function VideoManager() {
         const videoPayload: Partial<VideoItem> = {
           nombre: data.nombre,
           url: data.url,
-          categoria: data.categoria || null, // Send null if empty for optional field
+          categoria: data.categoria || null,
           updatedAt: now,
         };
         const { data: updatedData, error: updateError } = await supabase
@@ -105,7 +105,7 @@ export function VideoManager() {
         if (updateError) throw updateError;
         toast({ title: "¡Video Actualizado!", description: `El video "${updatedData?.nombre}" ha sido actualizado.` });
       } else {
-        const payloadToInsert: Omit<VideoItem, 'id'> = {
+        const payloadToInsert: Omit<VideoItem, 'id' | 'fecha'> = { // 'fecha' is not in the form
           nombre: data.nombre,
           url: data.url,
           categoria: data.categoria || undefined,
@@ -125,7 +125,7 @@ export function VideoManager() {
     } catch (error: any) {
       toast({
         title: "Error al Guardar Video",
-        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs y la tabla '${SUPABASE_TABLE_NAME}'.`,
+        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Revisa los logs y la tabla '${SUPABASE_TABLE_NAME}'. Columnas esperadas: nombre, url, categoria.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -185,7 +185,7 @@ export function VideoManager() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Fecha inválida';
-      return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+      return date.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour:'2-digit', minute: '2-digit' });
     } catch (e: any) {
       return 'Error al formatear fecha';
     }
@@ -224,7 +224,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>Nombre del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Resumen del Partido" {...field} />
+                        <Input placeholder="Ej: Resumen del Partido X vs Y" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -237,7 +237,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>URL del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://youtube.com/watch?v=..." {...field} />
+                        <Input placeholder="https://www.youtube.com/watch?v=xxxxxxxxxxx" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -250,7 +250,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>Categoría (Opcional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Deportes, Noticias, Entretenimiento" {...field} value={field.value ?? ''} />
+                        <Input placeholder="Ej: Deportes, Noticias Locales, Eventos" {...field} value={field.value ?? ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

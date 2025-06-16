@@ -40,8 +40,8 @@ export interface VideoItem {
   id?: string;
   nombre: string;
   url: string;
-  categoria?: string; // Category is optional
-  fecha?: string | null; // Date remains optional in the type
+  categoria?: string | null; // Category is optional
+  fecha?: string | null; // Date remains optional in the type, not in current form
   createdAt?: string;
   updatedAt?: string;
 }
@@ -72,4 +72,3 @@ export interface HeaderImageItem {
   createdAt: string; 
   updatedAt: string; 
 }
-
