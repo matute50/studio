@@ -564,7 +564,7 @@ export function AdManager() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Publicidad y Banners</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary uppercase">Gestor de Publicidad y Banners</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -653,7 +653,7 @@ export function AdManager() {
 
           {/* Anuncios Activos */}
           <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Anuncios Activos</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-4 uppercase">Anuncios Activos</h2>
             {isLoadingAds && (
               <div className="flex justify-center items-center py-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -825,7 +825,7 @@ export function AdManager() {
           
           {/* Banners Activos */}
           <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">Banners Activos</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-4 uppercase">Banners Activos</h2>
             {isLoadingBanners && (
               <div className="flex justify-center items-center py-10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

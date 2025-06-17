@@ -451,7 +451,7 @@ export function NewsEditor() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Editor NewsFlash</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary uppercase">Editor NewsFlash</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -491,7 +491,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Slug (URL amigable)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Se generará automáticamente del título" {...field} readOnly className="bg-muted/50 cursor-not-allowed" />
+                        <Input {...field} readOnly className="bg-muted/50 cursor-not-allowed" />
                       </FormControl>
                       <FormDescription>Este es el fragmento de URL generado para SEO.</FormDescription>
                       <FormMessage />
@@ -683,7 +683,7 @@ export function NewsEditor() {
           {!isLoadingArticles && !errorLoadingArticles && articles.length > 0 && (
               articles.map((article, index) => (
                 <ArticleListItem
-                  key={article.id || index} // Use index as fallback key if id is somehow undefined
+                  key={article.id || index} 
                   article={article}
                   index={index}
                   onEdit={handleEdit}

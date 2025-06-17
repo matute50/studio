@@ -73,7 +73,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-4 sm:p-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-10 gap-3 sm:gap-4">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary">
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-primary uppercase">
           Panel de Control
         </h1>
       </header>
@@ -96,7 +96,7 @@ export default function HomePage() {
       </div>
 
       <div className="mt-12 w-full max-w-6xl">
-        <h2 className="text-2xl font-semibold text-center text-foreground mb-6">Enlaces a Medios</h2>
+        <h2 className="text-2xl font-semibold text-center text-foreground mb-6 uppercase">Enlaces a Medios</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {externalNewsSites.map((site) => (
             <a

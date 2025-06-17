@@ -266,7 +266,7 @@ export function StreamingManager() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Configuración de URLs de Streaming</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary uppercase">Configuración de URLs de Streaming</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -332,7 +332,7 @@ export function StreamingManager() {
         </Card>
 
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left">Configuraciones de Streaming Guardadas</h2>
+          <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left uppercase">Configuraciones de Streaming Guardadas</h2>
           <div className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-2">
             {isLoading && (
               <div className="flex justify-center items-center py-10">

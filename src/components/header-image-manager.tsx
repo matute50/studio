@@ -250,7 +250,7 @@ export function HeaderImageManager() {
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
         <ImageUp className="h-10 w-10 text-primary" />
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Gestor de Imágenes Header</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary uppercase">Gestor de Imágenes Header</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -349,7 +349,7 @@ export function HeaderImageManager() {
       </Card>
 
       <div>
-        <h2 className="text-2xl font-semibold text-foreground mb-6 text-center">Imágenes de Header Guardadas</h2>
+        <h2 className="text-2xl font-semibold text-foreground mb-6 text-center uppercase">Imágenes de Header Guardadas</h2>
         {isLoadingImages && (
           <div className="flex justify-center items-center py-10">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

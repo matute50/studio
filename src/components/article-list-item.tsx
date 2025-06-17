@@ -1,7 +1,7 @@
 
 "use client";
 
-import * as React from 'react'; // Corrected import
+import * as React from 'react';
 import type { NewsArticle } from '@/types';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,15 +54,15 @@ const ArticleListItemComponent: React.FC<ArticleListItemProps> = ({
             <Image
               src={article.imageUrl}
               alt={`Imagen para ${article.title}`}
-              fill // Changed from layout="fill"
-              style={{ objectFit: 'cover' }} // Added for fill
+              fill 
+              style={{ objectFit: 'cover' }} 
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = 'https://placehold.co/80x60.png';
                 target.srcset = '';
               }}
               data-ai-hint="noticia miniatura"
-              sizes="(max-width: 768px) 100vw, 80px" // Added sizes attribute
+              sizes="(max-width: 768px) 100vw, 80px" 
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-muted">

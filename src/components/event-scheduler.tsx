@@ -267,7 +267,7 @@ export function EventScheduler() {
   return (
     <div className="container mx-auto px-4 py-8">
       <header className="flex flex-col sm:flex-row items-center justify-center text-center mb-8 gap-3 sm:gap-4">
-        <h1 className="text-4xl font-bold tracking-tight text-primary">Agenda de Eventos</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-primary uppercase">Agenda de Eventos</h1>
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
@@ -371,7 +371,7 @@ export function EventScheduler() {
         </Card>
 
         <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
-          <h2 className="text-2xl font-semibold text-foreground mb-4">Eventos Programados</h2>
+          <h2 className="text-2xl font-semibold text-foreground mb-4 uppercase">Eventos Programados</h2>
           {isLoadingEvents && (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
