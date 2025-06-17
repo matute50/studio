@@ -1,7 +1,7 @@
 
 "use client";
 
-import *_React from 'react'; // More specific import name
+import * as React from 'react'; // Corrected import
 import type { NewsArticle } from '@/types';
 import Image from 'next/image';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -108,5 +108,5 @@ const ArticleListItemComponent: React.FC<ArticleListItemProps> = ({
   );
 };
 
-export const ArticleListItem = _React.memo(ArticleListItemComponent);
+export const ArticleListItem = React.memo(ArticleListItemComponent);
 ArticleListItem.displayName = 'ArticleListItem';
