@@ -477,7 +477,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Título</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -507,7 +507,6 @@ export function NewsEditor() {
                       <FormLabel>Descripción (Meta Tag)</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="" 
                           {...field} 
                           rows={3} 
                           maxLength={160}
@@ -527,7 +526,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Texto del Artículo</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="" {...field} rows={10} />
+                        <Textarea {...field} rows={10} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -543,15 +542,13 @@ export function NewsEditor() {
                       <div className="flex flex-col sm:flex-row gap-2 items-start">
                         <FormControl className="flex-grow">
                           <Input 
-                            placeholder="" 
-                            {...field} 
                             value={field.value === "https://placehold.co/600x400.png" ? "" : field.value}
                             onChange={e => {
                               field.onChange(e.target.value);
                             }}
                           />
                         </FormControl>
-                        <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
+                        <Button type="button" variant="default" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
                           <Upload className="mr-2 h-4 w-4" />
                           Subir Imagen
                         </Button>

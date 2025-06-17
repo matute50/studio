@@ -592,7 +592,7 @@ export function AdManager() {
                       <FormItem>
                         <FormLabel>Nombre del Anuncio</FormLabel>
                         <FormControl>
-                          <Input placeholder="" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -607,11 +607,10 @@ export function AdManager() {
                         <div className="flex flex-col sm:flex-row gap-2 items-start">
                           <FormControl className="flex-grow">
                             <Input 
-                              placeholder="" 
                               {...field}
                             />
                           </FormControl>
-                          <Button type="button" variant="outline" onClick={() => adFileInputRef.current?.click()} className="w-full sm:w-auto">
+                          <Button type="button" variant="default" onClick={() => adFileInputRef.current?.click()} className="w-full sm:w-auto">
                             <Upload className="mr-2 h-4 w-4" />
                             Subir Imagen
                           </Button>
@@ -765,7 +764,7 @@ export function AdManager() {
                       <FormItem>
                         <FormLabel>Nombre del Banner</FormLabel>
                         <FormControl>
-                          <Input placeholder="" {...field} />
+                          <Input {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -780,11 +779,10 @@ export function AdManager() {
                         <div className="flex flex-col sm:flex-row gap-2 items-start">
                           <FormControl className="flex-grow">
                             <Input 
-                              placeholder="" 
                               {...field}
                             />
                           </FormControl>
-                          <Button type="button" variant="outline" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto">
+                          <Button type="button" variant="default" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto">
                             <Upload className="mr-2 h-4 w-4" />
                             Subir Imagen
                           </Button>
