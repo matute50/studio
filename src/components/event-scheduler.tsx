@@ -8,7 +8,7 @@ import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale'; 
 import Link from 'next/link';
-import Image from 'next/image';
+
 import type { CalendarEvent } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -290,7 +290,7 @@ export function EventScheduler() {
                     <FormItem>
                       <FormLabel>Nombre del Evento</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -395,7 +395,7 @@ export function EventScheduler() {
           {!isLoadingEvents && !errorLoadingEvents && events.map((event, index) => (
             <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3 pt-4 px-4">
-                <CardTitle className="text-lg font-semibold break-words">
+                <CardTitle className="text-lg font-semibold break-words uppercase">
                    <span className="text-primary mr-2">{index + 1}.</span>
                   {event.name}
                 </CardTitle>
@@ -423,7 +423,7 @@ export function EventScheduler() {
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
-            <AlertDialogTitleComponent>¿Estás seguro de eliminar este evento?</AlertDialogTitleComponent>
+            <AlertDialogTitleComponent>¿ESTÁS SEGURO DE ELIMINAR ESTE EVENTO?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. El evento "{eventToDelete?.name || 'seleccionado'}" será eliminado permanentemente.
             </AlertDialogDescription>

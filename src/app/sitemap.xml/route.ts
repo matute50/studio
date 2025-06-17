@@ -11,11 +11,15 @@ interface SitemapArticle {
 }
 
 // Function to fetch articles from Supabase
-// Consider moving Supabase URL and anon key to environment variables for better security and flexibility
-const SUPABASE_URL = "https://otwvfihzaznyjvjtkvvd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90d3ZmaWh6YXpueWp2anRrdnZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxMDQ3OTAsImV4cCI6MjA2MDY4MDc5MH0.YbKdivZM6gJCdXAf51Xctn8IpKhQCrMch89NoHwP0Z4";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const getArticles = async (): Promise<SitemapArticle[]> => {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error("Sitemap: Supabase URL or Anon Key is not defined in environment variables.");
+    return [];
+  }
+
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/articles?select=slug,updatedAt&order=updatedAt.desc`, {
       headers: {

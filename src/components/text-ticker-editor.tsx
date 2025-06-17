@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import Image from 'next/image';
+
 import type { TextoTicker } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -318,7 +318,7 @@ export function TextTickerEditor() {
       <div className="space-y-8 mt-8">
         <Card className="shadow-xl lg:max-w-3xl mx-auto" ref={editorFormCardRef}>
           <CardHeader>
-            <CardTitle>{editingTextId ? "Editar Texto del Ticker" : "Nuevo Texto para Ticker"}</CardTitle>
+            <CardTitle className="uppercase">{editingTextId ? "Editar Texto del Ticker" : "Nuevo Texto para Ticker"}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -330,7 +330,7 @@ export function TextTickerEditor() {
                     <FormItem>
                       <FormLabel>Texto del Ticker</FormLabel>
                       <FormControl>
-                        <Textarea {...field} rows={5} />
+                        <Textarea {...field} rows={5} placeholder="" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -444,7 +444,7 @@ export function TextTickerEditor() {
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
-            <AlertDialogTitleComponent>¿Estás absolutamente seguro?</AlertDialogTitleComponent>
+            <AlertDialogTitleComponent>¿ESTÁS ABSOLUTAMENTE SEGURO?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Esto eliminará permanentemente el texto del ticker: 
               "{textToDelete?.text.substring(0, 50) || 'seleccionado'}{textToDelete && textToDelete.text.length > 50 ? '...' : ''}"
