@@ -338,7 +338,7 @@ export function VideoManager() {
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
-          <Button variant="outline" size="sm">
+          <Button variant="default" size="sm">
             <Home className="mr-2 h-4 w-4" />
             Volver al Inicio
           </Button>
@@ -363,7 +363,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>Nombre del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -376,7 +376,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>URL del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

@@ -308,7 +308,7 @@ export function TextTickerEditor() {
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
-          <Button variant="outline" size="sm">
+          <Button variant="default" size="sm">
             <Home className="mr-2 h-4 w-4" />
             Volver al Inicio
           </Button>
@@ -330,7 +330,7 @@ export function TextTickerEditor() {
                     <FormItem>
                       <FormLabel>Texto del Ticker</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="" {...field} rows={5} />
+                        <Textarea {...field} rows={5} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -463,5 +463,4 @@ export function TextTickerEditor() {
   );
 }
     
-
     

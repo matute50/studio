@@ -271,7 +271,7 @@ export function EventScheduler() {
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
-          <Button variant="outline" size="sm">
+          <Button variant="default" size="sm">
             <Home className="mr-2 h-4 w-4" />
             Volver al Inicio
           </Button>
@@ -290,7 +290,7 @@ export function EventScheduler() {
                     <FormItem>
                       <FormLabel>Nombre del Evento</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

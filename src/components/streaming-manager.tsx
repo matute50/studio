@@ -270,7 +270,7 @@ export function StreamingManager() {
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
-          <Button variant="outline" size="sm">
+          <Button variant="default" size="sm">
             <Home className="mr-2 h-4 w-4" />
             Volver al Inicio
           </Button>
@@ -295,7 +295,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>Nombre del Stream</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -308,7 +308,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>URL de Streaming</FormLabel>
                       <FormControl>
-                        <Input placeholder="" {...field} />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
