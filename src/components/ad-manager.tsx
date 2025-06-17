@@ -592,7 +592,7 @@ export function AdManager() {
                       <FormItem>
                         <FormLabel>Nombre del Anuncio</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ej: Venta de Verano" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -607,7 +607,7 @@ export function AdManager() {
                         <div className="flex flex-col sm:flex-row gap-2 items-start">
                           <FormControl className="flex-grow">
                             <Input 
-                              placeholder="https://ejemplo.com/imagen.png o subir" 
+                              placeholder="" 
                               {...field}
                             />
                           </FormControl>
@@ -765,7 +765,7 @@ export function AdManager() {
                       <FormItem>
                         <FormLabel>Nombre del Banner</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ej: Banner Principal Promociones" {...field} />
+                          <Input placeholder="" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -780,7 +780,7 @@ export function AdManager() {
                         <div className="flex flex-col sm:flex-row gap-2 items-start">
                           <FormControl className="flex-grow">
                             <Input 
-                              placeholder="https://ejemplo.com/banner.png o subir" 
+                              placeholder="" 
                               {...field}
                             />
                           </FormControl>

@@ -295,7 +295,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>Nombre del Stream</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Canal Principal, Evento Especial" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -308,7 +308,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>URL de Streaming</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://ejemplo.com/live/stream.m3u8" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

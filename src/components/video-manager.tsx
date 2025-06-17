@@ -363,7 +363,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>Nombre del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Resumen del Partido X vs Y" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -376,7 +376,7 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>URL del Video</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://www.youtube.com/watch?v=xxxxxxxxxxx" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

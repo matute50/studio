@@ -290,7 +290,7 @@ export function EventScheduler() {
                     <FormItem>
                       <FormLabel>Nombre del Evento</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ej: Conferencia Anual" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

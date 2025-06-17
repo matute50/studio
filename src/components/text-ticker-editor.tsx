@@ -330,7 +330,7 @@ export function TextTickerEditor() {
                     <FormItem>
                       <FormLabel>Texto del Ticker</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Escribe el mensaje para el ticker aquí..." {...field} rows={5} />
+                        <Textarea placeholder="" {...field} rows={5} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

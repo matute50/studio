@@ -278,7 +278,7 @@ export function HeaderImageManager() {
                   <FormItem>
                     <FormLabel>Nombre de la Imagen</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ej: Logo Principal Claro" {...field} />
+                      <Input placeholder="" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -477,7 +477,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Título</FormLabel>
                       <FormControl>
-                        <Input placeholder="Introduce el título del artículo" {...field} />
+                        <Input placeholder="" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -507,7 +507,7 @@ export function NewsEditor() {
                       <FormLabel>Descripción (Meta Tag)</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Breve resumen de la noticia para buscadores y redes sociales (máx. 160 caracteres)." 
+                          placeholder="" 
                           {...field} 
                           rows={3} 
                           maxLength={160}
@@ -527,7 +527,7 @@ export function NewsEditor() {
                     <FormItem>
                       <FormLabel>Texto del Artículo</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Escribe tu artículo de noticias aquí..." {...field} rows={10} />
+                        <Textarea placeholder="" {...field} rows={10} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -543,7 +543,7 @@ export function NewsEditor() {
                       <div className="flex flex-col sm:flex-row gap-2 items-start">
                         <FormControl className="flex-grow">
                           <Input 
-                            placeholder="https://ejemplo.com/imagen.png o subir" 
+                            placeholder="" 
                             {...field} 
                             value={field.value === "https://placehold.co/600x400.png" ? "" : field.value}
                             onChange={e => {
