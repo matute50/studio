@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -91,13 +90,12 @@ export function EventScheduler() {
     setIsLoadingEvents(true);
     setErrorLoadingEvents(null);
     try {
-      const twelveHoursAgo = new Date();
-      twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+      const now = new Date();
 
       const { data, error } = await supabase
         .from('eventos_calendario')
         .select('*')
-        .gte('eventDateTime', twelveHoursAgo.toISOString()) 
+        .gte('eventDateTime', now.toISOString()) 
         .order('eventDateTime', { ascending: true });
 
       if (error) throw error;
@@ -280,7 +278,7 @@ export function EventScheduler() {
                     <FormItem>
                       <FormLabel>Nombre del Evento</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="" />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
