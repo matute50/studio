@@ -37,6 +37,18 @@ type EventFormValues = z.infer<typeof eventSchema>;
 const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 const minuteOptions = Array.from({ length: 60 }, (_, i) => i.toString().padStart(2, '0'));
 
+const combineDateAndTime = (date: Date, hourStr: string, minuteStr: string): Date => {
+  const newDateTime = new Date(date);
+  const hour = parseInt(hourStr, 10);
+  const minute = parseInt(minuteStr, 10);
+  
+  newDateTime.setHours(isNaN(hour) ? 0 : hour);
+  newDateTime.setMinutes(isNaN(minute) ? 0 : minute);
+  newDateTime.setSeconds(0);
+  newDateTime.setMilliseconds(0);
+  return newDateTime;
+};
+
 export function EventScheduler() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -67,22 +79,7 @@ export function EventScheduler() {
     const representativeDate = calendarDates && calendarDates.length > 0 ? calendarDates[0] : undefined;
 
     if (representativeDate) {
-      const newDateTime = new Date(representativeDate);
-      const hour = parseInt(eventHour, 10);
-      const minute = parseInt(eventMinute, 10);
-      
-      if (!isNaN(hour) && hour >= 0 && hour <= 23) {
-        newDateTime.setHours(hour);
-      } else {
-        newDateTime.setHours(0); 
-      }
-      if (!isNaN(minute) && minute >= 0 && minute <= 59) {
-        newDateTime.setMinutes(minute);
-      } else {
-        newDateTime.setMinutes(0); 
-      }
-      newDateTime.setSeconds(0);
-      newDateTime.setMilliseconds(0);
+      const newDateTime = combineDateAndTime(representativeDate, eventHour, eventMinute);
       form.setValue('eventDateTime', newDateTime, { shouldValidate: true, shouldDirty: true });
     } else {
       form.setValue('eventDateTime', undefined, { shouldValidate: true, shouldDirty: true });
@@ -162,14 +159,7 @@ export function EventScheduler() {
         }
 
         const eventsToCreate = calendarDates.map(date => {
-          const eventSpecificDateTime = new Date(date);
-          const hour = parseInt(eventHour, 10);
-          const minute = parseInt(eventMinute, 10);
-
-          eventSpecificDateTime.setHours(isNaN(hour) ? 0 : hour);
-          eventSpecificDateTime.setMinutes(isNaN(minute) ? 0 : minute);
-          eventSpecificDateTime.setSeconds(0);
-          eventSpecificDateTime.setMilliseconds(0);
+          const eventSpecificDateTime = combineDateAndTime(date, eventHour, eventMinute);
 
           return {
             name: data.name,
