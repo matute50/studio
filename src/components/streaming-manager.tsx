@@ -35,25 +35,28 @@ const getYoutubeEmbedUrl = (url: string): string | null => {
   let videoId: string | null = null;
   try {
     const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname;
+
     if (hostname.includes('youtube.com')) {
-      if (urlObj.pathname.includes('/embed/')) {
-        videoId = urlObj.pathname.split('/embed/')[1].split('?')[0];
-      } else {
+      if (pathname.startsWith('/watch')) {
         videoId = urlObj.searchParams.get('v');
+      } else if (pathname.startsWith('/embed/')) {
+        videoId = pathname.split('/embed/')[1].split('?')[0];
+      } else if (pathname.startsWith('/live/')) {
+        videoId = pathname.split('/live/')[1].split('?')[0];
       }
     } else if (hostname.includes('youtu.be')) {
-      videoId = urlObj.pathname.substring(1).split('?')[0];
+      videoId = pathname.substring(1).split('?')[0];
     }
   } catch (e) {
     return null;
   }
-  
+
   if (videoId) {
     return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
   }
-  
+
   return null;
 };
 
@@ -543,5 +546,3 @@ export function StreamingManager() {
     </div>
   );
 }
-
-    
