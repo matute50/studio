@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
+import Hls from 'hls.js';
 import type { StreamingConfig } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
@@ -41,8 +42,32 @@ export function StreamingManager() {
   const [streamToDelete, setStreamToDelete] = React.useState<StreamingConfig | null>(null);
   const [isTogglingActive, setIsTogglingActive] = React.useState(false);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const activeStream = streams.find(s => s.isActive);
+
+  React.useEffect(() => {
+    let hls: Hls | null = null;
+    const videoElement = videoRef.current;
+
+    if (videoElement && activeStream?.url_de_streaming) {
+        const hlsUrl = activeStream.url_de_streaming;
+        if (Hls.isSupported()) {
+            hls = new Hls();
+            hls.loadSource(hlsUrl);
+            hls.attachMedia(videoElement);
+        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            videoElement.src = hlsUrl;
+        }
+    }
+
+    return () => {
+        if (hls) {
+            hls.destroy();
+        }
+    };
+  }, [activeStream]);
+
 
   const form = useForm<StreamingFormValues>({
     resolver: zodResolver(streamingSchema),
@@ -291,6 +316,7 @@ export function StreamingManager() {
             <CardContent>
               <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
                 <video
+                  ref={videoRef}
                   key={activeStream.id}
                   id="streaming-player"
                   controls
@@ -300,7 +326,6 @@ export function StreamingManager() {
                   width="100%"
                   className="w-full h-full"
                 >
-                  <source src={activeStream.url_de_streaming} type="application/x-mpegURL" />
                   Tu navegador no soporta la etiqueta de video para reproducir este stream.
                 </video>
               </div>
@@ -327,7 +352,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>Nombre del Stream</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="" />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -340,7 +365,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>URL de Streaming</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="" />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
