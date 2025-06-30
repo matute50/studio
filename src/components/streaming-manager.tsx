@@ -422,7 +422,7 @@ export function StreamingManager() {
                 </div>
               )}
               {!isLoading && !errorLoading && streams.map((stream, index) => (
-                <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-green-500 border-2' : ''}`}>
+                <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-destructive border-2' : ''}`}>
                   <CardHeader className="pb-2 pt-3 px-4">
                     <div className="flex justify-between items-start gap-2">
                       <CardTitle className="text-lg font-semibold break-words uppercase">
@@ -431,7 +431,7 @@ export function StreamingManager() {
                       </CardTitle>
                       <div className="flex flex-col items-end space-y-1 flex-shrink-0">
                         {stream.isActive && (
-                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                          <Badge className="whitespace-nowrap bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5">Activo</Badge>
                         )}
                          <div className="flex items-center space-x-1">
                           <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
@@ -448,7 +448,7 @@ export function StreamingManager() {
                               }
                              }}
                             disabled={isTogglingActive || isSubmitting}
-                            className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                            className="data-[state=checked]:bg-destructive data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
                             aria-label={`Activar stream ${stream.nombre}`}
                           />
                         </div>
