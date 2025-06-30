@@ -42,6 +42,8 @@ export function StreamingManager() {
   const [isTogglingActive, setIsTogglingActive] = React.useState(false);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
+  const activeStream = streams.find(s => s.isActive);
+
   const form = useForm<StreamingFormValues>({
     resolver: zodResolver(streamingSchema),
     defaultValues: {
@@ -277,10 +279,40 @@ export function StreamingManager() {
         </Link>
       </div>
 
+      {activeStream && (
+        <div className="mb-8">
+          <Card className="shadow-xl lg:max-w-2xl mx-auto bg-muted/30">
+            <CardHeader>
+              <CardTitle className="uppercase">Reproductor de Prueba (Stream Activo)</CardTitle>
+              <CardDescription>
+                Reproduciendo: <span className="font-semibold text-primary">{activeStream.nombre}</span>
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
+                <video
+                  key={activeStream.id}
+                  id="streaming-player"
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  width="100%"
+                  className="w-full h-full"
+                >
+                  <source src={activeStream.url_de_streaming} type="application/x-mpegURL" />
+                  Tu navegador no soporta la etiqueta de video para reproducir este stream.
+                </video>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="space-y-8 mt-8">
         <Card className="shadow-xl lg:max-w-2xl mx-auto" ref={editorFormCardRef}>
           <CardHeader>
-            <CardTitle>{editingStreamId ? "Editar Configuración de Stream" : "Añadir Nueva Configuración de Stream"}</CardTitle>
+            <CardTitle className="uppercase">{editingStreamId ? "Editar Configuración de Stream" : "Añadir Nueva Configuración de Stream"}</CardTitle>
             <CardDescription>
               Define un nombre y la URL para una fuente de streaming. Puedes activar una de estas configuraciones para usarla en el reproductor.
             </CardDescription>
@@ -295,7 +327,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>Nombre del Stream</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -308,7 +340,7 @@ export function StreamingManager() {
                     <FormItem>
                       <FormLabel>URL de Streaming</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -343,7 +375,7 @@ export function StreamingManager() {
             {errorLoading && !isLoading && (
               <Alert variant="destructive">
                 <Radio className="h-4 w-4" />
-                <ShadcnAlertTitle>Error al Cargar Configuraciones</ShadcnAlertTitle>
+                <ShadcnAlertTitle className="uppercase">Error al Cargar Configuraciones</ShadcnAlertTitle>
                 <ShadcnAlertDescription>{errorLoading}</ShadcnAlertDescription>
               </Alert>
             )}
@@ -358,7 +390,7 @@ export function StreamingManager() {
               <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-green-500 border-2' : ''}`}>
                 <CardHeader className="pb-2 pt-3 px-4">
                   <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-lg font-semibold break-words">
+                    <CardTitle className="text-lg font-semibold break-words uppercase">
                       <span className="text-primary mr-2">{index + 1}.</span>
                       {stream.nombre}
                     </CardTitle>
@@ -417,7 +449,7 @@ export function StreamingManager() {
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
-            <AlertDialogTitleComponent>¿Estás seguro de eliminar esta configuración?</AlertDialogTitleComponent>
+            <AlertDialogTitleComponent className="uppercase">¿Estás seguro de eliminar esta configuración?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. La configuración de stream "{streamToDelete?.nombre || 'seleccionada'}" será eliminada permanentemente.
             </AlertDialogDescription>
@@ -434,6 +466,3 @@ export function StreamingManager() {
     </div>
   );
 }
-
-
-    
