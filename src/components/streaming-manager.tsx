@@ -70,28 +70,29 @@ export function StreamingManager() {
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
   
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = React.useState<string | null>(null);
-
   const activeStream = streams.find(s => s.isActive);
 
+  // Directly derive the YouTube URL from the active stream in the render cycle.
+  // useMemo ensures this only recalculates when the active stream changes.
+  const youtubeEmbedUrl = React.useMemo(() => {
+    if (!activeStream?.url_de_streaming) return null;
+    return getYoutubeEmbedUrl(activeStream.url_de_streaming);
+  }, [activeStream]);
+
+
+  // This useEffect is now only for the HLS player.
+  // It runs when the active stream changes but will only act if it's NOT a YouTube URL.
   React.useEffect(() => {
     let hls: Hls | null = null;
     const videoElement = videoRef.current;
     
-    setYoutubeEmbedUrl(null); 
-
-    if (activeStream?.url_de_streaming) {
-        const embedUrl = getYoutubeEmbedUrl(activeStream.url_de_streaming);
-        if (embedUrl) {
-            setYoutubeEmbedUrl(embedUrl);
-        } else if (videoElement) { 
-            if (Hls.isSupported()) {
-                hls = new Hls();
-                hls.loadSource(activeStream.url_de_streaming);
-                hls.attachMedia(videoElement);
-            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                videoElement.src = activeStream.url_de_streaming;
-            }
+    if (activeStream && !youtubeEmbedUrl && videoElement) {
+        if (Hls.isSupported()) {
+            hls = new Hls();
+            hls.loadSource(activeStream.url_de_streaming);
+            hls.attachMedia(videoElement);
+        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+            videoElement.src = activeStream.url_de_streaming;
         }
     }
 
@@ -100,7 +101,7 @@ export function StreamingManager() {
             hls.destroy();
         }
     };
-  }, [activeStream]);
+  }, [activeStream, youtubeEmbedUrl]);
 
 
   const form = useForm<StreamingFormValues>({
@@ -542,3 +543,5 @@ export function StreamingManager() {
     </div>
   );
 }
+
+    
