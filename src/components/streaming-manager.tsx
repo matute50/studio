@@ -31,6 +31,32 @@ const streamingSchema = z.object({
 
 type StreamingFormValues = z.infer<typeof streamingSchema>;
 
+const getYoutubeEmbedUrl = (url: string): string | null => {
+  let videoId: string | null = null;
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname;
+    
+    if (hostname.includes('youtube.com')) {
+      if (urlObj.pathname.includes('/embed/')) {
+        videoId = urlObj.pathname.split('/embed/')[1].split('?')[0];
+      } else {
+        videoId = urlObj.searchParams.get('v');
+      }
+    } else if (hostname.includes('youtu.be')) {
+      videoId = urlObj.pathname.substring(1).split('?')[0];
+    }
+  } catch (e) {
+    return null;
+  }
+  
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1`;
+  }
+  
+  return null;
+};
+
 export function StreamingManager() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -42,22 +68,30 @@ export function StreamingManager() {
   const [streamToDelete, setStreamToDelete] = React.useState<StreamingConfig | null>(null);
   const [isTogglingActive, setIsTogglingActive] = React.useState(false);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+  
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = React.useState<string | null>(null);
 
   const activeStream = streams.find(s => s.isActive);
 
   React.useEffect(() => {
     let hls: Hls | null = null;
     const videoElement = videoRef.current;
+    
+    setYoutubeEmbedUrl(null); 
 
-    if (videoElement && activeStream?.url_de_streaming) {
-        const hlsUrl = activeStream.url_de_streaming;
-        if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(hlsUrl);
-            hls.attachMedia(videoElement);
-        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            videoElement.src = hlsUrl;
+    if (activeStream?.url_de_streaming) {
+        const embedUrl = getYoutubeEmbedUrl(activeStream.url_de_streaming);
+        if (embedUrl) {
+            setYoutubeEmbedUrl(embedUrl);
+        } else if (videoElement) { 
+            if (Hls.isSupported()) {
+                hls = new Hls();
+                hls.loadSource(activeStream.url_de_streaming);
+                hls.attachMedia(videoElement);
+            } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                videoElement.src = activeStream.url_de_streaming;
+            }
         }
     }
 
@@ -455,19 +489,31 @@ export function StreamingManager() {
                     </CardHeader>
                     <CardContent>
                     <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
-                        <video
-                        ref={videoRef}
-                        key={activeStream.id}
-                        id="streaming-player"
-                        controls
-                        autoPlay
-                        muted
-                        playsInline
-                        width="100%"
-                        className="w-full h-full"
-                        >
-                        Tu navegador no soporta la etiqueta de video para reproducir este stream.
-                        </video>
+                        {youtubeEmbedUrl ? (
+                            <iframe
+                                key={activeStream.id}
+                                src={youtubeEmbedUrl}
+                                title="YouTube video player"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                allowFullScreen
+                                className="w-full h-full"
+                            ></iframe>
+                        ) : (
+                            <video
+                                ref={videoRef}
+                                key={activeStream.id}
+                                id="streaming-player"
+                                controls
+                                autoPlay
+                                muted
+                                playsInline
+                                width="100%"
+                                className="w-full h-full"
+                            >
+                                Tu navegador no soporta la etiqueta de video para reproducir este stream.
+                            </video>
+                        )}
                     </div>
                     </CardContent>
                 </Card>
