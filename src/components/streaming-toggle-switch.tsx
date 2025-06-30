@@ -101,7 +101,7 @@ export function StreamingToggleSwitch() {
 
   return (
     <div className="flex items-center justify-center space-x-4 p-2 bg-muted/50 rounded-lg w-full">
-      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${!isStreaming ? 'text-accent-foreground' : 'text-muted-foreground'}`}>
+      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${!isStreaming ? 'text-green-600' : 'text-muted-foreground'}`}>
         VIDEOS
       </Label>
       <Switch
@@ -110,9 +110,9 @@ export function StreamingToggleSwitch() {
         onCheckedChange={handleToggleChange}
         disabled={isLoading}
         aria-label="Cambiar entre modo Streaming y Videos"
-        className="w-[60px] h-[32px] data-[state=checked]:bg-primary data-[state=unchecked]:bg-accent [&>span]:w-6 [&>span]:h-6"
+        className="w-[60px] h-[32px] data-[state=checked]:bg-destructive data-[state=unchecked]:bg-green-600 [&>span]:w-6 [&>span]:h-6 [&>span]:data-[state=checked]:translate-x-[28px]"
       />
-      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${isStreaming ? 'text-primary' : 'text-muted-foreground'}`}>
+      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${isStreaming ? 'text-destructive' : 'text-muted-foreground'}`}>
         STREAMING
       </Label>
     </div>
