@@ -25,6 +25,7 @@ export interface CalendarEvent {
   eventDateTime: string; // Stored as ISO string
   createdAt?: string;
   updatedAt?: string;
+  horaevento?: string; // Stored as "HH:mm"
 }
 
 export interface Advertisement {
@@ -72,4 +73,9 @@ export interface HeaderImageItem {
   mode: 'light' | 'dark';
   createdAt: string; 
   updatedAt: string; 
+}
+
+export interface StreamVideosToggle {
+  id: number;
+  stream: boolean;
 }
