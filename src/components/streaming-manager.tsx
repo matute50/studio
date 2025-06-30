@@ -304,172 +304,177 @@ export function StreamingManager() {
         </Link>
       </div>
 
-      {activeStream && (
-        <div className="mb-8">
-          <Card className="shadow-xl lg:max-w-2xl mx-auto bg-muted/30">
+      <div className="grid lg:grid-cols-5 gap-8 items-start">
+        {/* Columna Izquierda: Formulario y Lista */}
+        <div className="lg:col-span-3 space-y-8">
+          <Card className="shadow-xl" ref={editorFormCardRef}>
             <CardHeader>
-              <CardTitle className="uppercase">Reproductor de Prueba (Stream Activo)</CardTitle>
+              <CardTitle className="uppercase">{editingStreamId ? "Editar Configuración de Stream" : "Añadir Nueva Configuración de Stream"}</CardTitle>
               <CardDescription>
-                Reproduciendo: <span className="font-semibold text-primary">{activeStream.nombre}</span>
+                Define un nombre y la URL para una fuente de streaming. Puedes activar una de estas configuraciones para usarla en el reproductor.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
-                <video
-                  ref={videoRef}
-                  key={activeStream.id}
-                  id="streaming-player"
-                  controls
-                  autoPlay
-                  muted
-                  playsInline
-                  width="100%"
-                  className="w-full h-full"
-                >
-                  Tu navegador no soporta la etiqueta de video para reproducir este stream.
-                </video>
-              </div>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="nombre"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre del Stream</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="url_de_streaming"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>URL de Streaming</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                    <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
+                      {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                      {editingStreamId ? "Actualizar Configuración" : "Guardar Configuración"}
+                    </Button>
+                    {editingStreamId && (
+                      <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingActive}>
+                        <XCircle className="mr-2 h-4 w-4" />
+                        Cancelar Edición
+                      </Button>
+                    )}
+                  </div>
+                </form>
+              </Form>
             </CardContent>
           </Card>
-        </div>
-      )}
-
-      <div className="space-y-8 mt-8">
-        <Card className="shadow-xl lg:max-w-2xl mx-auto" ref={editorFormCardRef}>
-          <CardHeader>
-            <CardTitle className="uppercase">{editingStreamId ? "Editar Configuración de Stream" : "Añadir Nueva Configuración de Stream"}</CardTitle>
-            <CardDescription>
-              Define un nombre y la URL para una fuente de streaming. Puedes activar una de estas configuraciones para usarla en el reproductor.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="nombre"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nombre del Stream</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="url_de_streaming"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>URL de Streaming</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                  <Button type="submit" variant="destructive" disabled={isSubmitting || isTogglingActive} className="w-full sm:flex-1">
-                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    {editingStreamId ? "Actualizar Configuración" : "Guardar Configuración"}
-                  </Button>
-                  {editingStreamId && (
-                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" disabled={isSubmitting || isTogglingActive}>
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Cancelar Edición
-                    </Button>
-                  )}
+          
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left uppercase">Configuraciones de Streaming Guardadas</h2>
+            <div className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-2">
+              {isLoading && (
+                <div className="flex justify-center items-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2 text-muted-foreground">Cargando configuraciones...</p>
                 </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-4">
-          <h2 className="text-2xl font-semibold text-foreground mb-4 text-center lg:text-left uppercase">Configuraciones de Streaming Guardadas</h2>
-          <div className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-2">
-            {isLoading && (
-              <div className="flex justify-center items-center py-10">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2 text-muted-foreground">Cargando configuraciones...</p>
-              </div>
-            )}
-            {errorLoading && !isLoading && (
-              <Alert variant="destructive">
-                <Radio className="h-4 w-4" />
-                <ShadcnAlertTitle className="uppercase">Error al Cargar Configuraciones</ShadcnAlertTitle>
-                <ShadcnAlertDescription>{errorLoading}</ShadcnAlertDescription>
-              </Alert>
-            )}
-            {!isLoading && !errorLoading && streams.length === 0 && (
-              <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
-                <Radio className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">No hay configuraciones de streaming guardadas.</p>
-                <p className="text-sm text-muted-foreground">Usa el formulario para añadir la primera configuración.</p>
-              </div>
-            )}
-            {!isLoading && !errorLoading && streams.map((stream, index) => (
-              <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-green-500 border-2' : ''}`}>
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-lg font-semibold break-words uppercase">
-                      <span className="text-primary mr-2">{index + 1}.</span>
-                      {stream.nombre}
-                    </CardTitle>
-                    <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                      {stream.isActive && (
-                        <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
-                      )}
-                       <div className="flex items-center space-x-1">
-                        <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
-                          Activar
-                        </Label>
-                        <Switch
-                          id={`active-switch-${stream.id}`}
-                          checked={!!stream.isActive} 
-                          onCheckedChange={(isChecked) => {
-                            if (stream.id) {
-                                handleActiveToggle(stream.id, isChecked);
-                            } else {
-                                toast({title: "Error", description: "Falta ID del stream para cambiar estado.", variant: "destructive"});
-                            }
-                           }}
-                          disabled={isTogglingActive || isSubmitting}
-                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-                          aria-label={`Activar stream ${stream.nombre}`}
-                        />
+              )}
+              {errorLoading && !isLoading && (
+                <Alert variant="destructive">
+                  <Radio className="h-4 w-4" />
+                  <ShadcnAlertTitle className="uppercase">Error al Cargar Configuraciones</ShadcnAlertTitle>
+                  <ShadcnAlertDescription>{errorLoading}</ShadcnAlertDescription>
+                </Alert>
+              )}
+              {!isLoading && !errorLoading && streams.length === 0 && (
+                <div className="text-center py-10 border-2 border-dashed border-muted-foreground/30 rounded-lg">
+                  <Radio className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-muted-foreground">No hay configuraciones de streaming guardadas.</p>
+                  <p className="text-sm text-muted-foreground">Usa el formulario para añadir la primera configuración.</p>
+                </div>
+              )}
+              {!isLoading && !errorLoading && streams.map((stream, index) => (
+                <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-green-500 border-2' : ''}`}>
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <div className="flex justify-between items-start gap-2">
+                      <CardTitle className="text-lg font-semibold break-words uppercase">
+                        <span className="text-primary mr-2">{index + 1}.</span>
+                        {stream.nombre}
+                      </CardTitle>
+                      <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                        {stream.isActive && (
+                          <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                        )}
+                         <div className="flex items-center space-x-1">
+                          <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
+                            Activar
+                          </Label>
+                          <Switch
+                            id={`active-switch-${stream.id}`}
+                            checked={!!stream.isActive} 
+                            onCheckedChange={(isChecked) => {
+                              if (stream.id) {
+                                  handleActiveToggle(stream.id, isChecked);
+                              } else {
+                                  toast({title: "Error", description: "Falta ID del stream para cambiar estado.", variant: "destructive"});
+                              }
+                             }}
+                            disabled={isTogglingActive || isSubmitting}
+                            className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                            aria-label={`Activar stream ${stream.nombre}`}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pb-2 pt-0 px-4">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Link2 className="mr-2 h-4 w-4 shrink-0" />
-                    <a href={stream.url_de_streaming} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
-                      {stream.url_de_streaming}
-                    </a>
-                  </div>
-                  <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDate(stream.createdAt)}</p>
-                   {stream.updatedAt && stream.createdAt !== stream.updatedAt && (
-                      <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(stream.updatedAt)}</p>
-                   )}
-                </CardContent>
-                <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 bg-muted/30">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
-                    <Edit3 className="mr-1 h-3 w-3" /> Editar
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">
-                    <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="pb-2 pt-0 px-4">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Link2 className="mr-2 h-4 w-4 shrink-0" />
+                      <a href={stream.url_de_streaming} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
+                        {stream.url_de_streaming}
+                      </a>
+                    </div>
+                    <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDate(stream.createdAt)}</p>
+                     {stream.updatedAt && stream.createdAt !== stream.updatedAt && (
+                        <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(stream.updatedAt)}</p>
+                     )}
+                  </CardContent>
+                  <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 bg-muted/30">
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
+                      <Edit3 className="mr-1 h-3 w-3" /> Editar
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">
+                      <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Columna Derecha: Reproductor de Video */}
+        <div className="lg:col-span-2">
+            {activeStream && (
+                <Card className="shadow-xl lg:sticky lg:top-8 bg-muted/30">
+                    <CardHeader>
+                    <CardTitle className="uppercase">Reproductor de Prueba (Stream Activo)</CardTitle>
+                    <CardDescription>
+                        Reproduciendo: <span className="font-semibold text-primary">{activeStream.nombre}</span>
+                    </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                    <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
+                        <video
+                        ref={videoRef}
+                        key={activeStream.id}
+                        id="streaming-player"
+                        controls
+                        autoPlay
+                        muted
+                        playsInline
+                        width="100%"
+                        className="w-full h-full"
+                        >
+                        Tu navegador no soporta la etiqueta de video para reproducir este stream.
+                        </video>
+                    </div>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
       </div>
+
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
