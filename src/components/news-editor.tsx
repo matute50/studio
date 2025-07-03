@@ -548,7 +548,7 @@ export function NewsEditor() {
                             }}
                           />
                         </FormControl>
-                        <Button type="button" variant="default" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto">
+                        <Button type="button" variant="default" onClick={() => fileInputRef.current?.click()} className="w-full sm:w-auto text-black">
                           <Upload className="mr-2 h-4 w-4" />
                           Subir Imagen
                         </Button>

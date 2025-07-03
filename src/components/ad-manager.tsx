@@ -610,7 +610,7 @@ export function AdManager() {
                               {...field}
                             />
                           </FormControl>
-                          <Button type="button" variant="default" onClick={() => adFileInputRef.current?.click()} className="w-full sm:w-auto">
+                          <Button type="button" variant="default" onClick={() => adFileInputRef.current?.click()} className="w-full sm:w-auto text-black">
                             <Upload className="mr-2 h-4 w-4" />
                             Subir Imagen
                           </Button>
@@ -736,7 +736,7 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
+                  <Button size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-black">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs">
@@ -782,7 +782,7 @@ export function AdManager() {
                               {...field}
                             />
                           </FormControl>
-                          <Button type="button" variant="default" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto">
+                          <Button type="button" variant="default" onClick={() => bannerFileInputRef.current?.click()} className="w-full sm:w-auto text-black">
                             <Upload className="mr-2 h-4 w-4" />
                             Subir Imagen
                           </Button>
@@ -908,7 +908,7 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
+                  <Button size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-black">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs">

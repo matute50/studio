@@ -426,7 +426,7 @@ export function TextTickerEditor() {
                           )}
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
+                          <Button size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-black">
                             <Edit3 className="mr-1 h-3 w-3" /> Editar
                           </Button>
                           <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">

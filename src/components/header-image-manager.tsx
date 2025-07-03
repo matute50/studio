@@ -339,7 +339,7 @@ export function HeaderImageManager() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" variant="default" disabled={isSubmitting} className="w-full">
+              <Button type="submit" variant="default" disabled={isSubmitting} className="w-full text-black">
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
                 Subir y Guardar Imagen
               </Button>
