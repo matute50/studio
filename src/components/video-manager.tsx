@@ -115,13 +115,20 @@ export function VideoManager() {
     setIsLoadingExistingImages(true);
     try {
       const { data, error } = await supabase
-        .from(SUPABASE_TABLE_NAME)
+        .from('eventos_calendario') // Changed: Fetch from eventos_calendario table
         .select('imagen')
         .not('imagen', 'is', null);
 
-      if (error) throw error;
-
-      if (data) {
+      if (error) {
+         if (error.code === '42703' || (error.message && error.message.includes('does not exist'))) {
+          console.warn(
+            `Could not fetch existing images because the 'imagen' column is likely missing from your 'eventos_calendario' table. Please add this column (type: text) to enable the 'Choose Existing Image' feature.`
+          );
+          setExistingImages([]);
+        } else {
+          throw error;
+        }
+      } else if (data) {
         const uniqueImages = Array.from(
           new Set(data.map((item) => (item.imagen as string)).filter(Boolean))
         );
@@ -130,7 +137,7 @@ export function VideoManager() {
     } catch (error: any) {
       toast({
         title: "Error al Cargar Imágenes Existentes",
-        description: `No se pudieron cargar las imágenes de videos anteriores: ${error.message}`,
+        description: `No se pudieron cargar las imágenes de los eventos: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -678,7 +685,7 @@ export function VideoManager() {
               <DialogHeader>
                   <DialogTitle className="uppercase">Seleccionar una Imagen Existente</DialogTitle>
                   <DialogDescription>
-                      Haz clic en una imagen para seleccionarla para tu video.
+                      Haz clic en una imagen para seleccionarla para tu video. Estas imágenes provienen de eventos guardados.
                   </DialogDescription>
               </DialogHeader>
               {isLoadingExistingImages ? (
@@ -700,7 +707,7 @@ export function VideoManager() {
                                   if (imageFileRef.current) imageFileRef.current.value = "";
                               }}
                           >
-                          <Image src={imgUrl} alt={`Imagen de video existente ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="video galeria" />
+                          <Image src={imgUrl} alt={`Imagen de evento ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="video galeria" />
                           </button>
                       ))}
                       </div>
@@ -708,8 +715,8 @@ export function VideoManager() {
               ) : (
                   <div className="flex flex-col justify-center items-center text-center py-8 h-[60vh]">
                     <LibraryBig className="w-16 h-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No hay imágenes de videos anteriores para seleccionar.</p>
-                    <p className="text-sm text-muted-foreground">Sube una imagen nueva para empezar.</p>
+                    <p className="text-muted-foreground">No hay imágenes de eventos anteriores para seleccionar.</p>
+                    <p className="text-sm text-muted-foreground">Sube una imagen nueva o crea un evento con imagen para empezar.</p>
                   </div>
               )}
           </DialogContent>
