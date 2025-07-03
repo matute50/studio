@@ -7,28 +7,42 @@ import * as z from 'zod';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale'; 
 import Link from 'next/link';
+import Image from 'next/image';
 
 import type { CalendarEvent } from '@/types';
 
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, uploadImageToSupabase } from '@/lib/supabaseClient';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home } from 'lucide-react';
+import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home, ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
+
+const BUCKET_NAME = 'imagenvideos';
 
 const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
   eventDateTime: z.date({ 
     invalid_type_error: "La hora configurada no es válida.",
   }),
+  imagen: z.any().optional()
+    .refine(value => {
+      if (!value) return true;
+      if (typeof value === 'string') return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/');
+      if (value instanceof File) return value.type.startsWith('image/');
+      return false;
+    }, { message: "Debe ser una URL de imagen válida o un archivo de imagen." })
+    .refine(value => {
+      if (value instanceof File) return value.size <= 5 * 1024 * 1024;
+      return true;
+    }, { message: "La imagen no debe exceder los 5MB." }),
 });
 
 type EventFormValues = z.infer<typeof eventSchema>;
@@ -59,6 +73,8 @@ export function EventScheduler() {
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = React.useState(false);
   const [eventToDelete, setEventToDelete] = React.useState<CalendarEvent | null>(null);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
+  const imageFileRef = React.useRef<HTMLInputElement>(null);
+  const [previewImage, setPreviewImage] = React.useState<string | null>(null);
 
   const [calendarDates, setCalendarDates] = React.useState<Date[] | undefined>();
   const [eventHour, setEventHour] = React.useState<string>("00");
@@ -70,6 +86,7 @@ export function EventScheduler() {
     defaultValues: {
       name: '',
       eventDateTime: undefined,
+      imagen: undefined,
     },
     mode: "onChange",
   });
@@ -118,22 +135,64 @@ export function EventScheduler() {
   }, []);
 
   const resetFormAndDateTimePickers = () => {
-    form.reset({ name: '', eventDateTime: undefined });
+    form.reset({ name: '', eventDateTime: undefined, imagen: undefined });
     setCalendarDates(undefined);
     setEventHour("00");
     setEventMinute("00");
     setEditingEventId(null);
+    setPreviewImage(null);
+    if (imageFileRef.current) {
+      imageFileRef.current.value = "";
+    }
+  };
+
+  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      form.setValue('imagen', file, { shouldValidate: true });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      form.setValue('imagen', null, { shouldValidate: true });
+      setPreviewImage(null);
+    }
   };
 
   const onSubmit = async (data: EventFormValues) => {
     setIsSubmitting(true);
     const now = new Date().toISOString();
+    let finalImageUrl: string | null = null;
+
+    if (data.imagen instanceof File) {
+      toast({ title: "Subiendo imagen...", description: "Por favor espera." });
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(data.imagen as File);
+      });
+
+      const { url: uploadedUrl, errorMessage } = await uploadImageToSupabase(dataUri, BUCKET_NAME);
+      if (errorMessage) {
+        toast({ title: "Error al subir imagen", description: errorMessage, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      finalImageUrl = uploadedUrl;
+    } else if (typeof data.imagen === 'string' && data.imagen.startsWith('http')) {
+      finalImageUrl = data.imagen;
+    }
 
     try {
       if (editingEventId) {
-        const eventPayload = {
+        const eventPayload: Partial<CalendarEvent> = {
           name: data.name,
-          eventDateTime: data.eventDateTime.toISOString(), 
+          eventDateTime: data.eventDateTime.toISOString(),
+          horaevento: `${eventHour}:${eventMinute}`,
+          imagen: finalImageUrl,
           updatedAt: now,
         };
 
@@ -162,6 +221,8 @@ export function EventScheduler() {
           return {
             name: data.name,
             eventDateTime: eventSpecificDateTime.toISOString(),
+            horaevento: `${eventHour}:${eventMinute}`,
+            imagen: finalImageUrl,
             createdAt: now,
             updatedAt: now,
           };
@@ -200,10 +261,13 @@ export function EventScheduler() {
     form.reset({
       name: eventToEdit.name,
       eventDateTime: dt,
+      imagen: eventToEdit.imagen || undefined,
     });
+    setPreviewImage(eventToEdit.imagen || null);
     setCalendarDates([dt]); 
     setEventHour(dt.getHours().toString().padStart(2, '0'));
     setEventMinute(dt.getMinutes().toString().padStart(2, '0'));
+    if (imageFileRef.current) imageFileRef.current.value = "";
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
     toast({ title: "Modo Edición", description: `Editando evento: ${eventToEdit.name}` });
   };
@@ -292,9 +356,9 @@ export function EventScheduler() {
                     <FormItem className="space-y-3">
                       <FormLabel>Fecha(s) y Hora del Evento</FormLabel>
                       <Calendar
-                        mode="multiple"
+                        mode={editingEventId ? "single" : "multiple"}
                         selected={calendarDates}
-                        onSelect={setCalendarDates}
+                        onSelect={setCalendarDates as any}
                         className="rounded-md border self-center shadow-sm"
                         disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))} 
                         locale={es}
@@ -340,6 +404,33 @@ export function EventScheduler() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="imagen"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Imagen del Evento (Opcional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="imagen"
+                          type="file"
+                          ref={imageFileRef}
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                      </FormControl>
+                      {previewImage && (
+                        <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border mt-2">
+                          <Image src={previewImage} alt="Vista previa de la imagen" layout="fill" objectFit="contain" data-ai-hint="evento preview" />
+                        </div>
+                      )}
+                      <FormDescription>Sube una imagen para el evento (máx 5MB).</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
@@ -369,7 +460,7 @@ export function EventScheduler() {
           {errorLoadingEvents && (
              <Alert variant="destructive">
                <CalendarDays className="h-4 w-4" />
-               <ShadcnAlertTitle>Error al Cargar Eventos</ShadcnAlertTitle>
+               <ShadcnAlertTitle className="uppercase">Error al Cargar Eventos</ShadcnAlertTitle>
                <ShadcnAlertDescription>{errorLoadingEvents}</ShadcnAlertDescription>
              </Alert>
           )}
@@ -381,21 +472,36 @@ export function EventScheduler() {
             </div>
           )}
           {!isLoadingEvents && !errorLoadingEvents && events.map((event, index) => (
-            <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3 pt-4 px-4">
+            <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
+              <CardHeader className="pb-3 pt-4 px-4 flex-grow">
                 <CardTitle className="text-lg font-semibold break-words uppercase">
                    <span className="text-primary mr-2">{index + 1}.</span>
                   {event.name}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pb-3 pt-0 px-4">
+              <CardContent className="pb-3 pt-0 px-4 flex-grow">
+                 <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted mb-3">
+                  {event.imagen ? (
+                    <Image
+                      src={event.imagen}
+                      alt={`Imagen para ${event.name}`}
+                      layout="fill"
+                      objectFit="cover"
+                      data-ai-hint="evento imagen"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                      <ImageOff className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center text-sm text-muted-foreground">
                   <ClockIcon className="mr-2 h-4 w-4" />
                   <span>{formatDateTimeForDisplay(event.eventDateTime)}</span>
                 </div>
                  <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDateTimeForDisplay(event.createdAt)}</p>
               </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2">
+              <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 mt-auto">
                 <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-8 px-3 text-xs">
                   <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Editar
                 </Button>
@@ -411,7 +517,7 @@ export function EventScheduler() {
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeaderComponent>
-            <AlertDialogTitleComponent>¿ESTÁS SEGURO DE ELIMINAR ESTE EVENTO?</AlertDialogTitleComponent>
+            <AlertDialogTitleComponent className="uppercase">¿ESTÁS SEGURO DE ELIMINAR ESTE EVENTO?</AlertDialogTitleComponent>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. El evento "{eventToDelete?.name || 'seleccionado'}" será eliminado permanentemente.
             </AlertDialogDescription>

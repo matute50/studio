@@ -26,6 +26,7 @@ export interface CalendarEvent {
   createdAt?: string;
   updatedAt?: string;
   horaevento?: string; // Stored as "HH:mm"
+  imagen?: string | null;
 }
 
 export interface Advertisement {
