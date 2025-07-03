@@ -17,10 +17,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription as AlertDialogDescriptionComponent, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff } from 'lucide-react';
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff, Upload, LibraryBig } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const SUPABASE_TABLE_NAME = 'videos';
@@ -93,6 +95,10 @@ export function VideoManager() {
   const [isLoadingCategories, setIsLoadingCategories] = React.useState(false);
   const [isComboboxOpen, setIsComboboxOpen] = React.useState(false);
 
+  const [existingImages, setExistingImages] = React.useState<string[]>([]);
+  const [isLoadingExistingImages, setIsLoadingExistingImages] = React.useState(true);
+  const [isImageGalleryOpen, setIsImageGalleryOpen] = React.useState(false);
+
   const form = useForm<VideoFormValues>({
     resolver: zodResolver(videoSchema),
     defaultValues: {
@@ -104,6 +110,33 @@ export function VideoManager() {
     mode: "onChange",
   });
   const watchedImagen = form.watch('imagen');
+
+  const fetchExistingImages = async () => {
+    setIsLoadingExistingImages(true);
+    try {
+      const { data, error } = await supabase
+        .from(SUPABASE_TABLE_NAME)
+        .select('imagen')
+        .not('imagen', 'is', null);
+
+      if (error) throw error;
+
+      if (data) {
+        const uniqueImages = Array.from(
+          new Set(data.map((item) => (item.imagen as string)).filter(Boolean))
+        );
+        setExistingImages(uniqueImages);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error al Cargar Imágenes Existentes",
+        description: `No se pudieron cargar las imágenes de videos anteriores: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingExistingImages(false);
+    }
+  };
 
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
@@ -153,6 +186,7 @@ export function VideoManager() {
   React.useEffect(() => {
     fetchVideos();
     fetchCategories();
+    fetchExistingImages();
   }, []);
 
   const resetForm = () => {
@@ -256,6 +290,7 @@ export function VideoManager() {
       }
       fetchVideos();
       fetchCategories();
+      fetchExistingImages();
       resetForm();
     } catch (error: any) {
       toast({
@@ -388,15 +423,32 @@ export function VideoManager() {
                   render={() => (
                     <FormItem>
                       <FormLabel>Imagen del Video (Opcional)</FormLabel>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
+                           <Upload className="mr-2 h-4 w-4" />
+                           Subir Archivo
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={() => setIsImageGalleryOpen(true)}
+                          disabled={isLoadingExistingImages || existingImages.length === 0}
+                        >
+                           {isLoadingExistingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LibraryBig className="mr-2 h-4 w-4" />}
+                          Elegir Existente
+                        </Button>
+                      </div>
+                      <FormControl>
                         <Input
                           id="imagen"
                           type="file"
                           ref={imageFileRef}
                           accept="image/*"
                           onChange={handleImageFileChange}
-                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                          className="hidden"
                         />
+                      </FormControl>
                          {(previewImage || (typeof watchedImagen === 'string' && watchedImagen.startsWith('http'))) && (
                           <div className="relative w-full max-w-xs h-32 rounded-md overflow-hidden border bg-muted mt-2">
                             <Image 
@@ -409,8 +461,7 @@ export function VideoManager() {
                             />
                           </div>
                         )}
-                      </div>
-                      <FormDescription>Sube una imagen para el video (máx 5MB). Si es un video de YouTube y no subes imagen, se intentará usar la miniatura de YouTube.</FormDescription>
+                      <FormDescription>Sube una imagen (máx 5MB) o elige una existente. Si es de YouTube y no subes imagen, se usará su miniatura.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -621,6 +672,48 @@ export function VideoManager() {
           })}
         </div>
       </div>
+
+      <Dialog open={isImageGalleryOpen} onOpenChange={setIsImageGalleryOpen}>
+          <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                  <DialogTitle className="uppercase">Seleccionar una Imagen Existente</DialogTitle>
+                  <DialogDescription>
+                      Haz clic en una imagen para seleccionarla para tu video.
+                  </DialogDescription>
+              </DialogHeader>
+              {isLoadingExistingImages ? (
+                  <div className="flex justify-center items-center h-[60vh]">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+              ) : existingImages.length > 0 ? (
+                  <ScrollArea className="h-[60vh] -mx-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 px-6 py-4">
+                      {existingImages.map((imgUrl, index) => (
+                          <button
+                              key={index}
+                              type="button"
+                              className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring group"
+                              onClick={() => {
+                                  form.setValue('imagen', imgUrl, { shouldValidate: true, shouldDirty: true });
+                                  setPreviewImage(imgUrl);
+                                  setIsImageGalleryOpen(false);
+                                  if (imageFileRef.current) imageFileRef.current.value = "";
+                              }}
+                          >
+                          <Image src={imgUrl} alt={`Imagen de video existente ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="video galeria" />
+                          </button>
+                      ))}
+                      </div>
+                  </ScrollArea>
+              ) : (
+                  <div className="flex flex-col justify-center items-center text-center py-8 h-[60vh]">
+                    <LibraryBig className="w-16 h-16 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay imágenes de videos anteriores para seleccionar.</p>
+                    <p className="text-sm text-muted-foreground">Sube una imagen nueva para empezar.</p>
+                  </div>
+              )}
+          </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
