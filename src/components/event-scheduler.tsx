@@ -447,14 +447,19 @@ export function EventScheduler() {
                     <FormItem>
                       <FormLabel>Imagen del Evento (Opcional)</FormLabel>
                         <div className="flex flex-col sm:flex-row gap-2">
-                           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
+                           <Button type="button" variant="default" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
                              <Upload className="mr-2 h-4 w-4" />
                              Subir Archivo
                            </Button>
-                           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsImageGalleryOpen(true)} disabled={isLoadingExistingImages || existingImages.length === 0}>
-                              {isLoadingExistingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LibraryBig className="mr-2 h-4 w-4" />}
-                             Elegir Existente
-                           </Button>
+                           <Button
+                            type="button"
+                            className="w-full sm:w-auto bg-primary/70 hover:bg-primary/80 text-primary-foreground"
+                            onClick={() => setIsImageGalleryOpen(true)}
+                            disabled={isLoadingExistingImages || existingImages.length === 0}
+                          >
+                            {isLoadingExistingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LibraryBig className="mr-2 h-4 w-4" />}
+                            Elegir Existente
+                          </Button>
                         </div>
                       <FormControl>
                         <Input
@@ -548,7 +553,7 @@ export function EventScheduler() {
                         <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDateTimeForDisplay(event.createdAt)}</p>
                     </CardContent>
                     <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-3 flex justify-end gap-1.5">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                        <Button size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
                             <Edit3 className="mr-1.5 h-3 w-3" /> Editar
                         </Button>
                         <Button variant="destructive" size="sm" onClick={() => handleDelete(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">

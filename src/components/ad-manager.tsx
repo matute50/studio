@@ -463,7 +463,7 @@ export function AdManager() {
       toast({ title: "Anuncio Eliminado", description: `El anuncio "${adToDelete.name}" ha sido eliminado.` });
       fetchAds();
       if (editingAdId === adToDelete.id) {
-        cancelEditAd();
+        cancelEdit();
       }
     } catch (error: any) {
       toast({ title: "Error al Eliminar Anuncio", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
@@ -736,7 +736,7 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs">
+                  <Button size="sm" onClick={() => handleEditAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteAd(ad)} disabled={isSubmitting || isTogglingAdActive || isTogglingBannerActive} className="h-7 px-2.5 text-xs">
@@ -908,7 +908,7 @@ export function AdManager() {
                    </p>
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-0 pb-2 px-3 flex justify-end gap-1.5">
-                  <Button variant="outline" size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs">
+                  <Button size="sm" onClick={() => handleEditBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDeleteBanner(banner)} disabled={isSubmitting || isTogglingBannerActive || isTogglingAdActive} className="h-7 px-2.5 text-xs">

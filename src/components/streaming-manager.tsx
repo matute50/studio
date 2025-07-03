@@ -468,7 +468,7 @@ export function StreamingManager() {
                      )}
                   </CardContent>
                   <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 bg-muted/30">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs">
+                    <Button size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
                       <Edit3 className="mr-1 h-3 w-3" /> Editar
                     </Button>
                     <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">

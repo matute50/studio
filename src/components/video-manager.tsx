@@ -431,14 +431,13 @@ export function VideoManager() {
                     <FormItem>
                       <FormLabel>Imagen del Video (Opcional)</FormLabel>
                       <div className="flex flex-col sm:flex-row gap-2">
-                        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
+                        <Button type="button" variant="default" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
                            <Upload className="mr-2 h-4 w-4" />
                            Subir Archivo
                         </Button>
                         <Button
                           type="button"
-                          variant="outline"
-                          className="w-full sm:w-auto"
+                          className="w-full sm:w-auto bg-primary/70 hover:bg-primary/80 text-primary-foreground"
                           onClick={() => setIsImageGalleryOpen(true)}
                           disabled={isLoadingExistingImages || existingImages.length === 0}
                         >
@@ -667,7 +666,7 @@ export function VideoManager() {
                    )}
                 </CardContent>
                 <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEdit(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Button size="sm" onClick={() => handleEdit(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-primary-foreground">
                     <Edit3 className="mr-1 h-3 w-3" /> Editar
                   </Button>
                   <Button variant="destructive" size="sm" onClick={() => handleDelete(video)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
