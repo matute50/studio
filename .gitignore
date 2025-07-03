@@ -1,11 +1,16 @@
-# Ejemplo para dejar de rastrear la carpeta node_modules
-git rm -r --cached node_modules
+<<<<<<< HEAD
+# Contenido de TU versión del .gitignore (la que está en tu PC)
+# Por ejemplo:
+node_modules/
+.env.local
+.next/
+=======
+# Contenido de la versión que viene de GitHub (origin/main)
+# Por ejemplo:
+# Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,node
+# Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,node
 
-# Ejemplo para dejar de rastrear un archivo .env.local
-git rm --cached .env.local
-
-# Después de ejecutar los comandos necesarios, crea un nuevo commit para guardar estos cambios
-git commit -m "chore: Stop tracking files specified in .gitignore"
-
-# Finalmente, sube los cambios a GitHub
-git push
+### VisualStudioCode ###
+.vscode/*
+... etc ...
+>>>>>>> origin/main
