@@ -25,7 +25,6 @@ export interface CalendarEvent {
   eventDateTime: string; // Stored as ISO string
   createdAt?: string;
   updatedAt?: string;
-  horaevento?: string; // Stored as "HH:mm"
   imagen?: string | null;
 }
 

@@ -33,6 +33,7 @@ const eventSchema = z.object({
   name: z.string().min(3, { message: "El nombre debe tener al menos 3 caracteres." }).max(150, { message: "El nombre debe tener 150 caracteres o menos." }),
   eventDateTime: z.date({ 
     invalid_type_error: "La hora configurada no es válida.",
+    required_error: "Por favor, selecciona una fecha y hora para el evento."
   }),
   imagen: z.any().optional()
     .refine(value => {
@@ -151,7 +152,7 @@ export function EventScheduler() {
           );
           setExistingImages([]);
         } else {
-          throw error; // Re-throw other, more critical errors
+          throw error;
         }
       } else if (data) {
         const uniqueImages = Array.from(new Set(data.map((item) => (item.imagen as string)).filter(Boolean)));
@@ -226,7 +227,6 @@ export function EventScheduler() {
         const eventPayload: Partial<CalendarEvent> = {
           name: data.name,
           eventDateTime: data.eventDateTime.toISOString(),
-          horaevento: `${eventHour}:${eventMinute}`,
           imagen: finalImageUrl,
           updatedAt: now,
         };
@@ -256,7 +256,6 @@ export function EventScheduler() {
           return {
             name: data.name,
             eventDateTime: eventSpecificDateTime.toISOString(),
-            horaevento: `${eventHour}:${eventMinute}`,
             imagen: finalImageUrl,
             createdAt: now,
             updatedAt: now,
