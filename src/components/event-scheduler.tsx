@@ -518,43 +518,45 @@ export function EventScheduler() {
             </div>
           )}
           {!isLoadingEvents && !errorLoadingEvents && events.map((event, index) => (
-            <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2 pt-3 px-3">
-                <CardTitle className="text-base font-semibold break-words uppercase">
-                  <span className="text-primary mr-2">{index + 1}.</span>
-                  {event.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pb-2 pt-0 px-3 flex-grow">
-                 <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted mb-2">
-                  {event.imagen ? (
-                    <Image
-                      src={event.imagen}
-                      alt={`Imagen para ${event.name}`}
-                      layout="fill"
-                      objectFit="cover"
-                      data-ai-hint="evento imagen"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <ImageOff className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
+             <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow flex">
+                <div className="relative w-24 rounded-l-md overflow-hidden border-r bg-muted flex-shrink-0">
+                    {event.imagen ? (
+                        <Image
+                            src={event.imagen}
+                            alt={`Imagen para ${event.name}`}
+                            layout="fill"
+                            objectFit="cover"
+                            data-ai-hint="evento miniatura"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                            <ImageOff className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                    )}
                 </div>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <ClockIcon className="mr-2 h-4 w-4" />
-                  <span>{formatDateTimeForDisplay(event.eventDateTime)}</span>
+                <div className="flex-grow flex flex-col justify-between">
+                    <CardHeader className="pb-1 pt-2 px-3">
+                        <CardTitle className="text-base font-semibold break-words uppercase leading-tight">
+                            <span className="text-primary mr-2">{index + 1}.</span>
+                            {event.name}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-1 pt-0 px-3 flex-grow">
+                        <div className="flex items-center text-sm text-muted-foreground">
+                            <ClockIcon className="mr-2 h-4 w-4" />
+                            <span>{formatDateTimeForDisplay(event.eventDateTime)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDateTimeForDisplay(event.createdAt)}</p>
+                    </CardContent>
+                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-3 flex justify-end gap-1.5">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                            <Edit3 className="mr-1.5 h-3 w-3" /> Editar
+                        </Button>
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                            <Trash2 className="mr-1.5 h-3 w-3" /> Eliminar
+                        </Button>
+                    </CardFooter>
                 </div>
-                 <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDateTimeForDisplay(event.createdAt)}</p>
-              </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-3 flex justify-end gap-1.5 mt-auto">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Edit3 className="mr-1.5 h-3 w-3" /> Editar
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
-                  <Trash2 className="mr-1.5 h-3 w-3" /> Eliminar
-                </Button>
-              </CardFooter>
             </Card>
           ))}
         </div>
