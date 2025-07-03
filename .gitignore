@@ -1,0 +1,11 @@
+# Ejemplo para dejar de rastrear la carpeta node_modules
+git rm -r --cached node_modules
+
+# Ejemplo para dejar de rastrear un archivo .env.local
+git rm --cached .env.local
+
+# Después de ejecutar los comandos necesarios, crea un nuevo commit para guardar estos cambios
+git commit -m "chore: Stop tracking files specified in .gitignore"
+
+# Finalmente, sube los cambios a GitHub
+git push
