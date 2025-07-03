@@ -463,7 +463,7 @@ export function AdManager() {
       toast({ title: "Anuncio Eliminado", description: `El anuncio "${adToDelete.name}" ha sido eliminado.` });
       fetchAds();
       if (editingAdId === adToDelete.id) {
-        cancelEdit();
+        cancelEditAd();
       }
     } catch (error: any) {
       toast({ title: "Error al Eliminar Anuncio", description: `No se pudo eliminar: ${error.message || 'Error desconocido'}.`, variant: "destructive" });
