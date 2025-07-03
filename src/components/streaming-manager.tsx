@@ -10,14 +10,17 @@ import Hls from 'hls.js';
 import type { StreamingConfig } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
+import { cn } from "@/lib/utils";
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Home, Radio, Trash2, Edit3, XCircle, Link2 } from 'lucide-react';
+import { Loader2, Save, Home, Radio, Trash2, Edit3, XCircle, Link2, ChevronsUpDown, Check } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -74,17 +77,17 @@ export function StreamingManager() {
   
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const activeStream = streams.find(s => s.isActive);
+  
+  const [eventNames, setEventNames] = React.useState<string[]>([]);
+  const [isLoadingEventNames, setIsLoadingEventNames] = React.useState(true);
+  const [isComboboxOpen, setIsComboboxOpen] = React.useState(false);
 
-  // Directly derive the YouTube URL from the active stream in the render cycle.
-  // useMemo ensures this only recalculates when the active stream changes.
   const youtubeEmbedUrl = React.useMemo(() => {
     if (!activeStream?.url_de_streaming) return null;
     return getYoutubeEmbedUrl(activeStream.url_de_streaming);
   }, [activeStream]);
 
 
-  // This useEffect is now only for the HLS player.
-  // It runs when the active stream changes but will only act if it's NOT a YouTube URL.
   React.useEffect(() => {
     let hls: Hls | null = null;
     const videoElement = videoRef.current;
@@ -134,8 +137,30 @@ export function StreamingManager() {
     }
   };
 
+  const fetchEventNames = async () => {
+      setIsLoadingEventNames(true);
+      try {
+        const { data, error } = await supabase
+          .from('eventos_calendario')
+          .select('name');
+
+        if (error) throw error;
+
+        const uniqueNames = Array.from(
+          new Set(data.map(item => item.name).filter(Boolean) as string[])
+        ).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        setEventNames(uniqueNames);
+      } catch (err: any) {
+        toast({ title: "Error al Cargar Nombres de Eventos", description: err.message, variant: "destructive" });
+        setEventNames([]);
+      } finally {
+        setIsLoadingEventNames(false);
+      }
+    };
+
   React.useEffect(() => {
     fetchStreamingConfigs();
+    fetchEventNames();
   }, []);
 
   const resetForm = () => {
@@ -359,11 +384,75 @@ export function StreamingManager() {
                     control={form.control}
                     name="nombre"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Nombre del Stream</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
+                        <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value
+                                  ? eventNames.find(
+                                      (name) => name.toLowerCase() === field.value?.toLowerCase()
+                                    ) || field.value
+                                  : "Selecciona o escribe un nombre"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            <Command>
+                              <CommandInput
+                                placeholder="Busca un nombre..."
+                                value={field.value || ''}
+                                onValueChange={(currentValue) => {
+                                  field.onChange(currentValue);
+                                }}
+                              />
+                              <CommandList>
+                                <CommandEmpty>
+                                  {isLoadingEventNames
+                                    ? "Cargando nombres..."
+                                    : "No se encontraron nombres."
+                                  }
+                                </CommandEmpty>
+                                {!isLoadingEventNames && eventNames.length > 0 && (
+                                  <CommandGroup heading="Nombres de eventos existentes">
+                                    {eventNames.map((name) => (
+                                      <CommandItem
+                                        value={name}
+                                        key={name}
+                                        onSelect={() => {
+                                          form.setValue("nombre", name);
+                                          setIsComboboxOpen(false);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value?.toLowerCase() === name.toLowerCase()
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        {name}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                )}
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormDescription>
+                          Puedes seleccionar un nombre de un evento existente o escribir uno nuevo.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
