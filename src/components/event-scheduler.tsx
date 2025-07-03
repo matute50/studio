@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -19,10 +20,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home, ImageOff } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Loader2, Save, Trash2, CalendarDays, Edit3, ClockIcon, XCircle, Home, ImageOff, Upload, LibraryBig } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 
 const BUCKET_NAME = 'imagenvideos';
@@ -80,6 +82,10 @@ export function EventScheduler() {
   const [eventHour, setEventHour] = React.useState<string>("00");
   const [eventMinute, setEventMinute] = React.useState<string>("00");
 
+  const [isImageGalleryOpen, setIsImageGalleryOpen] = React.useState(false);
+  const [existingImages, setExistingImages] = React.useState<string[]>([]);
+  const [isLoadingExistingImages, setIsLoadingExistingImages] = React.useState(true);
+
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(eventSchema),
@@ -130,8 +136,29 @@ export function EventScheduler() {
     }
   };
 
+  const fetchExistingImages = async () => {
+    setIsLoadingExistingImages(true);
+    try {
+      const { data, error } = await supabase
+        .from('eventos_calendario')
+        .select('imagen')
+        .not('imagen', 'is', null);
+
+      if (error) throw error;
+      
+      const uniqueImages = Array.from(new Set(data.map(item => item.imagen as string)));
+      setExistingImages(uniqueImages);
+
+    } catch (error: any) {
+      console.error("Error fetching existing event images:", error.message);
+    } finally {
+      setIsLoadingExistingImages(false);
+    }
+  };
+
   React.useEffect(() => {
     fetchEvents();
+    fetchExistingImages();
   }, []);
 
   const resetFormAndDateTimePickers = () => {
@@ -242,6 +269,7 @@ export function EventScheduler() {
         });
       }
       fetchEvents();
+      fetchExistingImages();
       resetFormAndDateTimePickers();
     } catch (error: any) {
       toast({
@@ -411,6 +439,16 @@ export function EventScheduler() {
                   render={() => (
                     <FormItem>
                       <FormLabel>Imagen del Evento (Opcional)</FormLabel>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => imageFileRef.current?.click()}>
+                             <Upload className="mr-2 h-4 w-4" />
+                             Subir Archivo
+                           </Button>
+                           <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setIsImageGalleryOpen(true)} disabled={isLoadingExistingImages || existingImages.length === 0}>
+                              {isLoadingExistingImages ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LibraryBig className="mr-2 h-4 w-4" />}
+                             Elegir Existente
+                           </Button>
+                        </div>
                       <FormControl>
                         <Input
                           id="imagen"
@@ -418,7 +456,7 @@ export function EventScheduler() {
                           ref={imageFileRef}
                           accept="image/*"
                           onChange={handleImageFileChange}
-                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                          className="hidden"
                         />
                       </FormControl>
                       {previewImage && (
@@ -426,7 +464,7 @@ export function EventScheduler() {
                           <Image src={previewImage} alt="Vista previa de la imagen" layout="fill" objectFit="contain" data-ai-hint="evento preview" />
                         </div>
                       )}
-                      <FormDescription>Sube una imagen para el evento (máx 5MB).</FormDescription>
+                      <FormDescription>Sube una imagen (máx 5MB) o elige una existente.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -449,7 +487,7 @@ export function EventScheduler() {
           </CardContent>
         </Card>
 
-        <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
+        <div className="lg:col-span-2 space-y-3 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
           <h2 className="text-2xl font-semibold text-foreground mb-4 uppercase">Eventos Programados</h2>
           {isLoadingEvents && (
             <div className="flex justify-center items-center py-10">
@@ -472,15 +510,15 @@ export function EventScheduler() {
             </div>
           )}
           {!isLoadingEvents && !errorLoadingEvents && events.map((event, index) => (
-            <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow flex flex-col">
-              <CardHeader className="pb-3 pt-4 px-4 flex-grow">
-                <CardTitle className="text-lg font-semibold break-words uppercase">
-                   <span className="text-primary mr-2">{index + 1}.</span>
+            <Card key={event.id} className="shadow-md hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-base font-semibold break-words uppercase">
+                  <span className="text-primary mr-2">{index + 1}.</span>
                   {event.name}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pb-3 pt-0 px-4 flex-grow">
-                 <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted mb-3">
+              <CardContent className="pb-2 pt-0 px-3 flex-grow">
+                 <div className="relative w-full aspect-video rounded-md overflow-hidden border bg-muted mb-2">
                   {event.imagen ? (
                     <Image
                       src={event.imagen}
@@ -501,18 +539,60 @@ export function EventScheduler() {
                 </div>
                  <p className="text-xs text-muted-foreground/80 mt-1">Creado: {formatDateTimeForDisplay(event.createdAt)}</p>
               </CardContent>
-              <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-end gap-2 mt-auto">
-                <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-8 px-3 text-xs">
-                  <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Editar
+              <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-3 flex justify-end gap-1.5 mt-auto">
+                <Button variant="outline" size="sm" onClick={() => handleEdit(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Edit3 className="mr-1.5 h-3 w-3" /> Editar
                 </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleDelete(event)} disabled={isSubmitting} className="h-8 px-3 text-xs">
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Eliminar
+                <Button variant="destructive" size="sm" onClick={() => handleDelete(event)} disabled={isSubmitting} className="h-7 px-2.5 text-xs">
+                  <Trash2 className="mr-1.5 h-3 w-3" /> Eliminar
                 </Button>
               </CardFooter>
             </Card>
           ))}
         </div>
       </div>
+
+      <Dialog open={isImageGalleryOpen} onOpenChange={setIsImageGalleryOpen}>
+          <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                  <DialogTitle className="uppercase">Seleccionar una Imagen Existente</DialogTitle>
+                  <DialogDescription>
+                      Haz clic en una imagen para seleccionarla para tu evento.
+                  </DialogDescription>
+              </DialogHeader>
+              {isLoadingExistingImages ? (
+                  <div className="flex justify-center items-center h-[60vh]">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+              ) : existingImages.length > 0 ? (
+                  <ScrollArea className="h-[60vh] -mx-6">
+                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 px-6 py-4">
+                      {existingImages.map((imgUrl, index) => (
+                          <button
+                              key={index}
+                              type="button"
+                              className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring group"
+                              onClick={() => {
+                                  form.setValue('imagen', imgUrl, { shouldValidate: true, shouldDirty: true });
+                                  setPreviewImage(imgUrl);
+                                  setIsImageGalleryOpen(false);
+                              }}
+                          >
+                          <Image src={imgUrl} alt={`Imagen de evento ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="evento galeria" />
+                          </button>
+                      ))}
+                      </div>
+                  </ScrollArea>
+              ) : (
+                  <div className="flex flex-col justify-center items-center text-center py-8 h-[60vh]">
+                    <LibraryBig className="w-16 h-16 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No hay imágenes de eventos anteriores para seleccionar.</p>
+                    <p className="text-sm text-muted-foreground">Sube una imagen nueva para empezar.</p>
+                  </div>
+              )}
+          </DialogContent>
+      </Dialog>
+
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
@@ -535,3 +615,4 @@ export function EventScheduler() {
   );
 }
     
+
