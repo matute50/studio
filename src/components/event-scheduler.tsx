@@ -144,13 +144,21 @@ export function EventScheduler() {
         .select('imagen')
         .not('imagen', 'is', null);
 
-      if (error) throw error;
-      
-      const uniqueImages = Array.from(new Set(data.map(item => item.imagen as string)));
-      setExistingImages(uniqueImages);
-
+      if (error) {
+        if (error.code === '42703' || (error.message && error.message.includes('does not exist'))) {
+          console.warn(
+            `Could not fetch existing images because the 'imagen' column is likely missing from your 'eventos_calendario' table. Please add this column (type: text) to enable the 'Choose Existing Image' feature.`
+          );
+          setExistingImages([]);
+        } else {
+          throw error; // Re-throw other, more critical errors
+        }
+      } else if (data) {
+        const uniqueImages = Array.from(new Set(data.map((item) => (item.imagen as string)).filter(Boolean)));
+        setExistingImages(uniqueImages);
+      }
     } catch (error: any) {
-      console.error("Error fetching existing event images:", error.message);
+      console.error("An unexpected error occurred while fetching existing event images:", error.message);
     } finally {
       setIsLoadingExistingImages(false);
     }
@@ -615,4 +623,3 @@ export function EventScheduler() {
   );
 }
     
-
