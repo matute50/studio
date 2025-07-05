@@ -86,6 +86,7 @@ export function EventScheduler() {
   const [isImageGalleryOpen, setIsImageGalleryOpen] = React.useState(false);
   const [existingImages, setExistingImages] = React.useState<string[]>([]);
   const [isLoadingExistingImages, setIsLoadingExistingImages] = React.useState(true);
+  const [showDeletePastConfirmDialog, setShowDeletePastConfirmDialog] = React.useState(false);
 
 
   const form = useForm<EventFormValues>({
@@ -341,6 +342,34 @@ export function EventScheduler() {
     }
   };
 
+  const handleDeletePastEvents = async () => {
+    setIsSubmitting(true);
+    setShowDeletePastConfirmDialog(false);
+    try {
+        const now = new Date().toISOString();
+        const { error, count } = await supabase
+            .from('eventos_calendario')
+            .delete({ count: 'exact' }) // Get the count of deleted rows
+            .lt('eventDateTime', now);
+
+        if (error) throw error;
+
+        toast({
+            title: "Limpieza Completada",
+            description: `${count || 0} evento${count === 1 ? '' : 's'} pasado${count === 1 ? '' : 's'} ha${count === 1 ? ' sido' : 'n sido'} eliminado${count === 1 ? '' : 's'}.`,
+        });
+        fetchEvents(); // Refresh the list
+    } catch (error: any) {
+        toast({
+            title: "Error al Eliminar Eventos Pasados",
+            description: `No se pudieron eliminar los eventos: ${error.message || 'Error desconocido'}.`,
+            variant: "destructive",
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
   const formatDateTimeForDisplay = (isoDateString?: string) => {
     if (!isoDateString) return 'Fecha no especificada';
     try {
@@ -500,7 +529,18 @@ export function EventScheduler() {
         </Card>
 
         <div className="lg:col-span-2 space-y-3 max-h-[calc(100vh-15rem)] overflow-y-auto pr-2">
-          <h2 className="text-2xl font-semibold text-foreground mb-4 uppercase">Eventos Programados</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold text-foreground uppercase">Eventos Programados</h2>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeletePastConfirmDialog(true)}
+              disabled={isSubmitting}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Borrar Eventos Pasados
+            </Button>
+          </div>
           {isLoadingEvents && (
             <div className="flex justify-center items-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -625,7 +665,27 @@ export function EventScheduler() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={showDeletePastConfirmDialog} onOpenChange={setShowDeletePastConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeaderComponent>
+            <AlertDialogTitleComponent className="uppercase">¿Eliminar todos los eventos pasados?</AlertDialogTitleComponent>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminarán permanentemente todos los eventos cuya fecha sea anterior a la fecha y hora actual.
+            </AlertDialogDescription>
+          </AlertDialogHeaderComponent>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeletePastConfirmDialog(false)} disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePastEvents} disabled={isSubmitting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Sí, Borrar Eventos Pasados
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
+    
+
     
