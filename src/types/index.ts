@@ -62,6 +62,7 @@ export interface StreamingConfig {
   nombre: string;
   url_de_streaming: string;
   isActive: boolean;
+  imagen?: string | null;
   createdAt?: string; 
   updatedAt?: string; 
 }
