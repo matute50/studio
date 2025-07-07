@@ -619,7 +619,7 @@ export function VideoManager() {
                           FORZAR VIDEO
                         </Label>
                         <FormDescription>
-                          Fuerza la reproducción de este video sobre otros.
+                          Fuerza la reproducción de este video al iniciar la pagina.
                         </FormDescription>
                       </div>
                     </FormItem>
@@ -813,3 +813,4 @@ export function VideoManager() {
     </div>
   );
 }
+    
