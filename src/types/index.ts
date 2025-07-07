@@ -42,8 +42,8 @@ export interface VideoItem {
   nombre: string;
   url: string;
   categoria?: string | null;
-  imagen?: string | null; // Added for video thumbnail/image
-  // fecha field removed as per previous instructions, but can be re-added if needed
+  imagen?: string | null;
+  novedad?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -79,4 +79,7 @@ export interface HeaderImageItem {
 export interface StreamVideosToggle {
   id: number;
   stream: boolean;
+  updatedAt?: string;
+  isAuto: boolean;
+  lastChecked?: string;
 }
