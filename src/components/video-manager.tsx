@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff, Upload, LibraryBig, Star } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from "@/components/ui/label";
 import { Badge } from '@/components/ui/badge';
 
 const SUPABASE_TABLE_NAME = 'videos';
@@ -386,7 +387,7 @@ export function VideoManager() {
       </header>
       <div className="mb-6 text-left">
         <Link href="/" passHref legacyBehavior>
-          <Button variant="default" size="sm">
+          <Button variant="default" size="sm" className="text-black">
             <Home className="mr-2 h-4 w-4" />
             Volver al Inicio
           </Button>
