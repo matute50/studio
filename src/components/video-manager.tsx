@@ -22,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff, Upload, LibraryBig, Star } from 'lucide-react';
+import { Loader2, Save, Trash2, Edit3, XCircle, Home, Film, Link2, Tag, ListVideo, ChevronsUpDown, Check, PlusCircle, ImageOff, Upload, LibraryBig, Star, PlayCircle } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ const videoSchema = z.object({
       return true;
     }, { message: "La imagen no debe exceder los 5MB." }),
   novedad: z.boolean().optional(),
+  forzar_video: z.boolean().optional(),
 });
 
 type VideoFormValues = z.infer<typeof videoSchema>;
@@ -111,6 +112,7 @@ export function VideoManager() {
       categoria: '',
       imagen: undefined,
       novedad: false,
+      forzar_video: false,
     },
     mode: "onChange",
   });
@@ -202,7 +204,7 @@ export function VideoManager() {
   }, []);
 
   const resetForm = () => {
-    form.reset({ nombre: '', url: '', categoria: '', imagen: undefined, novedad: false });
+    form.reset({ nombre: '', url: '', categoria: '', imagen: undefined, novedad: false, forzar_video: false });
     setEditingVideoId(null);
     setPreviewImage(null);
     if (imageFileRef.current) {
@@ -279,6 +281,7 @@ export function VideoManager() {
         categoria: categoriaToSave,
         imagen: finalImageUrlForSupabase,
         novedad: data.novedad,
+        forzar_video: data.forzar_video,
         updatedAt: now,
       };
 
@@ -308,7 +311,7 @@ export function VideoManager() {
     } catch (error: any) {
       toast({
         title: "Error al Guardar Video",
-        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Asegúrate de que la columna 'novedad' (tipo boolean) exista en la tabla 'videos'.`,
+        description: `No se pudo guardar: ${error.message || 'Error desconocido'}. Asegúrate de que las columnas 'novedad' y 'forzar_video' (tipo boolean) existan en la tabla 'videos'.`,
         variant: "destructive",
         duration: 10000,
       });
@@ -326,6 +329,7 @@ export function VideoManager() {
       categoria: videoToEdit.categoria || '',
       imagen: videoToEdit.imagen || undefined,
       novedad: videoToEdit.novedad || false,
+      forzar_video: videoToEdit.forzar_video || false,
     });
     setPreviewImage(videoToEdit.imagen || null);
     if (imageFileRef.current) imageFileRef.current.value = "";
@@ -598,6 +602,30 @@ export function VideoManager() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="forzar_video"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          id="forzar-video-checkbox"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="forzar-video-checkbox" className="cursor-pointer">
+                          FORZAR VIDEO
+                        </Label>
+                        <FormDescription>
+                          Fuerza la reproducción de este video sobre otros.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <Button type="submit" variant="destructive" disabled={isSubmitting} className="w-full sm:flex-1">
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -673,13 +701,19 @@ export function VideoManager() {
                     </div>
                   )}
                   <div className="flex-grow">
-                    <CardTitle className="text-md font-semibold break-words flex items-center gap-2">
+                    <CardTitle className="text-md font-semibold break-words flex items-center gap-2 flex-wrap">
                       <span className="text-primary mr-1">{index + 1}.</span>
-                      {video.nombre}
+                      <span>{video.nombre}</span>
                       {video.novedad && (
                         <Badge variant="destructive" className="text-xs px-1.5 py-0.5 h-fit">
                           <Star className="mr-1 h-3 w-3" />
                           NOVEDAD
+                        </Badge>
+                      )}
+                      {video.forzar_video && (
+                        <Badge className="text-xs px-1.5 py-0.5 h-fit bg-blue-600 hover:bg-blue-700 text-white">
+                          <PlayCircle className="mr-1 h-3 w-3" />
+                          FORZADO
                         </Badge>
                       )}
                     </CardTitle>

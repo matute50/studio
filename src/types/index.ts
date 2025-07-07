@@ -44,6 +44,7 @@ export interface VideoItem {
   categoria?: string | null;
   imagen?: string | null;
   novedad?: boolean;
+  forzar_video?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
