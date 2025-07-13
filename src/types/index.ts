@@ -1,4 +1,5 @@
 
+
 export interface NewsArticle {
   id?: string;
   title: string;
@@ -80,5 +81,6 @@ export interface HeaderImageItem {
 export interface StreamVideosToggle {
   id: number;
   stream: boolean;
+  isAuto: boolean;
   updatedAt?: string;
 }
