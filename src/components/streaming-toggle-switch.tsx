@@ -6,64 +6,154 @@ import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, Cloud, Video } from 'lucide-react';
+import Hls from 'hls.js';
 
-// This component assumes a table 'stream-videos' with:
-// - id: number (Primary Key)
-// - stream: boolean
-// It operates on a single row where id = 1 for this global setting.
-const SETTING_ID = 1; 
+const SETTING_ID = 1;
 
 export function StreamingToggleSwitch() {
   const [isStreaming, setIsStreaming] = React.useState<boolean>(true);
+  const [isAuto, setIsAuto] = React.useState<boolean>(false);
   const [isLoading, setIsLoading] = React.useState<boolean>(true);
+  const [isChecking, setIsChecking] = React.useState<boolean>(false);
   const { toast } = useToast();
 
   React.useEffect(() => {
-    const fetchStreamingStatus = async () => {
-      setIsLoading(true);
+    let intervalId: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    const checkStreamStatus = async (activeUrl: string): Promise<boolean> => {
       try {
-        const { data, error } = await supabase
+        const url = new URL(activeUrl);
+        const isYoutube = url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be');
+
+        if (isYoutube) {
+          const res = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(activeUrl)}&format=json`);
+          return res.ok;
+        } else if (url.pathname.endsWith('.m3u8')) {
+          return new Promise((resolve) => {
+            const hls = new Hls();
+            hls.loadSource(activeUrl);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              hls.destroy();
+              resolve(true);
+            });
+            hls.on(Hls.Events.ERROR, (event, data) => {
+              if (data.fatal) {
+                hls.destroy();
+                resolve(false);
+              }
+            });
+             setTimeout(() => {
+              hls.destroy();
+              resolve(false); 
+            }, 5000);
+          });
+        }
+        const response = await fetch(activeUrl, { method: 'HEAD', mode: 'no-cors' });
+        return response.ok || response.type === 'opaque';
+      } catch (e) {
+        return false;
+      }
+    };
+    
+    const fetchAndCheck = async () => {
+      if (!isMounted) return;
+      setIsChecking(true);
+
+      try {
+        const { data: config, error: configError } = await supabase
           .from('stream-videos')
-          .select('stream')
+          .select('isAuto, stream')
           .eq('id', SETTING_ID)
           .single();
 
-        if (error) {
-            if (error.code === 'PGRST116') { // "pg_listen: no rows found"
-                console.warn(`Setting for stream-videos with id=${SETTING_ID} not found. Creating with default value (true).`);
-                const { data: newData, error: insertError } = await supabase
-                    .from('stream-videos')
-                    .insert({ id: SETTING_ID, stream: true })
-                    .select()
-                    .single();
-                if (insertError) throw insertError;
-                setIsStreaming(newData.stream);
-            } else {
-                throw error;
-            }
-        } else if (data) {
-            setIsStreaming(data.stream);
+        if (configError && configError.code !== 'PGRST116') throw configError;
+
+        const currentIsAuto = config?.isAuto ?? false;
+        if (isMounted) setIsAuto(currentIsAuto);
+        
+        if (currentIsAuto) {
+          const { data: activeStreamData, error: activeStreamError } = await supabase
+            .from('streaming')
+            .select('url')
+            .eq('isActive', true)
+            .single();
+
+          if (activeStreamError) {
+            if (isMounted) await updateStreamSetting(false, 'No active stream URL found.');
+            return;
+          }
+
+          const isLive = await checkStreamStatus(activeStreamData.url);
+          if (isMounted) await updateStreamSetting(isLive, `Stream is ${isLive ? 'live' : 'offline'}.`);
+        } else {
+           if (config && isMounted) {
+               setIsStreaming(config.stream);
+           }
         }
       } catch (error: any) {
-        toast({
-          title: "Error al Cargar Estado",
-          description: `No se pudo obtener el estado de Streaming/Videos: ${error.message}. Asegúrate que la tabla 'stream-videos' (con columnas 'id' (number) y 'stream' (boolean)) exista.`,
-          variant: "destructive",
-          duration: 10000,
-        });
+        if (isMounted) {
+            toast({
+              title: "Error checking stream status",
+              description: error.message,
+              variant: "destructive",
+            });
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+            setIsLoading(false);
+            setIsChecking(false);
+        }
       }
     };
 
-    fetchStreamingStatus();
+    const updateStreamSetting = async (newStatus: boolean, reason: string) => {
+        const { data: currentData, error: fetchError } = await supabase
+            .from('stream-videos')
+            .select('stream')
+            .eq('id', SETTING_ID)
+            .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            console.error("Error fetching current stream status before update:", fetchError.message);
+            return;
+        }
+
+        const currentStatus = currentData?.stream;
+        if (currentStatus === newStatus) {
+            console.log(`No update needed. Status is already ${newStatus}. Reason: ${reason}`);
+            setIsStreaming(currentStatus ?? newStatus);
+            return;
+        }
+        
+      const { error } = await supabase
+        .from('stream-videos')
+        .update({ stream: newStatus })
+        .eq('id', SETTING_ID);
+      
+      if (error) {
+        toast({ title: "Auto-Update Failed", description: error.message, variant: "destructive" });
+      } else {
+        if (isMounted) setIsStreaming(newStatus);
+        console.log(`Stream status auto-updated to ${newStatus}. Reason: ${reason}`);
+      }
+    };
+    
+    fetchAndCheck();
+    intervalId = setInterval(fetchAndCheck, 20000);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [toast]);
 
-  const handleToggleChange = async (newStatus: boolean) => {
+
+  const handleManualToggleChange = async (newStatus: boolean) => {
     setIsLoading(true);
     const previousStatus = isStreaming;
-    setIsStreaming(newStatus); // Optimistic UI update
+    setIsStreaming(newStatus); 
 
     try {
       const { error } = await supabase
@@ -78,7 +168,6 @@ export function StreamingToggleSwitch() {
         description: `El modo se ha cambiado a ${newStatus ? 'STREAMING' : 'VIDEOS'}.`,
       });
     } catch (error: any) {
-        // Revert optimistic update on error
         setIsStreaming(previousStatus);
         toast({
           title: "Error al Actualizar",
@@ -90,6 +179,7 @@ export function StreamingToggleSwitch() {
     }
   };
 
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center space-x-2 h-10 w-full">
@@ -100,21 +190,29 @@ export function StreamingToggleSwitch() {
   }
 
   return (
-    <div className="flex items-center justify-center space-x-4 p-2 bg-muted/50 rounded-lg w-full">
-      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${!isStreaming ? 'text-green-600' : 'text-muted-foreground'}`}>
-        VIDEOS
-      </Label>
-      <Switch
-        id="streaming-toggle"
-        checked={isStreaming}
-        onCheckedChange={handleToggleChange}
-        disabled={isLoading}
-        aria-label="Cambiar entre modo Streaming y Videos"
-        className="w-[60px] h-[32px] data-[state=checked]:bg-destructive data-[state=unchecked]:bg-green-600 [&>span]:w-6 [&>span]:h-6 [&>span]:data-[state=checked]:translate-x-[28px]"
-      />
-      <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${isStreaming ? 'text-destructive' : 'text-muted-foreground'}`}>
-        STREAMING
-      </Label>
+    <div className="flex flex-col items-center justify-center space-y-2 w-full">
+        <div className="flex items-center justify-center space-x-4 p-2 bg-muted/50 rounded-lg w-full">
+          <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${!isStreaming ? 'text-green-600' : 'text-muted-foreground'}`}>
+            VIDEOS
+          </Label>
+          <Switch
+            id="streaming-toggle"
+            checked={isStreaming}
+            onCheckedChange={handleManualToggleChange}
+            disabled={isLoading || isAuto || isChecking}
+            aria-label="Cambiar entre modo Streaming y Videos"
+            className="w-[60px] h-[32px] data-[state=checked]:bg-destructive data-[state=unchecked]:bg-green-600 [&>span]:w-6 [&>span]:h-6 [&>span]:data-[state=checked]:translate-x-[28px]"
+          />
+          <Label htmlFor="streaming-toggle" className={`font-semibold transition-colors text-lg ${isStreaming ? 'text-destructive' : 'text-muted-foreground'}`}>
+            STREAMING
+          </Label>
+        </div>
+        {isAuto && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground p-1.5 bg-background rounded-md border">
+                {isChecking ? <Loader2 className="h-3 w-3 animate-spin"/> : <Cloud className="h-3 w-3 text-blue-500" />}
+                <span>Modo automático activado</span>
+            </div>
+        )}
     </div>
   );
 }
