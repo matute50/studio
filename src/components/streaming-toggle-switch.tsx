@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import type { StreamVideosToggle } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 const SETTING_ID = 1;
 const CHECK_INTERVAL = 15000; // 15 seconds
@@ -82,23 +83,30 @@ export function StreamingToggleSwitch() {
 
     const isLive = activeStreamData ? await checkStreamStatus(activeStreamData.url) : false;
 
-    if (settings && settings.stream !== isLive) {
-      const { error: updateError } = await supabase
-        .from('stream-videos')
-        .update({ stream: isLive })
-        .eq('id', SETTING_ID);
+    setSettings(prevSettings => {
+      if (prevSettings && prevSettings.stream !== isLive) {
+        const updateStreamStatus = async () => {
+          const { error: updateError } = await supabase
+            .from('stream-videos')
+            .update({ stream: isLive })
+            .eq('id', SETTING_ID);
 
-      if (updateError) {
-        console.error("Error updating stream status automatically:", updateError.message);
-      } else {
-        setSettings(prev => prev ? { ...prev, stream: isLive } : null);
-        toast({
-          title: "Modo Automático",
-          description: `El estado del stream se actualizó a ${isLive ? 'STREAMING' : 'VIDEOS'}.`,
-        });
+          if (updateError) {
+            console.error("Error updating stream status automatically:", updateError.message);
+          } else {
+            toast({
+              title: "Modo Automático",
+              description: `El estado del stream se actualizó a ${isLive ? 'STREAMING' : 'VIDEOS'}.`,
+            });
+          }
+        };
+        updateStreamStatus();
+        return { ...prevSettings, stream: isLive };
       }
-    }
-  }, [settings, toast]);
+      return prevSettings;
+    });
+
+  }, [toast]);
 
 
   React.useEffect(() => {
@@ -198,12 +206,16 @@ export function StreamingToggleSwitch() {
             STREAMING
           </Label>
         </div>
-        <div className="flex items-center space-x-2 border border-dashed p-2 rounded-md">
+        <div className={cn(
+            "flex items-center space-x-2 border border-dashed p-2 rounded-md transition-colors",
+            settings.isAuto && "bg-destructive text-destructive-foreground border-destructive-foreground/50"
+          )}>
             <Checkbox 
                 id="auto-mode" 
                 checked={settings.isAuto}
                 onCheckedChange={(checked) => handleAutoToggleChange(Boolean(checked))}
                 disabled={isLoading || isUpdatingManual}
+                className={cn(settings.isAuto && "border-destructive-foreground data-[state=checked]:bg-destructive-foreground data-[state=checked]:text-destructive")}
             />
             <Label htmlFor="auto-mode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Automático
