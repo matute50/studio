@@ -10,6 +10,7 @@ import Link from 'next/link';
 import type { TextoTicker } from '@/types';
 
 import { supabase } from '@/lib/supabaseClient';
+import { cn } from "@/lib/utils";
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,15 +18,24 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader as AlertDialogHeaderComponent, AlertDialogTitle as AlertDialogTitleComponent } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, Home } from 'lucide-react';
+import { Loader2, Send, Trash2, ListCollapse, MessageSquareText, Edit3, Home, Check } from 'lucide-react';
 import { Alert, AlertDescription as ShadcnAlertDescription, AlertTitle as ShadcnAlertTitle } from "@/components/ui/alert";
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
+const colorOptions = [
+    { name: 'Blanco', value: 'white', class: 'bg-white border border-gray-400' },
+    { name: 'Negro', value: 'black', class: 'bg-black' },
+    { name: 'Gris', value: 'gray', class: 'bg-gray-500' },
+    { name: 'Rojo', value: 'red', class: 'bg-red-500' },
+    { name: 'Azul', value: 'blue', class: 'bg-blue-500' },
+    { name: 'Celeste', value: 'sky', class: 'bg-sky-500' },
+];
+
 const textoTickerSchema = z.object({
-  text: z.string()
-    .min(3, { message: "El texto debe tener al menos 3 caracteres." }),
+  text: z.string().min(3, { message: "El texto debe tener al menos 3 caracteres." }),
+  color: z.string().optional(),
 });
 
 type TextoTickerFormValues = z.infer<typeof textoTickerSchema>;
@@ -43,11 +53,11 @@ export function TextTickerEditor() {
   const [isTogglingActive, setIsTogglingActive] = React.useState(false);
   const editorFormCardRef = React.useRef<HTMLDivElement>(null);
 
-
   const form = useForm<TextoTickerFormValues>({
     resolver: zodResolver(textoTickerSchema),
     defaultValues: {
       text: '',
+      color: 'white',
     },
     mode: "onChange",
   });
@@ -91,7 +101,7 @@ export function TextTickerEditor() {
       if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
         description = "Error CRÍTICO: La tabla 'textos_ticker' NO EXISTE o no es accesible en Supabase. Por favor, VERIFICA URGENTEMENTE tu configuración de tabla 'textos_ticker' y sus políticas RLS en el panel de Supabase.";
       } else if (errorCode === '42703' || (errorMessageLowerCase.includes('column') && errorMessageLowerCase.includes('does not exist'))) {
-        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento, o 'isActive', 'updatedAt') NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes. Error original: ${error.message || 'Desconocido'}`;
+        description = `Error de Base de Datos: Una columna requerida (por ejemplo, 'createdAt' para ordenamiento, o 'isActive', 'updatedAt', 'color') NO EXISTE en la tabla 'textos_ticker'. Por favor, verifica la ESTRUCTURA de tu tabla 'textos_ticker' en el panel de Supabase y asegúrate de que todas las columnas esperadas estén presentes. Error original: ${error.message || 'Desconocido'}`;
       } else if (error?.message) {
         description = `No se pudieron cargar los textos: ${error.message}. Asegúrate de que la tabla 'textos_ticker' exista y tenga RLS configuradas correctamente. Revisa los logs del panel de Supabase.`;
       }
@@ -113,7 +123,7 @@ export function TextTickerEditor() {
   }, []);
 
   const resetForm = () => {
-    form.reset({ text: '' });
+    form.reset({ text: '', color: 'white' });
     setEditingTextId(null);
   };
 
@@ -124,6 +134,7 @@ export function TextTickerEditor() {
     if (editingTextId) {
       const textToUpdate: Partial<TextoTicker> = { 
         text: data.text,
+        color: data.color,
         updatedAt: now,
       };
       try {
@@ -162,6 +173,7 @@ export function TextTickerEditor() {
     } else {
       const textToInsert: Omit<TextoTicker, 'id' | 'updatedAt'> = { 
         text: data.text,
+        color: data.color,
         createdAt: now,
         isActive: false, 
       };
@@ -209,7 +221,10 @@ export function TextTickerEditor() {
       return;
     }
     setEditingTextId(textItem.id);
-    form.setValue('text', textItem.text);
+    form.reset({
+      text: textItem.text,
+      color: textItem.color || 'white',
+    });
     editorFormCardRef.current?.scrollIntoView({ behavior: 'smooth' });
     toast({ title: "Modo Edición", description: `Editando texto: "${textItem.text.substring(0,30)}..."` });
   };
@@ -336,6 +351,40 @@ export function TextTickerEditor() {
                     </FormItem>
                   )}
                 />
+                
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color del Texto</FormLabel>
+                      <FormControl>
+                        <div className="flex flex-wrap gap-3 items-center">
+                          {colorOptions.map((color) => (
+                            <button
+                              type="button"
+                              key={color.value}
+                              onClick={() => field.onChange(color.value)}
+                              className={cn(
+                                "h-8 w-8 rounded-full cursor-pointer transition-transform duration-150 ease-in-out hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ring",
+                                color.class,
+                                { 'ring-2 ring-offset-2 ring-ring scale-110': field.value === color.value }
+                              )}
+                              aria-label={`Seleccionar color ${color.name}`}
+                              title={color.name}
+                            >
+                              {field.value === color.value && (
+                                <Check className={cn("h-5 w-5", color.value === 'white' ? 'text-black' : 'text-white')} />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button 
                     type="submit" 
@@ -347,6 +396,11 @@ export function TextTickerEditor() {
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
                     {editingTextId ? "Actualizar Texto" : "Guardar Texto"}
                   </Button>
+                   {editingTextId && (
+                    <Button type="button" variant="outline" onClick={cancelEdit} className="w-full sm:w-auto" size="sm" disabled={isSubmitting}>
+                      Cancelar Edición
+                    </Button>
+                  )}
                 </div>
               </form>
             </Form>
@@ -377,65 +431,74 @@ export function TextTickerEditor() {
               </div>
             )}
             {!isLoadingTexts && !errorLoadingTexts && texts.length > 0 && (
-                texts.map((textItem, index) => (
-                  <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow mb-4">
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-grow">
-                            <div className="flex items-center gap-2 mb-1">
-                              {textItem.isActive ? (
-                                <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
-                                  <span className="font-semibold mr-1">{index + 1}.</span>Activo
-                                </Badge>
-                              ) : (
-                                 <span className="text-sm font-semibold text-primary">{index + 1}.</span>
-                              )}
+                texts.map((textItem, index) => {
+                  const selectedColor = colorOptions.find(c => c.value === textItem.color);
+                  return (
+                    <Card key={textItem.id} className="shadow-md hover:shadow-lg transition-shadow mb-4">
+                      <CardHeader className="pb-2 pt-3 px-4">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="flex-grow">
+                              <div className="flex items-center gap-2 mb-1">
+                                {textItem.isActive ? (
+                                  <Badge className="whitespace-nowrap bg-green-600 text-primary-foreground text-xs px-1.5 py-0.5">
+                                    <span className="font-semibold mr-1">{index + 1}.</span>Activo
+                                  </Badge>
+                                ) : (
+                                  <span className="text-sm font-semibold text-primary">{index + 1}.</span>
+                                )}
+                                {selectedColor && (
+                                    <div 
+                                      className={cn("h-4 w-4 rounded-full", selectedColor.class)} 
+                                      title={`Color: ${selectedColor.name}`}
+                                    />
+                                )}
+                              </div>
+                              <p className="text-sm text-foreground break-words whitespace-pre-wrap">
+                                {textItem.text}
+                              </p>
+                          </div>
+                          <div className="flex flex-col items-end space-y-1 flex-shrink-0">
+                            <div className="flex items-center space-x-1">
+                              <Label htmlFor={`active-switch-${textItem.id}`} className="text-xs text-muted-foreground">
+                                Activo
+                              </Label>
+                              <Switch
+                                id={`active-switch-${textItem.id}`}
+                                checked={!!textItem.isActive}
+                                onCheckedChange={(isChecked) => {
+                                  if (textItem.id) {
+                                    handleActiveToggle(textItem.id, isChecked);
+                                  } else {
+                                    toast({title: "Error", description: "Falta ID del texto para cambiar estado.", variant: "destructive"});
+                                  }
+                                }}
+                                disabled={isTogglingActive || isSubmitting}
+                                className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                                aria-label={`Marcar texto como activo`}
+                              />
                             </div>
-                            <p className="text-sm text-foreground break-words whitespace-pre-wrap">
-                              {textItem.text}
-                            </p>
-                        </div>
-                        <div className="flex flex-col items-end space-y-1 flex-shrink-0">
-                          <div className="flex items-center space-x-1">
-                            <Label htmlFor={`active-switch-${textItem.id}`} className="text-xs text-muted-foreground">
-                              Activo
-                            </Label>
-                            <Switch
-                              id={`active-switch-${textItem.id}`}
-                              checked={!!textItem.isActive}
-                              onCheckedChange={(isChecked) => {
-                                if (textItem.id) {
-                                  handleActiveToggle(textItem.id, isChecked);
-                                } else {
-                                  toast({title: "Error", description: "Falta ID del texto para cambiar estado.", variant: "destructive"});
-                                }
-                              }}
-                              disabled={isTogglingActive || isSubmitting}
-                              className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-                              aria-label={`Marcar texto como activo`}
-                            />
                           </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                    <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
-                        <div>
-                          <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
-                          {textItem.updatedAt && textItem.updatedAt !== textItem.createdAt && (
-                            <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(textItem.updatedAt)})</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-black">
-                            <Edit3 className="mr-1 h-3 w-3" /> Editar
-                          </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
-                            <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                          </Button>
-                        </div>
-                    </CardFooter>
-                  </Card>
-                ))
+                      </CardHeader>
+                      <CardFooter className="text-xs text-muted-foreground pt-1 pb-2 px-4 flex justify-between items-center bg-muted/30">
+                          <div>
+                            <p className="text-[0.7rem] leading-tight">Creado: {formatDate(textItem.createdAt)}</p>
+                            {textItem.updatedAt && textItem.updatedAt !== textItem.createdAt && (
+                              <p className="text-[0.7rem] leading-tight text-muted-foreground/80">(Editado: {formatDate(textItem.updatedAt)})</p>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => textItem.id && handleEdit(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-black">
+                              <Edit3 className="mr-1 h-3 w-3" /> Editar
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(textItem)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2 py-1 text-xs">
+                              <Trash2 className="mr-1 h-3 w-3" /> Eliminar
+                            </Button>
+                          </div>
+                      </CardFooter>
+                    </Card>
+                  )
+                })
             )}
           </div>
         </div>

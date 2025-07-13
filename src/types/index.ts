@@ -18,6 +18,7 @@ export interface TextoTicker {
   createdAt?: string;
   updatedAt?: string;
   isActive?: boolean;
+  color?: string;
 }
 
 export interface CalendarEvent {
