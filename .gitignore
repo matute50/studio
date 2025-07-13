@@ -1,16 +1,67 @@
-<<<<<<< HEAD
-# Contenido de TU versión del .gitignore (la que está en tu PC)
-# Por ejemplo:
+# Node.js
 node_modules/
-.env.local
-.next/
-=======
-# Contenido de la versión que viene de GitHub (origin/main)
-# Por ejemplo:
-# Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,node
-# Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,node
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-### VisualStudioCode ###
-.vscode/*
-... etc ...
->>>>>>> origin/main
+# Next.js
+.next/
+out/
+.vercel/
+
+# Firebase
+.firebase/
+firestore-debug.log
+storage-debug.log
+
+# Supabase
+.supabase/
+
+# Vercel
+.vercel
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Logs
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# Builds
+dist/
+build/
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*.local
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# IDE/Editor settings
+.idea/
+*.swp
+
+# Nix (si usás dev.nix)
+.idx/
+*.nix
+result
+.cache/
+
+# Otros
+*.tgz
+*.zip
+*.bak
+*.tmp
+*.tsbuildinfo
