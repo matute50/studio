@@ -61,7 +61,7 @@ export interface BannerItem {
 export interface StreamingConfig {
   id?: string; 
   nombre: string;
-  url_de_streaming: string;
+  url: string;
   isActive: boolean;
   imagen?: string | null;
   createdAt?: string; 

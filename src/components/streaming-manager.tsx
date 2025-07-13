@@ -33,7 +33,7 @@ const IMAGE_VIDEOS_BUCKET_NAME = 'imagenvideos';
 
 const streamingSchema = z.object({
   nombre: z.string().min(1, { message: "El nombre no puede estar vacío." }).max(100, { message: "El nombre no puede exceder los 100 caracteres." }),
-  url_de_streaming: z.string().url({ message: "Por favor, introduce una URL válida." })
+  url: z.string().url({ message: "Por favor, introduce una URL válida." })
     .min(1, { message: "La URL no puede estar vacía." }),
   imagen: z.any().optional()
     .refine(value => {
@@ -106,8 +106,8 @@ export function StreamingManager() {
 
 
   const youtubeEmbedUrl = React.useMemo(() => {
-    if (!activeStream?.url_de_streaming) return null;
-    return getYoutubeEmbedUrl(activeStream.url_de_streaming);
+    if (!activeStream?.url) return null;
+    return getYoutubeEmbedUrl(activeStream.url);
   }, [activeStream]);
 
 
@@ -118,10 +118,10 @@ export function StreamingManager() {
     if (activeStream && !youtubeEmbedUrl && videoElement) {
         if (Hls.isSupported()) {
             hls = new Hls();
-            hls.loadSource(activeStream.url_de_streaming);
+            hls.loadSource(activeStream.url);
             hls.attachMedia(videoElement);
         } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            videoElement.src = activeStream.url_de_streaming;
+            videoElement.src = activeStream.url;
         }
     }
 
@@ -137,7 +137,7 @@ export function StreamingManager() {
     resolver: zodResolver(streamingSchema),
     defaultValues: {
       nombre: '',
-      url_de_streaming: '',
+      url: '',
       imagen: undefined,
     },
     mode: "onChange",
@@ -220,7 +220,7 @@ export function StreamingManager() {
   }, []);
 
   const resetForm = () => {
-    form.reset({ nombre: '', url_de_streaming: '', imagen: undefined });
+    form.reset({ nombre: '', url: '', imagen: undefined });
     setEditingStreamId(null);
     setPreviewImage(null);
     if (imageFileRef.current) {
@@ -318,7 +318,7 @@ export function StreamingManager() {
     try {
       const payload: Partial<StreamingConfig> = {
           nombre: data.nombre,
-          url_de_streaming: data.url_de_streaming,
+          url: data.url,
           imagen: finalImageUrl,
           updatedAt: now,
       };
@@ -364,7 +364,7 @@ export function StreamingManager() {
     setEditingStreamId(stream.id);
     form.reset({
       nombre: stream.nombre,
-      url_de_streaming: stream.url_de_streaming,
+      url: stream.url,
       imagen: stream.imagen || undefined,
     });
     setPreviewImage(stream.imagen || null);
@@ -560,7 +560,7 @@ export function StreamingManager() {
                   />
                   <FormField
                     control={form.control}
-                    name="url_de_streaming"
+                    name="url"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>URL de Streaming</FormLabel>
@@ -674,8 +674,8 @@ export function StreamingManager() {
                             </CardTitle>
                             <div className="flex items-center text-sm text-muted-foreground mt-1">
                                 <Link2 className="mr-2 h-4 w-4 shrink-0" />
-                                <a href={stream.url_de_streaming} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
-                                    {stream.url_de_streaming}
+                                <a href={stream.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
+                                    {stream.url}
                                 </a>
                             </div>
                         </div>
