@@ -525,5 +525,3 @@ export function TextTickerEditor() {
     </div>
   );
 }
-    
-    
