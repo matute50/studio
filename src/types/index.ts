@@ -81,6 +81,4 @@ export interface StreamVideosToggle {
   id: number;
   stream: boolean;
   updatedAt?: string;
-  isAuto: boolean;
-  lastChecked?: string;
 }
