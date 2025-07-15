@@ -24,15 +24,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Configuración para manejar Handlebars (nueva ubicación)
+  serverExternalPackages: ["handlebars"],
   experimental: {
-    serverExternalPackages: ["handlebars"],
     allowedDevOrigins: [
       "https://6000-firebase-studio-*.cloudworkstations.dev",
     ],
   },
-  webpack: (config: any) => {
+  webpack: (config) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
+      // Ignorar módulos opcionales que causan problemas
       '@opentelemetry/winston-transport': false,
       '@opentelemetry/exporter-jaeger': false,
       '@genkit-ai/firebase': false,
