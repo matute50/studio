@@ -14,7 +14,6 @@ import { Loader2, Upload, ImageOff, Trash2 } from "lucide-react";
 
 const BUCKET_NAME = "header-images";
 
-// Schema actualizado para manejar mejor el tipo File
 const formSchema = z.object({
   title: z.string().min(3, {
     message: "El título debe tener al menos 3 caracteres",
@@ -22,7 +21,7 @@ const formSchema = z.object({
   imageUrl: z.string().min(1, {
     message: "Debes subir una imagen",
   }),
-  imageFile: z.instanceof(File).optional().nullable(), // Añadido .nullable()
+  imageFile: z.instanceof(File).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -38,23 +37,38 @@ export function HeaderImageManager() {
     defaultValues: {
       title: "",
       imageUrl: "",
-      imageFile: null, // Valor inicial como null
+      imageFile: undefined,
     },
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      form.setValue("imageFile", file, { shouldValidate: true });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      form.setValue("imageFile", undefined, { shouldValidate: false }); // Usar undefined en lugar de null
-      setPreviewImage(null);
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Tipo de archivo no válido",
+        description: "Por favor, sube un archivo de imagen",
+        variant: "destructive",
+      });
+      return;
     }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Archivo demasiado grande",
+        description: "El tamaño máximo permitido es 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    form.setValue("imageFile", file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPreviewImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -63,8 +77,15 @@ export function HeaderImageManager() {
       let imageUrl = values.imageUrl;
 
       if (values.imageFile) {
+        const reader = new FileReader();
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(values.imageFile!);
+        });
+
         const { url, errorMessage } = await uploadImageToSupabase(
-          values.imageFile,
+          imageBase64,
           BUCKET_NAME
         );
 
@@ -85,8 +106,8 @@ export function HeaderImageManager() {
       if (error) throw error;
 
       toast({
-        title: "Imagen guardada",
-        description: "La imagen del header se ha actualizado correctamente",
+        title: "¡Éxito!",
+        description: "La imagen del encabezado se ha guardado correctamente",
       });
     } catch (error: any) {
       toast({
@@ -146,15 +167,15 @@ export function HeaderImageManager() {
                     accept="image/*"
                     onChange={handleFileChange}
                   />
-                  {previewImage && (
+                  {(previewImage || form.watch("imageUrl")) && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
                       onClick={() => {
                         setPreviewImage(null);
-                        form.setValue("imageUrl", "");
-                        form.setValue("imageFile", undefined);
+                        form.resetField("imageUrl");
+                        form.resetField("imageFile");
                         if (fileInputRef.current) {
                           fileInputRef.current.value = "";
                         }
@@ -178,7 +199,7 @@ export function HeaderImageManager() {
                 className="object-cover"
                 onError={() => {
                   setPreviewImage(null);
-                  form.setValue("imageUrl", "");
+                  form.resetField("imageUrl");
                 }}
               />
             </div>
