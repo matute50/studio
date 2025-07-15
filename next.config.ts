@@ -1,5 +1,6 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
     remotePatterns: [
@@ -24,30 +25,26 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverComponentsExternalPackages: ["handlebars"],
+    serverExternalPackages: ["handlebars"],
     allowedDevOrigins: [
       "https://6000-firebase-studio-*.cloudworkstations.dev",
     ],
   },
-  webpack: (config) => {
+  webpack: (config: any) => {
     config.resolve.fallback = {
       ...config.resolve.fallback,
-      // Ignora estos módulos opcionales
       '@opentelemetry/winston-transport': false,
       '@opentelemetry/exporter-jaeger': false,
       '@genkit-ai/firebase': false,
     };
-
     return config;
   },
   typescript: {
-    // Habilita la verificación de tipos en producción
     ignoreBuildErrors: false,
   },
   eslint: {
-    // Habilita ESLint en producción
     ignoreDuringBuilds: false,
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
