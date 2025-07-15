@@ -14,6 +14,7 @@ import { Loader2, Upload, ImageOff, Trash2 } from "lucide-react";
 
 const BUCKET_NAME = "header-images";
 
+// Schema actualizado para manejar mejor el tipo File
 const formSchema = z.object({
   title: z.string().min(3, {
     message: "El título debe tener al menos 3 caracteres",
@@ -21,7 +22,7 @@ const formSchema = z.object({
   imageUrl: z.string().min(1, {
     message: "Debes subir una imagen",
   }),
-  imageFile: z.instanceof(File).optional(),
+  imageFile: z.instanceof(File).optional().nullable(), // Añadido .nullable()
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -37,6 +38,7 @@ export function HeaderImageManager() {
     defaultValues: {
       title: "",
       imageUrl: "",
+      imageFile: null, // Valor inicial como null
     },
   });
 
@@ -50,7 +52,8 @@ export function HeaderImageManager() {
       };
       reader.readAsDataURL(file);
     } else {
-      form.setValue("imageFile", null, { shouldValidate: false });
+      form.setValue("imageFile", undefined, { shouldValidate: false }); // Usar undefined en lugar de null
+      setPreviewImage(null);
     }
   };
 
@@ -59,7 +62,6 @@ export function HeaderImageManager() {
     try {
       let imageUrl = values.imageUrl;
 
-      // Si hay un archivo nuevo, lo subimos
       if (values.imageFile) {
         const { url, errorMessage } = await uploadImageToSupabase(
           values.imageFile,
@@ -72,7 +74,6 @@ export function HeaderImageManager() {
         imageUrl = url;
       }
 
-      // Guardamos en la base de datos
       const { error } = await supabase
         .from("header_images")
         .upsert({
@@ -153,6 +154,7 @@ export function HeaderImageManager() {
                       onClick={() => {
                         setPreviewImage(null);
                         form.setValue("imageUrl", "");
+                        form.setValue("imageFile", undefined);
                         if (fileInputRef.current) {
                           fileInputRef.current.value = "";
                         }
