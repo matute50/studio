@@ -101,14 +101,14 @@ export function HeaderImageManager() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      form.setValue('imageFile', file, { shouldValidate: true });
+      form.setValue('imageFile', undefined, { shouldValidate: true });
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewImage(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else {
-      form.setValue('imageFile', undefined, { shouldValidate: true });
+form.setValue('imageFile', null, { shouldValidate: true });
       setPreviewImage(null);
     }
   };
