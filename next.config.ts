@@ -1,64 +1,53 @@
-import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
-  // Configuración de TypeScript (mejor alternativa que ignorar errores)
-  typescript: {
-    tsconfigPath: './tsconfig.json', // Asegura usar tu tsconfig
-  },
-
-  // Configuración de ESLint (mejor que ignorar)
-  eslint: {
-    dirs: ['src'], // Solo verifica la carpeta src
-  },
-
-  // Configuración de imágenes
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'placehold.co',
+        protocol: "https",
+        hostname: "otwvfihzaznyjvjtkvvd.supabase.co",
+        port: "",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: 'otwvfihzaznyjvjtkvvd.supabase.co',
+        protocol: "https",
+        hostname: "img.youtube.com",
+        port: "",
+        pathname: "/vi/**",
       },
       {
-        protocol: 'https',
-        hostname: 'img.youtube.com',
-        pathname: '/vi/**',
+        protocol: "https",
+        hostname: "placehold.co",
+        port: "",
+        pathname: "/**",
       },
     ],
-    // Optimización para Vercel
-    formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60, // 60 segundos de caché mínimo
   },
-
-  // Configuración experimental
   experimental: {
+    serverComponentsExternalPackages: ["handlebars"],
     allowedDevOrigins: [
-      "https://6000-firebase-studio-*.cloudworkstations.dev", // Usa wildcard para todos los subdominios
-    ],
-    // Mejoras para el rendimiento en Vercel
-    optimizePackageImports: [
-      '@supabase/supabase-js',
-      '@genkit-ai/core',
+      "https://6000-firebase-studio-*.cloudworkstations.dev",
     ],
   },
-
-  // Configuración para Webpack (soluciona problemas con Handlebars y OpenTelemetry)
   webpack: (config) => {
-    // Ignora módulos opcionales no críticos
     config.resolve.fallback = {
       ...config.resolve.fallback,
+      // Ignora estos módulos opcionales
+      '@opentelemetry/winston-transport': false,
       '@opentelemetry/exporter-jaeger': false,
       '@genkit-ai/firebase': false,
     };
 
     return config;
   },
-
-  // Configuración para el entorno de Vercel
-  output: process.env.VERCEL ? 'standalone' : undefined, // Optimiza para serverless
+  typescript: {
+    // Habilita la verificación de tipos en producción
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    // Habilita ESLint en producción
+    ignoreDuringBuilds: false,
+  },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
