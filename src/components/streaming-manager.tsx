@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -104,34 +103,31 @@ export function StreamingManager() {
   const [existingImages, setExistingImages] = React.useState<string[]>([]);
   const [isLoadingExistingImages, setIsLoadingExistingImages] = React.useState(true);
 
-
   const youtubeEmbedUrl = React.useMemo(() => {
     if (!activeStream?.url) return null;
     return getYoutubeEmbedUrl(activeStream.url);
   }, [activeStream]);
-
 
   React.useEffect(() => {
     let hls: Hls | null = null;
     const videoElement = videoRef.current;
     
     if (activeStream && !youtubeEmbedUrl && videoElement) {
-        if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(activeStream.url);
-            hls.attachMedia(videoElement);
-        } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            videoElement.src = activeStream.url;
-        }
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(activeStream.url);
+        hls.attachMedia(videoElement);
+      } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+        videoElement.src = activeStream.url;
+      }
     }
 
     return () => {
-        if (hls) {
-            hls.destroy();
-        }
+      if (hls) {
+        hls.destroy();
+      }
     };
   }, [activeStream, youtubeEmbedUrl]);
-
 
   const form = useForm<StreamingFormValues>({
     resolver: zodResolver(streamingSchema),
@@ -163,55 +159,55 @@ export function StreamingManager() {
   };
 
   const fetchEventNames = async () => {
-      setIsLoadingEventNames(true);
-      try {
-        const { data, error } = await supabase
-          .from('eventos_calendario')
-          .select('name');
+    setIsLoadingEventNames(true);
+    try {
+      const { data, error } = await supabase
+        .from('eventos_calendario')
+        .select('name');
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const uniqueNames = Array.from(
-          new Set(data.map(item => item.name).filter(Boolean) as string[])
-        ).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-        setEventNames(uniqueNames);
-      } catch (err: any) {
-        toast({ title: "Error al Cargar Nombres de Eventos", description: err.message, variant: "destructive" });
-        setEventNames([]);
-      } finally {
-        setIsLoadingEventNames(false);
-      }
-    };
+      const uniqueNames = Array.from(
+        new Set(data.map(item => item.name).filter(Boolean) as string[])
+      ).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      setEventNames(uniqueNames);
+    } catch (err: any) {
+      toast({ title: "Error al Cargar Nombres de Eventos", description: err.message, variant: "destructive" });
+      setEventNames([]);
+    } finally {
+      setIsLoadingEventNames(false);
+    }
+  };
 
-    const fetchExistingImages = async () => {
-        setIsLoadingExistingImages(true);
-        try {
-          const { data, error } = await supabase
-            .from('eventos_calendario')
-            .select('imagen')
-            .not('imagen', 'is', null);
-    
-          if (error) {
-            if (error.code === '42703' || (error.message && error.message.includes('does not exist'))) {
-              console.warn(`Could not fetch existing images because the 'imagen' column is likely missing from 'eventos_calendario'.`);
-              setExistingImages([]);
-            } else {
-              throw error;
-            }
-          } else if (data) {
-            const uniqueImages = Array.from(new Set(data.map((item) => (item.imagen as string)).filter(Boolean)));
-            setExistingImages(uniqueImages);
-          }
-        } catch (error: any) {
-          toast({
-            title: "Error al Cargar Imágenes Existentes",
-            description: `No se pudieron cargar las imágenes de los eventos: ${error.message}`,
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoadingExistingImages(false);
+  const fetchExistingImages = async () => {
+    setIsLoadingExistingImages(true);
+    try {
+      const { data, error } = await supabase
+        .from('eventos_calendario')
+        .select('imagen')
+        .not('imagen', 'is', null);
+
+      if (error) {
+        if (error.code === '42703' || (error.message && error.message.includes('does not exist'))) {
+          console.warn(`Could not fetch existing images because the 'imagen' column is likely missing from 'eventos_calendario'.`);
+          setExistingImages([]);
+        } else {
+          throw error;
         }
-      };
+      } else if (data) {
+        const uniqueImages = Array.from(new Set(data.map((item) => (item.imagen as string)).filter(Boolean)));
+        setExistingImages(uniqueImages);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error al Cargar Imágenes Existentes",
+        description: `No se pudieron cargar las imágenes de los eventos: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingExistingImages(false);
+    }
+  };
 
   React.useEffect(() => {
     fetchStreamingConfigs();
@@ -224,7 +220,7 @@ export function StreamingManager() {
     setEditingStreamId(null);
     setPreviewImage(null);
     if (imageFileRef.current) {
-        imageFileRef.current.value = "";
+      imageFileRef.current.value = "";
     }
   };
 
@@ -236,7 +232,7 @@ export function StreamingManager() {
         return;
       }
       if (file.size > 5 * 1024 * 1024) { 
-         toast({ title: "Archivo muy grande", description: "La imagen debe ser menor a 5MB.", variant: "destructive" });
+        toast({ title: "Archivo muy grande", description: "La imagen debe ser menor a 5MB.", variant: "destructive" });
         return;
       }
       form.setValue('imagen', file, { shouldValidate: true });
@@ -255,30 +251,29 @@ export function StreamingManager() {
     const errorMessageLowerCase = errorMessageOriginal.toLowerCase();
 
     if (errorCode === 'PGRST116' || (errorMessageLowerCase.includes('relation') && errorMessageLowerCase.includes('does not exist')) || (error?.status === 404 && (errorMessageLowerCase.includes('not found') || errorMessageLowerCase.includes('no existe')))) {
-        description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${errorMessageOriginal || 'Desconocido'}`;
+      description = `Error CRÍTICO (Supabase): La tabla 'streaming' NO EXISTE o no es accesible. Por favor, VERIFICA la tabla y sus políticas RLS. Error original: ${errorMessageOriginal || 'Desconocido'}`;
     } else if (errorMessageLowerCase.includes("record") && errorMessageLowerCase.includes("has no field")) {
-        const fieldMatch = errorMessageLowerCase.match(/field "([^"]+)"/);
-        const problematicFieldInTrigger = fieldMatch && fieldMatch[1] ? fieldMatch[1] : "desconocido";
-        
-        let suggestedFix = `como por ejemplo "${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si su columna es camelCase, o usando comillas dobles como NEW."${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si es sensible a mayúsculas/minúsculas`;
-        if (problematicFieldInTrigger === 'updatedat') { // Specific check for 'updatedat'
-            suggestedFix = "la columna podría llamarse 'updatedAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"updatedAt\" (con comillas dobles)";
-        } else if (problematicFieldInTrigger === 'createdat') {
-             suggestedFix = "la columna podría llamarse 'createdAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"createdAt\" (con comillas dobles)";
-        }
+      const fieldMatch = errorMessageLowerCase.match(/field "([^"]+)"/);
+      const problematicFieldInTrigger = fieldMatch && fieldMatch[1] ? fieldMatch[1] : "desconocido";
+      
+      let suggestedFix = `como por ejemplo "${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si su columna es camelCase, o usando comillas dobles como NEW."${problematicFieldInTrigger.charAt(0).toUpperCase() + problematicFieldInTrigger.slice(1)}" si es sensible a mayúsculas/minúsculas`;
+      if (problematicFieldInTrigger === 'updatedat') {
+        suggestedFix = "la columna podría llamarse 'updatedAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"updatedAt\" (con comillas dobles)";
+      } else if (problematicFieldInTrigger === 'createdat') {
+        suggestedFix = "la columna podría llamarse 'createdAt' (camelCase). El trigger SQL DEBE referenciarla como NEW.\"createdAt\" (con comillas dobles)";
+      }
 
-
-        description = `Error de Base de Datos (TRIGGER SQL): Un trigger en la tabla 'streaming' está intentando acceder al campo '${problematicFieldInTrigger}' en el registro (NEW o OLD), pero este campo no existe como se esperaba en el trigger.
-        - CAUSA MÁS PROBABLE: El trigger SQL está usando un nombre de campo incorrecto o con un casing incorrecto (ej: '${problematicFieldInTrigger}'). ${suggestedFix}.
-        - SOLUCIÓN: Revise el código SQL de TODOS los triggers en la tabla 'streaming'. Si su columna tiene un nombre sensible a mayúsculas/minúsculas (ej: 'updatedAt'), el trigger DEBE referenciarla como NEW."updatedAt" o OLD."updatedAt" (con comillas dobles).
-        Error original completo: "${errorMessageOriginal || 'Desconocido'}"`;
+      description = `Error de Base de Datos (TRIGGER SQL): Un trigger en la tabla 'streaming' está intentando acceder al campo '${problematicFieldInTrigger}' en el registro (NEW o OLD), pero este campo no existe como se esperaba en el trigger.
+      - CAUSA MÁS PROBABLE: El trigger SQL está usando un nombre de campo incorrecto o con un casing incorrecto (ej: '${problematicFieldInTrigger}'). ${suggestedFix}.
+      - SOLUCIÓN: Revise el código SQL de TODOS los triggers en la tabla 'streaming'. Si su columna tiene un nombre sensible a mayúsculas/minúsculas (ej: 'updatedAt'), el trigger DEBE referenciarla como NEW."updatedAt" o OLD."updatedAt" (con comillas dobles).
+      Error original completo: "${errorMessageOriginal || 'Desconocido'}"`;
     } else if (errorCode === '42703' && errorMessageLowerCase.includes("column") && errorMessageLowerCase.includes("does not exist")) {
-        const colMatch = errorMessageOriginal.match(/column "([^"]*)"/i);
-        const missingColumn = colMatch && colMatch[1] ? colMatch[1] : "desconocida";
-        const tableName = "streaming";
-        description = `Error de Base de Datos: La columna '${missingColumn}' NO EXISTE en la tabla '${tableName}'. Por favor, verifica la estructura de tu tabla y asegúrate de que exista (ej: 'imagen', 'updatedAt'). Error: ${errorMessageOriginal || 'Desconocido'}`;
+      const colMatch = errorMessageOriginal.match(/column "([^"]*)"/i);
+      const missingColumn = colMatch && colMatch[1] ? colMatch[1] : "desconocida";
+      const tableName = "streaming";
+      description = `Error de Base de Datos: La columna '${missingColumn}' NO EXISTE en la tabla '${tableName}'. Por favor, verifica la estructura de tu tabla y asegúrate de que exista (ej: 'imagen', 'updatedAt'). Error: ${errorMessageOriginal || 'Desconocido'}`;
     } else if (errorCode === '23505' && errorMessageLowerCase.includes('unique constraint')) {
-        description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${errorMessageOriginal}`;
+      description = `Error al guardar: Ya existe una configuración con un valor único similar (ej. ID o un campo con restricción UNIQUE). Error: ${errorMessageOriginal}`;
     } else if (errorMessageOriginal) {
       description = `Error al ${actionDescription}: ${errorMessageOriginal}.`;
     }
@@ -286,7 +281,7 @@ export function StreamingManager() {
       title: `Error en Streaming`,
       description: `${description} Revisa la consola y los logs de Supabase.`,
       variant: "destructive",
-      duration: 20000, // Increased duration for complex error messages
+      duration: 20000,
     });
   };
 
@@ -296,31 +291,31 @@ export function StreamingManager() {
     let finalImageUrl: string | null = null;
 
     if (data.imagen instanceof File) {
-        toast({ title: "Subiendo imagen...", description: "Por favor espera." });
-        const dataUri = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = error => reject(error);
-            reader.readAsDataURL(data.imagen as File);
-        });
+      toast({ title: "Subiendo imagen...", description: "Por favor espera." });
+      const dataUri = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(data.imagen as File);
+      });
 
-        const { url: uploadedUrl, errorMessage } = await uploadImageToSupabase(dataUri, IMAGE_VIDEOS_BUCKET_NAME);
-        if (errorMessage) {
-            toast({ title: "Error al subir imagen", description: errorMessage, variant: "destructive" });
-            setIsSubmitting(false);
-            return;
-        }
-        finalImageUrl = uploadedUrl;
+      const { url: uploadedUrl, errorMessage } = await uploadImageToSupabase(dataUri, IMAGE_VIDEOS_BUCKET_NAME);
+      if (errorMessage) {
+        toast({ title: "Error al subir imagen", description: errorMessage, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      finalImageUrl = uploadedUrl;
     } else if (typeof data.imagen === 'string' && data.imagen.startsWith('http')) {
-        finalImageUrl = data.imagen;
+      finalImageUrl = data.imagen;
     }
 
     try {
       const payload: Partial<StreamingConfig> = {
-          nombre: data.nombre,
-          url: data.url,
-          imagen: finalImageUrl,
-          updatedAt: now,
+        nombre: data.nombre,
+        url: data.url,
+        imagen: finalImageUrl,
+        updatedAt: now,
       };
 
       if (editingStreamId) {
@@ -334,9 +329,9 @@ export function StreamingManager() {
         toast({ title: "¡Configuración Actualizada!", description: `La configuración de streaming "${updatedData?.nombre}" ha sido actualizada.` });
       } else {
         const insertPayload: Omit<StreamingConfig, 'id'> = {
-            ...payload,
-            isActive: false,
-            createdAt: now,
+          ...payload,
+          isActive: false,
+          createdAt: now,
         } as Omit<StreamingConfig, 'id'>;
 
         const { data: insertedData, error: insertError } = await supabase
@@ -358,8 +353,8 @@ export function StreamingManager() {
 
   const handleEdit = (stream: StreamingConfig) => {
     if (!stream.id) {
-        toast({ title: "Error de Edición", description: "El stream no tiene un ID válido.", variant: "destructive"});
-        return;
+      toast({ title: "Error de Edición", description: "El stream no tiene un ID válido.", variant: "destructive"});
+      return;
     }
     setEditingStreamId(stream.id);
     form.reset({
@@ -380,8 +375,8 @@ export function StreamingManager() {
 
   const handleDelete = (stream: StreamingConfig) => {
     if (!stream.id) {
-        toast({ title: "Error de Eliminación", description: "El stream no tiene un ID válido.", variant: "destructive"});
-        return;
+      toast({ title: "Error de Eliminación", description: "El stream no tiene un ID válido.", variant: "destructive"});
+      return;
     }
     setStreamToDelete(stream);
     setShowDeleteConfirmDialog(true);
@@ -417,7 +412,7 @@ export function StreamingManager() {
       if (newActiveState) {
         const { error: deactivateError } = await supabase
           .from('streaming')
-          .update({ isActive: false, updatedAt: now })  // Frontend sends "updatedAt"
+          .update({ isActive: false, updatedAt: now })
           .neq('id', streamId)
           .eq('isActive', true);
 
@@ -429,7 +424,7 @@ export function StreamingManager() {
 
       const { error: toggleError } = await supabase
         .from('streaming')
-        .update({ isActive: newActiveState, updatedAt: now }) // Frontend sends "updatedAt"
+        .update({ isActive: newActiveState, updatedAt: now })
         .eq('id', streamId);
 
       if (toggleError) throw toggleError;
@@ -571,18 +566,18 @@ export function StreamingManager() {
                       </FormItem>
                     )}
                   />
-                   <FormField
+                  <FormField
                     control={form.control}
                     name="imagen"
                     render={() => (
                       <FormItem>
                         <FormLabel>Imagen del Stream (Opcional)</FormLabel>
                         <div className="flex flex-col sm:flex-row gap-2">
-                           <Button type="button" variant="default" className="w-full sm:w-auto text-black" onClick={() => imageFileRef.current?.click()}>
-                             <Upload className="mr-2 h-4 w-4" />
-                             Subir Archivo
-                           </Button>
-                           <Button
+                          <Button type="button" variant="default" className="w-full sm:w-auto text-black" onClick={() => imageFileRef.current?.click()}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Subir Archivo
+                          </Button>
+                          <Button
                             type="button"
                             className="w-full sm:w-auto bg-primary/70 hover:bg-primary/80 text-black"
                             onClick={() => setIsImageGalleryOpen(true)}
@@ -656,71 +651,71 @@ export function StreamingManager() {
               {!isLoading && !errorLoading && streams.map((stream, index) => (
                 <Card key={stream.id} className={`shadow-md hover:shadow-lg transition-shadow mb-4 ${stream.isActive ? 'border-destructive border-2' : ''}`}>
                   <CardHeader className="pb-2 pt-3 px-4 flex flex-row items-start gap-3">
-                     <div className="relative w-20 h-14 rounded-md overflow-hidden border bg-muted flex-shrink-0">
+                    <div className="relative w-20 h-14 rounded-md overflow-hidden border bg-muted flex-shrink-0">
                       {stream.imagen ? (
-                          <Image src={stream.imagen} alt={`Imagen para ${stream.nombre}`} layout="fill" objectFit="cover" data-ai-hint="stream thumbnail"/>
+                        <Image src={stream.imagen} alt={`Imagen para ${stream.nombre}`} layout="fill" objectFit="cover" data-ai-hint="stream thumbnail"/>
                       ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-muted">
-                              <ImageOff className="w-8 h-8 text-muted-foreground" />
-                          </div>
+                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                          <ImageOff className="w-8 h-8 text-muted-foreground" />
+                        </div>
                       )}
                     </div>
 
                     <div className="flex-grow flex justify-between items-start">
-                        <div>
-                            <CardTitle className="text-lg font-semibold break-words uppercase">
-                                <span className="text-primary mr-2">{index + 1}.</span>
-                                {stream.nombre}
-                            </CardTitle>
-                            <div className="flex items-center text-sm text-muted-foreground mt-1">
-                                <Link2 className="mr-2 h-4 w-4 shrink-0" />
-                                <a href={stream.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
-                                    {stream.url}
-                                </a>
-                            </div>
+                      <div>
+                        <CardTitle className="text-lg font-semibold break-words uppercase">
+                          <span className="text-primary mr-2">{index + 1}.</span>
+                          {stream.nombre}
+                        </CardTitle>
+                        <div className="flex items-center text-sm text-muted-foreground mt-1">
+                          <Link2 className="mr-2 h-4 w-4 shrink-0" />
+                          <a href={stream.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all truncate">
+                            {stream.url}
+                          </a>
                         </div>
+                      </div>
 
-                        <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
-                            {stream.isActive && (
-                            <Badge className="whitespace-nowrap bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5">Activo</Badge>
-                            )}
-                            <div className="flex items-center space-x-1">
-                            <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
-                                Activar
-                            </Label>
-                            <Switch
-                                id={`active-switch-${stream.id}`}
-                                checked={!!stream.isActive} 
-                                onCheckedChange={(isChecked) => {
-                                if (stream.id) {
-                                    handleActiveToggle(stream.id, isChecked);
-                                } else {
-                                    toast({title: "Error", description: "Falta ID del stream para cambiar estado.", variant: "destructive"});
-                                }
-                                }}
-                                disabled={isTogglingActive || isSubmitting}
-                                className="data-[state=checked]:bg-destructive data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-                                aria-label={`Activar stream ${stream.nombre}`}
-                            />
-                            </div>
+                      <div className="flex flex-col items-end space-y-1 flex-shrink-0 ml-2">
+                        {stream.isActive && (
+                          <Badge className="whitespace-nowrap bg-destructive text-destructive-foreground text-xs px-1.5 py-0.5">Activo</Badge>
+                        )}
+                        <div className="flex items-center space-x-1">
+                          <Label htmlFor={`active-switch-${stream.id}`} className="text-xs text-muted-foreground">
+                            Activar
+                          </Label>
+                          <Switch
+                            id={`active-switch-${stream.id}`}
+                            checked={!!stream.isActive} 
+                            onCheckedChange={(isChecked) => {
+                              if (stream.id) {
+                                handleActiveToggle(stream.id, isChecked);
+                              } else {
+                                toast({title: "Error", description: "Falta ID del stream para cambiar estado.", variant: "destructive"});
+                              }
+                            }}
+                            disabled={isTogglingActive || isSubmitting}
+                            className="data-[state=checked]:bg-destructive data-[state=unchecked]:bg-input h-5 w-9 [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+                            aria-label={`Activar stream ${stream.nombre}`}
+                          />
                         </div>
+                      </div>
                     </div>
                   </CardHeader>
                   
                   <CardFooter className="text-xs text-muted-foreground pt-1 pb-3 px-4 flex justify-between items-center bg-muted/30">
-                     <div>
-                        <p className="text-xs text-muted-foreground/80">Creado: {formatDate(stream.createdAt)}</p>
-                        {stream.updatedAt && stream.createdAt !== stream.updatedAt && (
-                            <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(stream.updatedAt)}</p>
-                        )}
+                    <div>
+                      <p className="text-xs text-muted-foreground/80">Creado: {formatDate(stream.createdAt)}</p>
+                      {stream.updatedAt && stream.createdAt !== stream.updatedAt && (
+                        <p className="text-xs text-muted-foreground/70">Actualizado: {formatDate(stream.updatedAt)}</p>
+                      )}
                     </div>
                     <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-black">
+                      <Button size="sm" onClick={() => handleEdit(stream)} disabled={isSubmitting || isTogglingActive} className="h-7 px-2.5 text-xs bg-green-500 hover:bg-green-600 text-black">
                         <Edit3 className="mr-1 h-3 w-3" /> Editar
-                        </Button>
-                        <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(stream)} disabled={isSubmitting || isTogglingActive || stream.isActive} className="h-7 px-2.5 text-xs">
                         <Trash2 className="mr-1 h-3 w-3" /> Eliminar
-                        </Button>
+                      </Button>
                     </div>
                   </CardFooter>
                 </Card>
@@ -731,90 +726,89 @@ export function StreamingManager() {
 
         {/* Columna Derecha: Reproductor de Video */}
         <div className="lg:col-span-2">
-            {activeStream && (
-                <Card className="shadow-xl lg:sticky lg:top-8 bg-muted/30">
-                    <CardHeader>
-                    <CardTitle className="uppercase">Reproductor de Prueba (Stream Activo)</CardTitle>
-                    <CardDescription>
-                        Reproduciendo: <span className="font-semibold text-primary">{activeStream.nombre}</span>
-                    </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                    <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
-                        {youtubeEmbedUrl ? (
-                            <iframe
-                                key={activeStream.id}
-                                src={youtubeEmbedUrl}
-                                title="YouTube video player"
-                                frameBorder="0"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                allowFullScreen
-                                className="w-full h-full"
-                            ></iframe>
-                        ) : (
-                            <video
-                                ref={videoRef}
-                                key={activeStream.id}
-                                id="streaming-player"
-                                controls
-                                autoPlay
-                                muted
-                                playsInline
-                                width="100%"
-                                className="w-full h-full"
-                            >
-                                Tu navegador no soporta la etiqueta de video para reproducir este stream.
-                            </video>
-                        )}
-                    </div>
-                    </CardContent>
-                </Card>
-            )}
+          {activeStream && (
+            <Card className="shadow-xl lg:sticky lg:top-8 bg-muted/30">
+              <CardHeader>
+                <CardTitle className="uppercase">Reproductor de Prueba (Stream Activo)</CardTitle>
+                <CardDescription>
+                  Reproduciendo: <span className="font-semibold text-primary">{activeStream.nombre}</span>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="aspect-video w-full bg-black rounded-md overflow-hidden border">
+                  {youtubeEmbedUrl ? (
+                    <iframe
+                      key={activeStream.id}
+                      src={youtubeEmbedUrl}
+                      title="YouTube video player"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="w-full h-full"
+                    ></iframe>
+                  ) : (
+                    <video
+                      ref={videoRef}
+                      key={activeStream.id}
+                      id="streaming-player"
+                      controls
+                      autoPlay
+                      muted
+                      playsInline
+                      width="100%"
+                      className="w-full h-full"
+                    >
+                      Tu navegador no soporta la etiqueta de video para reproducir este stream.
+                    </video>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
-       <Dialog open={isImageGalleryOpen} onOpenChange={setIsImageGalleryOpen}>
-          <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                  <DialogTitle className="uppercase">Seleccionar una Imagen Existente</DialogTitle>
-                  <DialogDescription>
-                      Haz clic en una imagen para seleccionarla para tu stream. Estas imágenes provienen de eventos guardados.
-                  </DialogDescription>
-              </DialogHeader>
-              {isLoadingExistingImages ? (
-                  <div className="flex justify-center items-center h-[60vh]">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-              ) : existingImages.length > 0 ? (
-                  <ScrollArea className="h-[60vh] -mx-6">
-                      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 px-6 py-4">
-                      {existingImages.map((imgUrl, index) => (
-                          <button
-                              key={index}
-                              type="button"
-                              className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring group"
-                              onClick={() => {
-                                  form.setValue('imagen', imgUrl, { shouldValidate: true, shouldDirty: true });
-                                  setPreviewImage(imgUrl);
-                                  setIsImageGalleryOpen(false);
-                                  if (imageFileRef.current) imageFileRef.current.value = "";
-                              }}
-                          >
-                          <Image src={imgUrl} alt={`Imagen de evento ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="stream galeria"/>
-                          </button>
-                      ))}
-                      </div>
-                  </ScrollArea>
-              ) : (
-                  <div className="flex flex-col justify-center items-center text-center py-8 h-[60vh]">
-                    <LibraryBig className="w-16 h-16 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No hay imágenes de eventos anteriores para seleccionar.</p>
-                    <p className="text-sm text-muted-foreground">Sube una imagen nueva o crea un evento con imagen para empezar.</p>
-                  </div>
-              )}
-          </DialogContent>
+      <Dialog open={isImageGalleryOpen} onOpenChange={setIsImageGalleryOpen}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="uppercase">Seleccionar una Imagen Existente</DialogTitle>
+            <DialogDescription>
+              Haz clic en una imagen para seleccionarla para tu stream. Estas imágenes provienen de eventos guardados.
+            </DialogDescription>
+          </DialogHeader>
+          {isLoadingExistingImages ? (
+            <div className="flex justify-center items-center h-[60vh]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : existingImages.length > 0 ? (
+            <ScrollArea className="h-[60vh] -mx-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 px-6 py-4">
+                {existingImages.map((imgUrl, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className="relative aspect-square w-full rounded-md overflow-hidden border-2 border-transparent hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring group"
+                    onClick={() => {
+                      form.setValue('imagen', imgUrl, { shouldValidate: true, shouldDirty: true });
+                      setPreviewImage(imgUrl);
+                      setIsImageGalleryOpen(false);
+                      if (imageFileRef.current) imageFileRef.current.value = "";
+                    }}
+                  >
+                    <Image src={imgUrl} alt={`Imagen de evento ${index + 1}`} layout="fill" objectFit="cover" className="transition-transform group-hover:scale-105" data-ai-hint="stream galeria"/>
+                  </button>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="flex flex-col justify-center items-center text-center py-8 h-[60vh]">
+              <LibraryBig className="w-16 h-16 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No hay imágenes de eventos anteriores para seleccionar.</p>
+              <p className="text-sm text-muted-foreground">Sube una imagen nueva o crea un evento con imagen para empezar.</p>
+            </div>
+          )}
+        </DialogContent>
       </Dialog>
-
 
       <AlertDialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
         <AlertDialogContent>
