@@ -325,6 +325,37 @@ export function NewsEditor() {
           title: "¡Artículo Guardado!",
           description: `Tu artículo "${insertedData?.title || ''}" ha sido guardado.`,
         });
+
+        // Disparar la automatización de redes sociales sin esperar a que termine
+        fetch('/api/post-social', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(insertedData),
+        })
+        .then(async (res) => {
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.message || 'Respuesta no fue OK');
+          }
+          return res.json();
+        })
+        .then(data => {
+          console.log('Respuesta de la API de post-social:', data.message);
+          toast({
+            title: "Automatización Social",
+            description: "Se ha iniciado la publicación en redes sociales.",
+          });
+        })
+        .catch(error => {
+          console.error("Error al llamar a la API de post-social:", error);
+          toast({
+            title: "Error en Automatización Social",
+            description: `No se pudo iniciar la publicación: ${error.message}`,
+            variant: "destructive",
+          });
+        });
       }
       fetchArticles(); 
       resetFormAndPreview(); 
